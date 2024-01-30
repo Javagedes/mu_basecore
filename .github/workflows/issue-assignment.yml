@@ -18,4 +18,9 @@ on:
 
 jobs:
   apply:
+
+    permissions:
+      contents: read
+      issues: write
+
     uses: microsoft/mu_devops/.github/workflows/IssueAssignment.yml@v9.0.1
