@@ -25,26 +25,26 @@ Abstract:
 
 EFI_STATUS
 GetVariableFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   );
 
 EFI_STATUS
 GetNextVariableNameFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   );
 
 EFI_STATUS
 SetVariableFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   );
 
 //
@@ -53,88 +53,88 @@ SetVariableFuncTest (
 
 EFI_STATUS
 GetVariableFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 GetNextVariableNameFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub2 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub3 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub4 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub5 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub6 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL   *RecoveryLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 EFI_STATUS
 SetVariableFuncTestSub7 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL   *RecoveryLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   );
 
 #if (EFI_SPECIFICATION_VERSION >= 0x00020000)
 EFI_STATUS
 QueryVariableInfoFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   );
 
 //
-// QueryVariableInfo must succeed with a valid Attributes and
+// QueryVariableInfo must succeed with a valid Attributes and 
 // return the proper value when it is in Boot time
 //
 EFI_STATUS
 QueryVariableInfoFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib,
-  IN EFI_HANDLE                          SupportHandle
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib,
+  IN EFI_HANDLE                           SupportHandle
   );
 
 #endif
@@ -159,10 +159,10 @@ QueryVariableInfoFuncTestSub1 (
  */
 EFI_STATUS
 GetVariableFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   )
 {
   EFI_STATUS                          Status;
@@ -180,7 +180,7 @@ GetVariableFuncTest (
              &RecoveryLib,
              &LoggingLib
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR(Status)) {
     return Status;
   }
 
@@ -197,6 +197,7 @@ GetVariableFuncTest (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  TDS 4.2 - Entry point for RT->GetNextVariableName() Function Test.
  *  @param This             A pointer to the EFI_BB_TEST_PROTOCOL instance.
@@ -208,10 +209,10 @@ GetVariableFuncTest (
  */
 EFI_STATUS
 GetNextVariableNameFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   )
 {
   EFI_STATUS                          Status;
@@ -229,7 +230,7 @@ GetNextVariableNameFuncTest (
              &RecoveryLib,
              &LoggingLib
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR(Status)) {
     return Status;
   }
 
@@ -246,6 +247,7 @@ GetNextVariableNameFuncTest (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  TDS 4.3 - Entry point for RT->SetVariable() Function Test.
  *  @param This             A pointer to the EFI_BB_TEST_PROTOCOL instance.
@@ -257,10 +259,10 @@ GetNextVariableNameFuncTest (
  */
 EFI_STATUS
 SetVariableFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   )
 {
   EFI_STATUS                          Status;
@@ -268,7 +270,6 @@ SetVariableFuncTest (
   EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib;
   EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib;
   EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib;
-
   // UINTN                               RecoveryDataSize;
   // UINT8                               *RecoveryData;
 
@@ -281,7 +282,7 @@ SetVariableFuncTest (
              &RecoveryLib,
              &LoggingLib
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR(Status)) {
     return Status;
   }
 
@@ -368,6 +369,7 @@ SetVariableFuncTest (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  GetVariable when the variable exists.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -379,22 +381,22 @@ SetVariableFuncTest (
  */
 EFI_STATUS
 GetVariableFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -434,7 +436,7 @@ GetVariableFuncTestSub1 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -455,13 +457,13 @@ GetVariableFuncTestSub1 (
       OldTpl = gtBS->RaiseTPL (TplArray[Index]);
 
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       NULL,                      // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     NULL,                        // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       gtBS->RestoreTPL (OldTpl);
 
@@ -469,8 +471,7 @@ GetVariableFuncTestSub1 (
       // Check results
       //
       if ((Status   == EFI_SUCCESS) &&
-          (DataSize == 10))
-      {
+          (DataSize == 10         )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -495,8 +496,7 @@ GetVariableFuncTestSub1 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     Status,
-                     EFI_SUCCESS
+                     Status,      EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -504,10 +504,8 @@ GetVariableFuncTestSub1 (
                      EFI_VERBOSE_LEVEL_DEFAULT,
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     DataSize,    10,
+                     Data[0],     0
                      );
 
       //
@@ -516,23 +514,22 @@ GetVariableFuncTestSub1 (
       OldTpl = gtBS->RaiseTPL (TplArray[Index]);
 
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       gtBS->RestoreTPL (OldTpl);
 
       //
       // Check results
       //
-      if ((Status     == EFI_SUCCESS) &&
+      if ((Status     == EFI_SUCCESS              ) &&
           (Attributes == AttributesArray[SubIndex]) &&
-          (DataSize   == 10))
-      {
+          (DataSize   == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -557,8 +554,7 @@ GetVariableFuncTestSub1 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     Status,
-                     EFI_SUCCESS
+                     Status,      EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -567,12 +563,9 @@ GetVariableFuncTestSub1 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     Attributes,  AttributesArray[SubIndex],
+                     DataSize,    10,
+                     Data[0],     0
                      );
 
       //
@@ -605,6 +598,7 @@ GetVariableFuncTestSub1 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  GetNextVariableName when the next variable exists.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -616,23 +610,23 @@ GetVariableFuncTestSub1 (
  */
 EFI_STATUS
 GetNextVariableNameFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINTN               VariableNameSize;
-  CHAR16              VariableName[MAX_BUFFER_SIZE];
-  EFI_GUID            VendorGuid;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINTN                 VariableNameSize;
+  CHAR16                VariableName[MAX_BUFFER_SIZE];
+  EFI_GUID              VendorGuid;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -672,7 +666,7 @@ GetNextVariableNameFuncTestSub1 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -691,27 +685,26 @@ GetNextVariableNameFuncTestSub1 (
       // Walk through the entire variable list
       //
       VariableName[0] = L'\0';
-      Result          = EFI_TEST_ASSERTION_FAILED;
+      Result = EFI_TEST_ASSERTION_FAILED;
 
       while (TRUE) {
         OldTpl = gtBS->RaiseTPL (TplArray[Index]);
 
         VariableNameSize = MAX_BUFFER_SIZE * sizeof (CHAR16);
-        Status           = RT->GetNextVariableName (
-                                 &VariableNameSize, // VariableNameSize
-                                 VariableName,      // VariableName
-                                 &VendorGuid        // VendorGuid
-                                 );
+        Status = RT->GetNextVariableName (
+                       &VariableNameSize,         // VariableNameSize
+                       VariableName,              // VariableName
+                       &VendorGuid                // VendorGuid
+                       );
 
         gtBS->RestoreTPL (OldTpl);
 
-        if (EFI_ERROR (Status)) {
+        if (EFI_ERROR(Status)) {
           break;
         }
 
         if ((SctStrCmp (VariableName, L"TestVariable")       == 0) &&
-            (SctCompareGuid (&VendorGuid, &gTestVendor1Guid) == 0))
-        {
+            (SctCompareGuid (&VendorGuid, &gTestVendor1Guid) == 0)) {
           Result = EFI_TEST_ASSERTION_PASSED;
           break;
         }
@@ -763,6 +756,7 @@ GetNextVariableNameFuncTestSub1 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  SetVariable when the variable does not exist.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -774,25 +768,25 @@ GetNextVariableNameFuncTestSub1 (
  */
 EFI_STATUS
 SetVariableFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_STATUS          ReturnedStatus;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINTN               DataSize2;
-  UINT8               Data2[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_STATUS            ReturnedStatus;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINTN                 DataSize2;
+  UINT8                 Data2[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -832,7 +826,7 @@ SetVariableFuncTestSub1 (
                      20,                        // DataSize
                      Data2                      // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -870,14 +864,14 @@ SetVariableFuncTestSub1 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -896,14 +890,14 @@ SetVariableFuncTestSub1 (
       // Get the variable with GUID2 to check results
       //
       DataSize2 = MAX_BUFFER_SIZE;
-      Status    = RT->GetVariable (
-                        L"TestVariable",          // VariableName
-                        &gTestVendor2Guid,        // VendorGuid
-                        NULL,                     // Attributes
-                        &DataSize2,               // DataSize
-                        Data2                     // Data
-                        );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor2Guid,           // VendorGuid
+                     NULL,                        // Attributes
+                     &DataSize2,                  // DataSize
+                     Data2                        // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -921,11 +915,10 @@ SetVariableFuncTestSub1 (
       //
       // Check the results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
+      if ((ReturnedStatus == EFI_SUCCESS              ) &&
           (Attributes     == AttributesArray[SubIndex]) &&
-          (DataSize       == 10) &&
-          (DataSize2      == 20))
-      {
+          (DataSize       == 10                       ) &&
+          (DataSize2      == 20                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -957,8 +950,7 @@ SetVariableFuncTestSub1 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -967,12 +959,9 @@ SetVariableFuncTestSub1 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     Attributes,        AttributesArray[SubIndex],
+                     DataSize,          10,
+                     Data[0],           0
                      );
 
       //
@@ -985,7 +974,7 @@ SetVariableFuncTestSub1 (
                      0,                           // DataSize
                      Data                         // Data
                      );
-
+                     
       Status = RT->SetVariable (
                      L"TestVariable",             // VariableName
                      &gTestVendor2Guid,           // VendorGuid
@@ -993,6 +982,7 @@ SetVariableFuncTestSub1 (
                      0,                           // DataSize
                      Data                         // Data
                      );
+                     
     }
   }
 
@@ -1013,6 +1003,7 @@ SetVariableFuncTestSub1 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  SetVariable when the variable exists.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -1024,23 +1015,23 @@ SetVariableFuncTestSub1 (
  */
 EFI_STATUS
 SetVariableFuncTestSub2 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_STATUS          ReturnedStatus;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_STATUS            ReturnedStatus;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -1080,7 +1071,7 @@ SetVariableFuncTestSub2 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1118,14 +1109,14 @@ SetVariableFuncTestSub2 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1143,10 +1134,9 @@ SetVariableFuncTestSub2 (
       //
       // Check the results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
+      if ((ReturnedStatus == EFI_SUCCESS              ) &&
           (Attributes     == AttributesArray[SubIndex]) &&
-          (DataSize       == 10))
-      {
+          (DataSize       == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -1171,8 +1161,7 @@ SetVariableFuncTestSub2 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -1181,12 +1170,9 @@ SetVariableFuncTestSub2 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     Attributes,        AttributesArray[SubIndex],
+                     DataSize,          10,
+                     Data[0],           0
                      );
 
       //
@@ -1212,14 +1198,14 @@ SetVariableFuncTestSub2 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1237,10 +1223,9 @@ SetVariableFuncTestSub2 (
       //
       // Check the results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
+      if ((ReturnedStatus == EFI_SUCCESS              ) &&
           (Attributes     == AttributesArray[SubIndex]) &&
-          (DataSize       == 20))
-      {
+          (DataSize       == 20                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 20; DataIndex++) {
@@ -1265,8 +1250,7 @@ SetVariableFuncTestSub2 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -1275,12 +1259,9 @@ SetVariableFuncTestSub2 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     20,
-                     Data[0],
-                     1
+                     Attributes,        AttributesArray[SubIndex],
+                     DataSize,          20,
+                     Data[0],           1
                      );
 
       //
@@ -1306,14 +1287,14 @@ SetVariableFuncTestSub2 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1331,10 +1312,9 @@ SetVariableFuncTestSub2 (
       //
       // Check the results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
+      if ((ReturnedStatus == EFI_SUCCESS              ) &&
           (Attributes     == AttributesArray[SubIndex]) &&
-          (DataSize       == 5))
-      {
+          (DataSize       == 5                        )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 5; DataIndex++) {
@@ -1359,8 +1339,7 @@ SetVariableFuncTestSub2 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -1369,12 +1348,9 @@ SetVariableFuncTestSub2 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     5,
-                     Data[0],
-                     0
+                     Attributes,        AttributesArray[SubIndex],
+                     DataSize,          5,
+                     Data[0],           0
                      );
 
       //
@@ -1407,6 +1383,7 @@ SetVariableFuncTestSub2 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  SetVariable when the similar variable exists.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -1418,23 +1395,23 @@ SetVariableFuncTestSub2 (
  */
 EFI_STATUS
 SetVariableFuncTestSub3 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_STATUS          ReturnedStatus;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_STATUS            ReturnedStatus;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -1474,7 +1451,7 @@ SetVariableFuncTestSub3 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1503,7 +1480,7 @@ SetVariableFuncTestSub3 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1541,14 +1518,14 @@ SetVariableFuncTestSub3 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1566,10 +1543,9 @@ SetVariableFuncTestSub3 (
       //
       // Check results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
+      if ((ReturnedStatus == EFI_SUCCESS              ) &&
           (Attributes     == AttributesArray[SubIndex]) &&
-          (DataSize       == 10))
-      {
+          (DataSize       == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -1594,8 +1570,7 @@ SetVariableFuncTestSub3 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -1604,26 +1579,23 @@ SetVariableFuncTestSub3 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     Attributes,        AttributesArray[SubIndex],
+                     DataSize,          10,
+                     Data[0],           0
                      );
 
       //
       // Get the similar variable to check results ("TestVariable" + A)
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariableA",          // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariableA",            // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1642,8 +1614,7 @@ SetVariableFuncTestSub3 (
       // Check results
       //
       if ((Attributes == AttributesArray[SubIndex]) &&
-          (DataSize   == 10))
-      {
+          (DataSize   == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -1676,26 +1647,23 @@ SetVariableFuncTestSub3 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     1
+                     Attributes,  AttributesArray[SubIndex],
+                     DataSize,    10,
+                     Data[0],     1
                      );
 
       //
       // Get the similar variable to check results ("TestVariable" - e)
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariabl",            // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
-      if (EFI_ERROR (Status)) {
+      Status = RT->GetVariable (
+                     L"TestVariabl",              // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1714,8 +1682,7 @@ SetVariableFuncTestSub3 (
       // Check results
       //
       if ((Attributes == AttributesArray[SubIndex]) &&
-          (DataSize   == 10))
-      {
+          (DataSize   == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -1748,12 +1715,9 @@ SetVariableFuncTestSub3 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     2
+                     Attributes,  AttributesArray[SubIndex],
+                     DataSize,    10,
+                     Data[0],     2
                      );
 
       //
@@ -1802,6 +1766,7 @@ SetVariableFuncTestSub3 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  SetVariable when the DataSize is 0.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -1813,23 +1778,23 @@ SetVariableFuncTestSub3 (
  */
 EFI_STATUS
 SetVariableFuncTestSub4 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_STATUS          ReturnedStatus;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_STATUS            ReturnedStatus;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -1869,7 +1834,7 @@ SetVariableFuncTestSub4 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -1903,20 +1868,19 @@ SetVariableFuncTestSub4 (
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       //
       // Check results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
-          (Status         == EFI_NOT_FOUND))
-      {
+      if ((ReturnedStatus == EFI_SUCCESS  ) &&
+          (Status         == EFI_NOT_FOUND)) {
         Result = EFI_TEST_ASSERTION_PASSED;
       } else {
         Result = EFI_TEST_ASSERTION_FAILED;
@@ -1934,16 +1898,14 @@ SetVariableFuncTestSub4 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
                      StandardLib,
                      EFI_VERBOSE_LEVEL_DEFAULT,
                      L"GetVariable: Status - %r, Expected - %r\n",
-                     Status,
-                     EFI_NOT_FOUND
+                     Status,            EFI_NOT_FOUND
                      );
     }
   }
@@ -1965,6 +1927,7 @@ SetVariableFuncTestSub4 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  SetVariable when the Attributes is 0.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -1976,23 +1939,23 @@ SetVariableFuncTestSub4 (
  */
 EFI_STATUS
 SetVariableFuncTestSub5 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_STATUS          ReturnedStatus;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  UINT32              Attributes;
-  EFI_TPL             OldTpl;
-  EFI_TPL             TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32              AttributesArray[] = {
+  EFI_STATUS            Status;
+  EFI_STATUS            ReturnedStatus;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  UINT32                Attributes;
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
@@ -2032,7 +1995,7 @@ SetVariableFuncTestSub5 (
                      10,                          // DataSize
                      Data                         // Data
                      );
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -2062,24 +2025,24 @@ SetVariableFuncTestSub5 (
 
       gtBS->RestoreTPL (OldTpl);
 
+
       //
       // Get the variable to check results
       //
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       L"TestVariable",           // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     L"TestVariable",             // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       //
       // Check results
       //
-      if ((ReturnedStatus == EFI_SUCCESS) &&
-          (Status         == EFI_NOT_FOUND))
-      {
+      if ((ReturnedStatus == EFI_SUCCESS  ) &&
+          (Status         == EFI_NOT_FOUND)) {
         Result = EFI_TEST_ASSERTION_PASSED;
       } else {
         Result = EFI_TEST_ASSERTION_FAILED;
@@ -2097,16 +2060,14 @@ SetVariableFuncTestSub5 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     ReturnedStatus,
-                     EFI_SUCCESS
+                     ReturnedStatus,    EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
                      StandardLib,
                      EFI_VERBOSE_LEVEL_DEFAULT,
                      L"GetVariable: Status - %r, Expected - %r\n",
-                     Status,
-                     EFI_NOT_FOUND
+                     Status,            EFI_NOT_FOUND
                      );
     }
   }
@@ -2128,6 +2089,7 @@ SetVariableFuncTestSub5 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  Non-volatile variable exists after system reset.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -2141,26 +2103,26 @@ SetVariableFuncTestSub5 (
  */
 EFI_STATUS
 SetVariableFuncTestSub6 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL   *RecoveryLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  CHAR16              *VariableName;
-  UINT32              Attributes;
+  EFI_STATUS            Status;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  CHAR16                *VariableName;
+  UINT32                Attributes;
   // UINTN                 RecoveryDataSize;
   // UINT8                 *RecoveryData;
-  EFI_TPL  OldTpl;
-  EFI_TPL  TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32   AttributesArray[] = {
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS
   };
@@ -2228,7 +2190,7 @@ SetVariableFuncTestSub6 (
       // Insert a variable
       //
       VariableName = SctPoolPrint (L"TestVariable_%d_%d", Index, SubIndex);
-      OldTpl       = gtBS->RaiseTPL (TplArray[Index]);
+      OldTpl = gtBS->RaiseTPL (TplArray[Index]);
 
       for (DataIndex = 0; DataIndex < 10; DataIndex++) {
         Data[DataIndex] = (UINT8)DataIndex;
@@ -2248,7 +2210,7 @@ SetVariableFuncTestSub6 (
       //
       // Check results
       //
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -2298,21 +2260,20 @@ SetVariableFuncTestSub6 (
       VariableName = SctPoolPrint (L"TestVariable_%d_%d", Index, SubIndex);
 
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       VariableName,              // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     VariableName,                // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       //
       // Check results
       //
-      if ((Status     == EFI_SUCCESS) &&
+      if ((Status     == EFI_SUCCESS              ) &&
           (Attributes == AttributesArray[SubIndex]) &&
-          (DataSize   == 10))
-      {
+          (DataSize   == 10                       )) {
         Result = EFI_TEST_ASSERTION_PASSED;
 
         for (DataIndex = 0; DataIndex < 10; DataIndex++) {
@@ -2337,8 +2298,7 @@ SetVariableFuncTestSub6 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     Status,
-                     EFI_SUCCESS
+                     Status,      EFI_SUCCESS
                      );
 
       StandardLib->RecordMessage (
@@ -2347,12 +2307,9 @@ SetVariableFuncTestSub6 (
                      L"Attributes=0x%x, Expected=0x%x\n"
                      L"DataSize=%d, Expected=%d\n"
                      L"Data[0]=0x%x, Expected=0x%x\n",
-                     Attributes,
-                     AttributesArray[SubIndex],
-                     DataSize,
-                     10,
-                     Data[0],
-                     0
+                     Attributes,  AttributesArray[SubIndex],
+                     DataSize,    10,
+                     Data[0],     0
                      );
 
       //
@@ -2393,6 +2350,7 @@ SetVariableFuncTestSub6 (
   return EFI_SUCCESS;
 }
 
+
 /**
  *  Volatile variable does not exist after system reset.
  *  @param StandardLib    A pointer to EFI_STANDARD_TEST_LIBRARY_PROTOCOL
@@ -2406,26 +2364,26 @@ SetVariableFuncTestSub6 (
  */
 EFI_STATUS
 SetVariableFuncTestSub7 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_RECOVERY_LIBRARY_PROTOCOL   *RecoveryLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib
   )
 {
-  EFI_STATUS          Status;
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINTN               SubIndex;
-  UINTN               DataIndex;
-  UINTN               DataSize;
-  UINT8               Data[MAX_BUFFER_SIZE];
-  CHAR16              *VariableName;
-  UINT32              Attributes;
+  EFI_STATUS            Status;
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINTN                 SubIndex;
+  UINTN                 DataIndex;
+  UINTN                 DataSize;
+  UINT8                 Data[MAX_BUFFER_SIZE];
+  CHAR16                *VariableName;
+  UINT32                Attributes;
   // UINTN                 RecoveryDataSize;
   // UINT8                 *RecoveryData;
-  EFI_TPL  OldTpl;
-  EFI_TPL  TplArray[]        = { TPL_APPLICATION, TPL_CALLBACK };
-  UINT32   AttributesArray[] = {
+  EFI_TPL               OldTpl;
+  EFI_TPL               TplArray[] = {TPL_APPLICATION, TPL_CALLBACK};
+  UINT32                AttributesArray[] = {
     EFI_VARIABLE_BOOTSERVICE_ACCESS,
     EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS
   };
@@ -2493,7 +2451,7 @@ SetVariableFuncTestSub7 (
       // Insert a variable
       //
       VariableName = SctPoolPrint (L"TestVariable_%d_%d", Index, SubIndex);
-      OldTpl       = gtBS->RaiseTPL (TplArray[Index]);
+      OldTpl = gtBS->RaiseTPL (TplArray[Index]);
 
       for (DataIndex = 0; DataIndex < 10; DataIndex++) {
         Data[DataIndex] = (UINT8)DataIndex;
@@ -2513,7 +2471,7 @@ SetVariableFuncTestSub7 (
       //
       // Check results
       //
-      if (EFI_ERROR (Status)) {
+      if (EFI_ERROR(Status)) {
         StandardLib->RecordAssertion (
                        StandardLib,
                        EFI_TEST_ASSERTION_WARNING,
@@ -2561,13 +2519,13 @@ SetVariableFuncTestSub7 (
       VariableName = SctPoolPrint (L"TestVariable_%d_%d", Index, SubIndex);
 
       DataSize = MAX_BUFFER_SIZE;
-      Status   = RT->GetVariable (
-                       VariableName,              // VariableName
-                       &gTestVendor1Guid,         // VendorGuid
-                       &Attributes,               // Attributes
-                       &DataSize,                 // DataSize
-                       Data                       // Data
-                       );
+      Status = RT->GetVariable (
+                     VariableName,                // VariableName
+                     &gTestVendor1Guid,           // VendorGuid
+                     &Attributes,                 // Attributes
+                     &DataSize,                   // DataSize
+                     Data                         // Data
+                     );
 
       //
       // Check results
@@ -2590,8 +2548,7 @@ SetVariableFuncTestSub7 (
                      L"%a:%d:Status - %r, Expected - %r",
                      __FILE__,
                      (UINTN)__LINE__,
-                     Status,
-                     EFI_NOT_FOUND
+                     Status,      EFI_NOT_FOUND
                      );
 
       gtBS->FreePool (VariableName);
@@ -2627,7 +2584,7 @@ SetVariableFuncTestSub7 (
 //
 UINT32
 UnicodeStrLength (
-  IN CHAR16  *String
+  IN CHAR16 *String
   )
 {
   UINT32  Count;
@@ -2647,10 +2604,10 @@ UnicodeStrLength (
 
 EFI_STATUS
 QueryVariableInfoFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   )
 {
   EFI_STATUS                          Status;
@@ -2668,12 +2625,12 @@ QueryVariableInfoFuncTest (
              &RecoveryLib,
              &LoggingLib
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR(Status)) {
     return Status;
   }
 
   // if (FALSE == CheckBBTestCanRunAndRecordAssertion(
-  //                 StandardLib,
+  //                 StandardLib, 
   //                 L"RT.QueryVariableInfo_Func - QueryVariableInfo_Func it's not Supported in EFI",
   //                 __FILE__,
   //                 (UINTN)__LINE__
@@ -2689,37 +2646,37 @@ QueryVariableInfoFuncTest (
 }
 
 //
-// QueryVariableInfo must succeed with a valid Attributes and
+// QueryVariableInfo must succeed with a valid Attributes and 
 // return the proper value when it is in Boot time
 //
 EFI_STATUS
 QueryVariableInfoFuncTestSub1 (
-  IN EFI_RUNTIME_SERVICES                *RT,
-  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib,
-  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib,
-  IN EFI_HANDLE                          SupportHandle
+  IN EFI_RUNTIME_SERVICES                 *RT,
+  IN EFI_STANDARD_TEST_LIBRARY_PROTOCOL   *StandardLib,
+  IN EFI_TEST_LOGGING_LIBRARY_PROTOCOL    *LoggingLib,
+  IN EFI_HANDLE                           SupportHandle
   )
 {
-  EFI_STATUS  QueryVarStatus[3];
+  EFI_STATUS            QueryVarStatus[3];
   // EFI_STATUS          SetVarStatus;
-  UINT32              ValidAttributes[] = {
-    EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS,
-    EFI_VARIABLE_BOOTSERVICE_ACCESS|EFI_VARIABLE_RUNTIME_ACCESS,
-    EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS|EFI_VARIABLE_RUNTIME_ACCESS,
-    EFI_VARIABLE_BOOTSERVICE_ACCESS,
-    0
-  };
-  UINT64              MaximumVariableStorageSize[3];
-  UINT64              RemainingVariableStorageSize[3];
-  UINT64              MaximumVariableSize[3];
-  EFI_TEST_ASSERTION  Result;
-  UINTN               Index;
-  UINT8               DataBuf[MAX_DATA_SIZE];
-  UINT32              DataIndex;
-  UINT32              SubIndex;
-  EFI_GUID            TestVendorGuid = QUERYVAR_GUID1;
-  UINT32              ErrorCode;
-
+  UINT32                ValidAttributes[] = {
+                          EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                          EFI_VARIABLE_BOOTSERVICE_ACCESS|EFI_VARIABLE_RUNTIME_ACCESS,
+                          EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS|EFI_VARIABLE_RUNTIME_ACCESS,
+                          EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                          0
+                        };
+  UINT64                MaximumVariableStorageSize[3];
+  UINT64                RemainingVariableStorageSize[3];
+  UINT64                MaximumVariableSize[3];
+  EFI_TEST_ASSERTION    Result;
+  UINTN                 Index;
+  UINT8                 DataBuf[MAX_DATA_SIZE];
+  UINT32                DataIndex;
+  UINT32                SubIndex;
+  EFI_GUID              TestVendorGuid = QUERYVAR_GUID1;
+  UINT32                ErrorCode;
+  
   //
   // Trace ...
   //
@@ -2730,8 +2687,8 @@ QueryVariableInfoFuncTestSub1 (
                   L"TDS 4.4.2.1"
                   );
   }
-
-  for (Index = 0; ValidAttributes[Index] != 0; Index++) {
+   
+  for (Index = 0; ValidAttributes[Index] != 0; Index ++) {
     //
     // QueryVariableInfo 1
     //
@@ -2746,7 +2703,7 @@ QueryVariableInfoFuncTestSub1 (
     // Call SetVariable to insert a variable
     //
     for (DataIndex = 0; DataIndex < MAX_DATA_SIZE; DataIndex++) {
-      DataBuf[DataIndex] = (UINT8)(DataIndex + 1);
+        DataBuf[DataIndex] = (UINT8)(DataIndex + 1);
     }
 
     RT->SetVariable (
@@ -2766,7 +2723,7 @@ QueryVariableInfoFuncTestSub1 (
                               &RemainingVariableStorageSize[1],
                               &MaximumVariableSize[1]
                               );
-
+               
     //
     // Call SetVariable service to delete the variable inserted just now
     //
@@ -2780,7 +2737,7 @@ QueryVariableInfoFuncTestSub1 (
 
     //
     // QueryVariableInfo 3
-    //
+    // 
     QueryVarStatus[2] = RT->QueryVariableInfo (
                               ValidAttributes[Index],
                               &MaximumVariableStorageSize[2],
@@ -2789,39 +2746,37 @@ QueryVariableInfoFuncTestSub1 (
                               );
 
     // QueryVarStatus[0] QueryVarStatus[1] QueryVarStatus[2] being EFI_SUCCESS or EFI_UNSUPPORTED
-    Result    = EFI_TEST_ASSERTION_PASSED;
+    Result = EFI_TEST_ASSERTION_PASSED;
     ErrorCode = 0;
     for (SubIndex = 0; SubIndex < 3; SubIndex++) {
       if (QueryVarStatus[SubIndex] == EFI_UNSUPPORTED) {
-        Result    = EFI_TEST_ASSERTION_WARNING;
+        Result = EFI_TEST_ASSERTION_WARNING;
         ErrorCode = 0;
         goto LoopEnd;
       }
-
-      if (QueryVarStatus[SubIndex] != EFI_SUCCESS) {
-        Result    = EFI_TEST_ASSERTION_FAILED;
+      if(QueryVarStatus[SubIndex] != EFI_SUCCESS) {
+        Result = EFI_TEST_ASSERTION_FAILED;
         ErrorCode = 1;
         goto LoopEnd;
-      }
+      } 
     }
-
+ 
     for (SubIndex = 0; SubIndex < 3; SubIndex++) {
-      if (MaximumVariableStorageSize[SubIndex] != MaximumVariableStorageSize[0]) {
-        Result    = EFI_TEST_ASSERTION_FAILED;
+      if(MaximumVariableStorageSize[SubIndex] != MaximumVariableStorageSize[0]) {
+        Result = EFI_TEST_ASSERTION_FAILED;
         ErrorCode = 2;
+        goto LoopEnd;
+      } 
+    }
+/*
+    for (SubIndex = 0; SubIndex < 3; SubIndex++) {
+      if (MaximumVariableSize[SubIndex] != MaximumVariableSize[0]) {
+        Result = EFI_TEST_ASSERTION_FAILED;
+        ErrorCode = 3;
         goto LoopEnd;
       }
     }
-
-    /*
-        for (SubIndex = 0; SubIndex < 3; SubIndex++) {
-          if (MaximumVariableSize[SubIndex] != MaximumVariableSize[0]) {
-            Result = EFI_TEST_ASSERTION_FAILED;
-            ErrorCode = 3;
-            goto LoopEnd;
-          }
-        }
-    */
+*/
 LoopEnd:
     //
     // Record assertion
@@ -2863,16 +2818,16 @@ LoopEnd:
   //
   return EFI_SUCCESS;
 }
-
 #endif
+
 
 #if (EFI_SPECIFICATION_VERSION >= 0x0002000A)
 EFI_STATUS
 HardwareErrorRecordFuncTest (
-  IN EFI_BB_TEST_PROTOCOL  *This,
-  IN VOID                  *ClientInterface,
-  IN EFI_TEST_LEVEL        TestLevel,
-  IN EFI_HANDLE            SupportHandle
+  IN EFI_BB_TEST_PROTOCOL       *This,
+  IN VOID                       *ClientInterface,
+  IN EFI_TEST_LEVEL             TestLevel,
+  IN EFI_HANDLE                 SupportHandle
   )
 {
   EFI_STATUS                          Status;
@@ -2880,35 +2835,36 @@ HardwareErrorRecordFuncTest (
   EFI_STANDARD_TEST_LIBRARY_PROTOCOL  *StandardLib;
   EFI_TEST_RECOVERY_LIBRARY_PROTOCOL  *RecoveryLib;
   EFI_TEST_LOGGING_LIBRARY_PROTOCOL   *LoggingLib;
-
+  
   // UINTN                 RecoveryDataSize;
   // UINT8                 *RecoveryData;
-
-  CHAR16  *HwErrRecName = L"HwErrRecSupport";
-  UINT16  HwErrRecSupportVariable;
-  UINTN   DataSize;
-
-  UINT32  Attributes = EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS
-                       |EFI_VARIABLE_RUNTIME_ACCESS|EFI_VARIABLE_HARDWARE_ERROR_RECORD;
-  UINT64  MaximumVariableStorageSize;
-  UINT64  RemainingVariableStorageSize;
-  UINT64  MaximumVariableSize;
-
-  CHAR16  HwErrRecVariableName[HW_ERR_REC_VARIABLE_NAME_LEN];
-  CHAR16  HwErrRecVariable[] = L"This is a HwErrRec variable!";
-
-  CHAR16    GetVariableName[MAX_BUFFER_SIZE];
-  UINTN     VariableNameSize;
-  EFI_GUID  VendorGuid;
-
-  UINTN   Num;
-  UINTN   MaxNum = 0;
-  CHAR16  ErrorNum[HW_ERR_REC_VARIABLE_NAME_INDEX_LEN + 1];
-
-  CHAR16  HwErrRecGetVariable[255];
-
-  EFI_TEST_ASSERTION  AssertionType;
-
+  
+  CHAR16                *HwErrRecName = L"HwErrRecSupport";
+  UINT16                HwErrRecSupportVariable;
+  UINTN                 DataSize;
+  
+  UINT32                Attributes = EFI_VARIABLE_NON_VOLATILE|EFI_VARIABLE_BOOTSERVICE_ACCESS
+                                     |EFI_VARIABLE_RUNTIME_ACCESS|EFI_VARIABLE_HARDWARE_ERROR_RECORD;
+  UINT64                MaximumVariableStorageSize;
+  UINT64                RemainingVariableStorageSize;
+  UINT64                MaximumVariableSize;
+  
+  CHAR16                HwErrRecVariableName[HW_ERR_REC_VARIABLE_NAME_LEN];
+  CHAR16                HwErrRecVariable[] = L"This is a HwErrRec variable!";
+  
+  CHAR16                GetVariableName[MAX_BUFFER_SIZE];
+  UINTN                 VariableNameSize;
+  EFI_GUID              VendorGuid;
+  
+  UINTN                 Num;
+  UINTN                 MaxNum = 0;
+  CHAR16                ErrorNum[HW_ERR_REC_VARIABLE_NAME_INDEX_LEN + 1];
+  
+  CHAR16                HwErrRecGetVariable[255];
+  
+  EFI_TEST_ASSERTION    AssertionType;
+  
+  
   //
   // Get test support library interfaces
   //
@@ -2918,7 +2874,7 @@ HardwareErrorRecordFuncTest (
              &RecoveryLib,
              &LoggingLib
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR(Status)) {
     return Status;
   }
 
@@ -2931,7 +2887,7 @@ HardwareErrorRecordFuncTest (
                   L"TDS"
                   );
   }
-
+  
   //
   // Allocate memory for recovery data
   //
@@ -2947,7 +2903,7 @@ HardwareErrorRecordFuncTest (
 
   //
   // Try to read reset record from the RecoveryData,
-  // and the magic num is saved in the RecoveryData[0].
+  // and the magic num is saved in the RecoveryData[0]. 
   // When the status is EFI_SUCCESS and magic num is 2,
   // it means useful data has been saved before the reset
   // and the date should be retrived goto particular process
@@ -2965,116 +2921,116 @@ HardwareErrorRecordFuncTest (
   //     goto step3;
   //   }
   // }
-
+  
   //
   // Check if the platform implements support for Hardware Error Record Persistence
   //
-  DataSize                = sizeof (HwErrRecSupportVariable);
+  DataSize = sizeof( HwErrRecSupportVariable );
   HwErrRecSupportVariable = 0xFFFF;
-  Status                  = RT->GetVariable (
-                                  HwErrRecName,
-                                  &gGlobalVariableGuid,
-                                  NULL,
-                                  &DataSize,
-                                  &HwErrRecSupportVariable
-                                  );
-
+  Status = RT->GetVariable (
+                        HwErrRecName,
+                        &gGlobalVariableGuid,
+                        NULL,
+                        &DataSize,
+                        &HwErrRecSupportVariable
+                        );
+  
   StandardLib->RecordMessage (
-                 StandardLib,
-                 EFI_VERBOSE_LEVEL_DEFAULT,
-                 L"\r\nGetVariable() to get the HwErrRecSupport : %r %d",
-                 Status,
-                 HwErrRecSupportVariable
-                 );
+                     StandardLib,
+                     EFI_VERBOSE_LEVEL_DEFAULT,
+                     L"\r\nGetVariable() to get the HwErrRecSupport : %r %d",
+                     Status,
+                     HwErrRecSupportVariable
+                     );
 
-  if ((EFI_SUCCESS != Status) || !HwErrRecSupportVariable ) {
+  
+  if ( EFI_SUCCESS != Status || !HwErrRecSupportVariable ) {
     // gtBS->FreePool (RecoveryData);
     return Status;
   }
-
+  
   //
   // Query the variable info
   //
   Status = RT->QueryVariableInfo (
-                 Attributes,
-                 &MaximumVariableStorageSize,
-                 &RemainingVariableStorageSize,
-                 &MaximumVariableSize
-                 );
+                              Attributes,
+                              &MaximumVariableStorageSize,
+                              &RemainingVariableStorageSize,
+                              &MaximumVariableSize
+                              );
 
   StandardLib->RecordMessage (
-                 StandardLib,
-                 EFI_VERBOSE_LEVEL_DEFAULT,
-                 L"\r\n Query the variable info : MaximumVariableStorageSize - %d, RemainingVariableStorageSize - %d",
-                 MaximumVariableStorageSize,
-                 RemainingVariableStorageSize
-                 );
-
-  if ((Status != EFI_SUCCESS) || (RemainingVariableStorageSize <= 0)) {
+                         StandardLib,
+                         EFI_VERBOSE_LEVEL_DEFAULT,
+                         L"\r\n Query the variable info : MaximumVariableStorageSize - %d, RemainingVariableStorageSize - %d",
+                         MaximumVariableStorageSize,
+                         RemainingVariableStorageSize
+                         );
+  
+  if ( Status != EFI_SUCCESS || RemainingVariableStorageSize <= 0 ) {
     // gtBS->FreePool (RecoveryData);
     return Status;
   }
-
+  
   //
   // Get a useable variable name
   //
-  GetVariableName[0]                           = L'\0';
+  GetVariableName[0] = L'\0';
   ErrorNum[HW_ERR_REC_VARIABLE_NAME_INDEX_LEN] = L'\0';
+  
 
   while (TRUE) {
     VariableNameSize = MAX_BUFFER_SIZE * sizeof (CHAR16);
-    Status           = RT->GetNextVariableName (
-                             &VariableNameSize,   // VariableNameSize
-                             GetVariableName,     // VariableName
-                             &VendorGuid          // VendorGuid
-                             );
-
+    Status = RT->GetNextVariableName (
+                       &VariableNameSize,         // VariableNameSize
+                       GetVariableName,           // VariableName
+                       &VendorGuid                // VendorGuid
+                       );
+  
     StandardLib->RecordMessage (
-                   StandardLib,
-                   EFI_VERBOSE_LEVEL_DEFAULT,
-                   L"\r\nGetNextVariableName() to get the variable name : %s - %r",
-                   GetVariableName,
-                   Status
-                   );
+                     StandardLib,
+                     EFI_VERBOSE_LEVEL_DEFAULT,
+                     L"\r\nGetNextVariableName() to get the variable name : %s - %r",
+                     GetVariableName,
+                     Status
+                     );
 
     if ( EFI_SUCCESS != Status ) {
       break;
     }
 
-    if ((SctStrnCmp (GetVariableName, L"HwErrRec", HW_ERR_REC_VARIABLE_NAME_PREFIX_LEN) == 0) &&
-        (SctCompareGuid (&VendorGuid, &gHwErrRecGuid) == 0))
-    {
+    if ( (SctStrnCmp (GetVariableName, L"HwErrRec", HW_ERR_REC_VARIABLE_NAME_PREFIX_LEN) == 0) &&
+         (SctCompareGuid (&VendorGuid, &gHwErrRecGuid) == 0) ) {
       SctStrnCpy (ErrorNum, &GetVariableName[HW_ERR_REC_VARIABLE_NAME_PREFIX_LEN], HW_ERR_REC_VARIABLE_NAME_INDEX_LEN);
       Num = SctXtoi (ErrorNum);
-      if (MaxNum < Num) {
+      if (MaxNum < Num)
         MaxNum = Num;
-      }
     }
   }
 
   MaxNum++;
-
+    
   HwErrRecVariableName[0] = L'\0';
-  SctStrCat (HwErrRecVariableName, L"HwErrRec");
-  Myitox (MaxNum, HwErrRecVariableName + HW_ERR_REC_VARIABLE_NAME_PREFIX_LEN);
+  SctStrCat ( HwErrRecVariableName, L"HwErrRec" );
+  Myitox( MaxNum, HwErrRecVariableName + HW_ERR_REC_VARIABLE_NAME_PREFIX_LEN );
   HwErrRecVariableName[HW_ERR_REC_VARIABLE_NAME_LEN - 1] = L'\0';
-
+  
   //
   // Set the new HwErrRec variable to the global variable
   //
-  DataSize = sizeof (HwErrRecVariable);
-  Status   = RT->SetVariable (
-                   HwErrRecVariableName,
-                   &gHwErrRecGuid,
-                   Attributes,
-                   DataSize,
-                   HwErrRecVariable
-                   );
-  if ( EFI_ERROR (Status)) {
+  DataSize = sizeof( HwErrRecVariable );
+  Status = RT->SetVariable (
+                        HwErrRecVariableName,
+                        &gHwErrRecGuid,
+                        Attributes,
+                        DataSize,
+                        HwErrRecVariable
+                        );
+  if ( EFI_ERROR(Status) ) {
     // gtBS->FreePool (RecoveryData);
     return Status;
   }
-
+  
   //
   // Before the reset, test writes magic num 2 in RecoveryData[0]
   // and writes the useful data - HwErrRecVariableName - to RecoveryData[2]
@@ -3082,7 +3038,7 @@ HardwareErrorRecordFuncTest (
   // RecoveryData[0] = 2;
   // SctStrnCpy ( (CHAR16*)(&RecoveryData[2]), HwErrRecVariableName, HW_ERR_REC_VARIABLE_NAME_LEN - 1 );
   // RecoveryLib->WriteResetRecord( RecoveryLib, HW_ERR_REC_VARIABLE_NAME_LEN * sizeof(CHAR16) + 2, RecoveryData );
-
+  
   //
   // Prompt the user about the cold reset and reset the system
   //
@@ -3090,7 +3046,7 @@ HardwareErrorRecordFuncTest (
   // gtBS->Stall (1000000);
 
   // gtRT->ResetSystem (EfiResetCold, EFI_SUCCESS, 0, NULL);
-
+  
   //
   // The particular process after the reset
   // retrive the useful data - HwErrRecVariableName - from RecoveryData[2]
@@ -3100,46 +3056,46 @@ HardwareErrorRecordFuncTest (
   // HwErrRecVariableName[HW_ERR_REC_VARIABLE_NAME_LEN - 1] = L'\0';
   // SctStrnCpy ( HwErrRecVariableName, (CHAR16*)(RecoveryData+2), HW_ERR_REC_VARIABLE_NAME_LEN - 1 );
   Status = RT->GetVariable (
-                 HwErrRecVariableName,
-                 &gHwErrRecGuid,
-                 NULL,
-                 &DataSize,
-                 HwErrRecGetVariable
-                 );
-  if ( EFI_ERROR (Status)) {
+                        HwErrRecVariableName,
+                        &gHwErrRecGuid,
+                        NULL,
+                        &DataSize,
+                        HwErrRecGetVariable
+                        );
+  if ( EFI_ERROR(Status) ) {
     // gtBS->FreePool (RecoveryData);
     return Status;
   }
-
-  if ( SctStrCmp (HwErrRecGetVariable, HwErrRecVariable)) {
+  
+  if ( SctStrCmp ( HwErrRecGetVariable, HwErrRecVariable ) ) {
     AssertionType = EFI_TEST_ASSERTION_FAILED;
   } else {
     AssertionType = EFI_TEST_ASSERTION_PASSED;
   }
-
+  
   //
   // Compare the result
   //
   StandardLib->RecordAssertion (
-                 StandardLib,
-                 AssertionType,
-                 gHwErrRecBbTestAssertionGuid001,
-                 L"HwErrRec varuable test.",
-                 L"%a:%d",
-                 __FILE__,
-                 (UINTN)__LINE__
-                 );
-
+                     StandardLib,
+                     AssertionType,
+                     gHwErrRecBbTestAssertionGuid001,
+                     L"HwErrRec varuable test.",
+                     L"%a:%d",
+                     __FILE__,
+                     (UINTN)__LINE__
+                     );
+  
   //
   // Delete the HwErrRecVariable
   //
   Status = RT->SetVariable (
-                 HwErrRecVariableName,
-                 &gHwErrRecGuid,
-                 Attributes,
-                 0,
-                 HwErrRecVariable
-                 );
+                        HwErrRecVariableName,
+                        &gHwErrRecGuid,
+                        Attributes,
+                        0,
+                        HwErrRecVariable
+                        );
 
   //
   // Free resources
