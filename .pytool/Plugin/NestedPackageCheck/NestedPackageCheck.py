@@ -24,6 +24,8 @@ class NestedPackageCheck(ICiBuildPlugin):
         return (f"Check for nested packages in {packagename}", f"{packagename}.nestedpackagecheck")
     
     def RunBuildPlugin(self, packagename, edk2path, pkgconfig, env, PLM, PLMHelper, tc, output_stream=None) -> int:
+        tc.SetFailed("Failed", "CHECK_FAILED")
+        return None
         target_package = Path(edk2path.GetAbsolutePathOnThisSystemFromEdk2RelativePath(packagename))
         
         # Get all packages in the entire workspace
