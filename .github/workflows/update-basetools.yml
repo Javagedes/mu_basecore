@@ -40,6 +40,6 @@ jobs:
           echo "Checking for releases published since $CUTOFF_DATE..."
 
           RELEASES=$(gh release list --repo ${REPO} --limit 20 --json tagName,publishedAt | \
-            jq -r --arg cutoff "$CUTOFF_DATE" '.[] | select(.publishedAt >= $cutoff) | [.tagName, .createdAt] | @tsv')
+            jq -r --arg cutoff "$CUTOFF_DATE" '.[] | select(.publishedAt >= $cutoff) | [.tagName, .publishedAt] | @tsv')
           
-          echo "Found releases: $RELEASES"
+          echo "Found $(echo "$RELEASES" | grep -c .) releases since $CUTOFF_DATE. Filtering to most recent of each type..."
