@@ -36,10 +36,34 @@ jobs:
           # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          CUTOFF_DATE=$(date -u --date='7 days ago' +%Y-%m-%dT%H:%M:%SZ)
-          echo "Checking for releases published since $CUTOFF_DATE..."
+          RELEASE_JSON=$(gh release list --repo "${REPO}" --limit 100 --json tagName,publishedAt)
 
-          RELEASES=$(gh release list --repo ${REPO} --limit 20 --json tagName,publishedAt | \
-            jq -r --arg cutoff "$CUTOFF_DATE" '.[] | select(.publishedAt >= $cutoff) | [.tagName, .publishedAt] | @tsv')
-          
-          echo "Found $(echo "$RELEASES" | grep -c .) releases since $CUTOFF_DATE. Filtering to most recent of each type..."
+          # Find the most recent dev tag (may be empty)
+          DEV_TAG=$(echo "$RELEASE_JSON" | jq -r --arg cutoff "$CUTOFF_DATE" '
+            [ .[] | select(.publishedAt >= $cutoff and (.tagName | startswith("dev"))) ]
+            | sort_by(.publishedAt)
+            | reverse
+            | .[0]?.tagName // empty
+          ')
+
+          # Find the most recent release tag (may be empty)
+          RELEASE_TAG=$(echo "$RELEASE_JSON" | jq -r --arg cutoff "$CUTOFF_DATE" '
+            [ .[] | select(.publishedAt >= $cutoff and (.tagName | startswith("dev") | not)) ]
+            | sort_by(.publishedAt)
+            | reverse
+            | .[0]?.tagName // empty
+          ')
+
+          if [[ -n $DEV_TAG ]]; then
+            echo "Most recent dev tag: $DEV_TAG"
+            echo "dev_tag=$DEV_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "No recent dev tag found."
+          fi
+
+          if [[ -n $RELEASE_TAG ]]; then
+            echo "Most recent release tag: $RELEASE_TAG"
+            echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "No recent release tag found."
+          fi
