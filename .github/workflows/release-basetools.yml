@@ -213,8 +213,8 @@ jobs:
           gh pr create \
             --base ${{ steps.branch.outputs.branch_name }} \
             --head sync-basetools/${{ github.event.release.tag_name }} \
-            --title "Update BaseTools ext dep to ${{ steps.branch.outputs.version }}" \
-            --body $"This PR updates the BaseTools external dependency to version ${{ steps.branch.outputs.version }}.\n\nSigned-off-by: Project Mu UEFI Bot <uefibot@microsoft.com>"
+            --title "[${{ steps.branch.outputs.branch_name }}] Update BaseTools ext dep to ${{ steps.branch.outputs.version }}" \
+            --body $"This PR updates the BaseTools external dependency to version ${{ steps.branch.outputs.version }}."
       
           PR_NUMBER=$(gh pr view sync-basetools/${{ github.event.release.tag_name }} --json number -q '.number')
           echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
@@ -230,7 +230,7 @@ jobs:
           if [[ "$FULL_BRANCH" == *"/dev-"* ]]; then
             TARGET_PREFIX="sync-basetools/dev-${TARGET_VERSION}"
           else
-            TARGET_PREFIX="sync-basetools/${TARGET_VERSION}"
+            TARGET_PREFIX="sync-basetools/${TRGET_VERSION}"
           fi
           KEEP_PR=${{ steps.pr.outputs.pr_number }}
 
@@ -244,3 +244,4 @@ jobs:
               gh pr close "${PR}" --delete-branch
             fi
           done
+A
