@@ -1,0 +1,45 @@
+name: Update BaseTools Binaries External Dependency
+
+on:
+  schedule:
+    - cron: '0 22 * * 6' # Every Saturday at 22:00 UTC
+  workflow_dispatch: # Manual trigger
+
+env:
+  ARTIFACT_BASE_URL: https://github.com/microsoft/mu_basecore/releases/download
+  BASETOOLS_PATH: BaseTools/Bin/basetoolsbin_ext_dep.yaml
+  REPO: ${{ github.repository }}
+
+jobs:
+  check:
+    name: Find New Releases
+
+    runs-on: ubuntu-latest
+  
+    steps:
+      # Comment out this step if testing on fork
+      # - name: Generate Token
+      #   id: app-token
+      #   uses: actions/create-github-app-token@v2
+      #   with:
+      #     app-id: ${{ vars.MU_ACCESS_APP_ID }}
+      #     private-key: ${{ secrets.MU_ACCESS_APP_PRIVATE_KEY }}
+      #     owner: ${{ github.repository_owner }}
+
+      - name: Install Dependencies
+        run: sudo apt-get install -y jq gh
+  
+      - name: Check if any releases have been made this week
+        id: tag
+        shell: bash
+        env:
+          # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUTOFF_DATE=$(date -u --date='7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Checking for releases published since $CUTOFF_DATE..."
+
+          RELEASES=$(gh release list --repo ${REPO} --limit 20 --json tagName,publishedAt | \
+            jq -r --arg cutoff "$CUTOFF_DATE" '.[] | select(.publishedAt >= $cutoff) | [.tagName, .createdAt] | @tsv')
+          
+          echo "Found releases: $RELEASES"
