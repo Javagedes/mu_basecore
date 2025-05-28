@@ -117,14 +117,14 @@ jobs:
           echo "Release tag name: ${RELEASE_NAME}"
 
           # release builds do not have "release" in their tag name
-          if [[ ${RELEASE_NAME} == release* ]]; then
+          if [[ ${RELEASE_NAME} == dev* ]]; then
+            IS_RELEASE=false
+          else
             echo "Detected release branch."
             IS_RELEASE=true
-          else
-            IS_RELEASE=false
           fi
 
-          DATE=$(echo "$RELEASE_NAME" | sed -E 's/.*-v([0-9]{6}).*/\1/')
+          DATE=$(echo "$RELEASE_NAME" | sed -E 's/.*v([0-9]{6}).*/\1/')
 
           if [[ ${IS_RELEASE} == true ]]; then
             BRANCH_NAME="release/${DATE}"
