@@ -36,34 +36,27 @@ jobs:
           # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_JSON=$(gh release list --repo "${REPO}" --limit 100 --json tagName,publishedAt)
-
-          # Find the most recent dev tag (may be empty)
-          DEV_TAG=$(echo "$RELEASE_JSON" | jq -r --arg cutoff "$CUTOFF_DATE" '
-            [ .[] | select(.publishedAt >= $cutoff and (.tagName | startswith("dev"))) ]
-            | sort_by(.publishedAt)
-            | reverse
-            | .[0]?.tagName // empty
-          ')
-
-          # Find the most recent release tag (may be empty)
-          RELEASE_TAG=$(echo "$RELEASE_JSON" | jq -r --arg cutoff "$CUTOFF_DATE" '
-            [ .[] | select(.publishedAt >= $cutoff and (.tagName | startswith("dev") | not)) ]
-            | sort_by(.publishedAt)
-            | reverse
-            | .[0]?.tagName // empty
-          ')
-
-          if [[ -n $DEV_TAG ]]; then
-            echo "Most recent dev tag: $DEV_TAG"
-            echo "dev_tag=$DEV_TAG" >> "$GITHUB_OUTPUT"
-          else
-            echo "No recent dev tag found."
-          fi
-
-          if [[ -n $RELEASE_TAG ]]; then
-            echo "Most recent release tag: $RELEASE_TAG"
-            echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          else
-            echo "No recent release tag found."
-          fi
+          CUTOFF_DATE=$(date -u --date='7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Checking for releases since $CUTOFF_DATE..."
+          
+          RELEASE_JSON=$(gh release list --repo "$REPO" --limit 100 --json tagName,publishedAt | \
+            jq --arg cutoff "$CUTOFF_DATE" '
+              [ .[] 
+                | select(.publishedAt >= $cutoff)
+                | {
+                    tag: .tagName,
+                    publishedAt: .publishedAt,
+                    key: (
+                      .tagName
+                      | sub("^dev-"; "")                # strip "dev-" prefix if present
+                      | capture("^v(?<yymmdd>\\d{6})")  # extract 6-digit date prefix
+                      | .yymmdd
+                    ),
+                    isDev: (.tagName | startswith("dev-"))
+                  }
+              ] 
+              | group_by(.key + "-" + (.isDev | tostring)) 
+              | map(max_by(.publishedAt))
+              | map(.tag)
+            ')
+          echo "Found releases: $RELEASE_JSON"
