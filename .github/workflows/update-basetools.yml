@@ -15,6 +15,9 @@ jobs:
     name: Find New Releases
 
     runs-on: ubuntu-latest
+
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
   
     steps:
       # Comment out this step if testing on fork
@@ -30,7 +33,7 @@ jobs:
         run: sudo apt-get install -y jq gh
   
       - name: Check if any releases have been made this week
-        id: tag
+        id: tags
         shell: bash
         env:
           # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -59,4 +62,25 @@ jobs:
               | map(max_by(.publishedAt))
               | map(.tag)
             ')
-          echo "Found releases: $RELEASE_JSON"
+          
+            echo "Latest releases found since $CUTOFF_DATE: $RELEASE_JSON"
+            echo "tags=$RELEASE_JSON" >> $GITHUB_OUTPUT
+  
+  update:
+    name: Update BaseTools Binaries External Dependency ${{ matrix.tag }}
+
+    needs: check
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        tag: ${{ fromJson(needs.check.outputs.tags) }}
+      
+    steps:
+      
+      - name: Test
+        shell: Bash
+        run: |
+          echo "Processing tag: ${{ matrix.tag }}"
+        
