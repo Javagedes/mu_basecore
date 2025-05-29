@@ -196,7 +196,7 @@ jobs:
           echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
 
       - name: Close Existing Pull Request
-        if: steps.pr-check.outputs.exists == 'true'
+        if: steps.pr-check.outputs.exists != 'true'
         env:
           # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
