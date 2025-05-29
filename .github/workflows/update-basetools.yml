@@ -82,6 +82,7 @@ jobs:
 
     permissions:
       contents: write
+      pull-requests: write
     
     env:
       ARTIFACT_BASE_URL: https://github.com/microsoft/mu_basecore/releases/download
