@@ -87,7 +87,7 @@ jobs:
             echo "tags=$MAPPED_TAGS" >> $GITHUB_OUTPUT
   
   update:
-    name: Update BaseTools ${{ matrix.tag }}
+    name: "[${{ matrix.tag.branchName }}] Update BaseTools"
 
     needs: check
 
@@ -98,9 +98,8 @@ jobs:
         tag: ${{ fromJson(needs.check.outputs.tags) }}
       
     steps:
-      
       - name: Test
-        shell: Bash
+        shell: bash
         run: |
-          echo "Processing tag: ${{ matrix.tag }}"
+          echo "Processing"
         
