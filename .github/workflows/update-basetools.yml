@@ -28,6 +28,7 @@ jobs:
         id: releases
         env:
           REPO: ${{ env.REPO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           CUTOFF_DATE=$(date -u --date='7 days ago' +%Y-%m-%dT%H:%M:%SZ)
@@ -112,7 +113,6 @@ jobs:
         id: pr-check
         shell: bash
         env:
-          # GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_BRANCH_NAME: ${{ env.PR_BRANCH_NAME }}
           REPO: ${{ env.REPO }}
