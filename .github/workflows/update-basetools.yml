@@ -42,6 +42,10 @@ jobs:
           CUTOFF_DATE=$(date -u --date='7 days ago' +%Y-%m-%dT%H:%M:%SZ)
           echo "Checking for releases since $CUTOFF_DATE..."
           
+          # Find any releases (their tags) made in the last 7 days.
+          #
+          # The below complex mess simply returns a list of the latest unique tags ignoring the actual semver
+          # versioning scheme. e.g. for `dev-v2025020000.0.2` it's finding the newest unique `dev-v202502`. 
           RELEASE_JSON=$(gh release list --repo "$REPO" --limit 100 --json tagName,publishedAt | \
             jq -c --arg cutoff "$CUTOFF_DATE" '
               [ .[] 
@@ -63,11 +67,28 @@ jobs:
               | map(.tag)
             ')
           
+            # Map the list of tags to a list of json objects with a tag name and branch name
             echo "Latest releases found since $CUTOFF_DATE: $RELEASE_JSON"
-            echo "tags=$RELEASE_JSON" >> $GITHUB_OUTPUT
+            
+
+            MAPPED_TAGS=(echo "$RELEASE_JSON" | jq -c '
+              map({
+                tagName: .,
+                branchName: (
+                  if startswith("dev-") then
+                    "dev/" + (. | sub("^dev-v"; "") | capture("^\\d{6}") | .[0:6])
+                  else
+                    "release/" + (. | sub("^v"; "") | capture("^\\d{6}") | .[0:6])
+                  end
+                )
+              })
+            ')
+
+            echo "Mapped tags: $MAPPED_TAGS"
+            echo "tags=${MAPPED_TAGS}" >> $GITHUB_OUTPUT
   
   update:
-    name: Update BaseTools Binaries External Dependency ${{ matrix.tag }}
+    name: Update BaseTools ${{ matrix.tag }}
 
     needs: check
 
