@@ -69,23 +69,22 @@ jobs:
           
             # Map the list of tags to a list of json objects with a tag name and branch name
             echo "Latest releases found since $CUTOFF_DATE: $RELEASE_JSON"
-            
 
-            MAPPED_TAGS=(echo "$RELEASE_JSON" | jq -c '
+            MAPPED_TAGS=$(echo "$RELEASE_JSON" | jq -c '
               map({
                 tagName: .,
                 branchName: (
                   if startswith("dev-") then
-                    "dev/" + (. | sub("^dev-v"; "") | capture("^\\d{6}") | .[0:6])
+                    "dev/" + (. | sub("^dev-v"; "") | capture("^(\\d{6})").captures[0])
                   else
-                    "release/" + (. | sub("^v"; "") | capture("^\\d{6}") | .[0:6])
+                    "release/" + (. | sub("^v"; "") | capture("^(\\d{6})").captures[0])
                   end
                 )
               })
             ')
 
             echo "Mapped tags: $MAPPED_TAGS"
-            echo "tags=${MAPPED_TAGS}" >> $GITHUB_OUTPUT
+            echo "tags=$MAPPED_TAGS" >> $GITHUB_OUTPUT
   
   update:
     name: Update BaseTools ${{ matrix.tag }}
