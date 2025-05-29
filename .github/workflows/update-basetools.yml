@@ -75,9 +75,9 @@ jobs:
                 tagName: .,
                 branchName: (
                   if startswith("dev-") then
-                    "dev/" + (. | sub("^dev-v"; "") | capture("^(\\d{6})").captures[0])
+                    "dev/" + (. | sub("^dev-v"; "") | capture("^(?<yyyymm>\\d{6})").yyyymm)
                   else
-                    "release/" + (. | sub("^v"; "") | capture("^(\\d{6})").captures[0])
+                    "release/" + (. | sub("^v"; "") | capture("^(?<yyyymm>\\d{6})").yyyymm)
                   end
                 )
               })
