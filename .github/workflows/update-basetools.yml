@@ -43,7 +43,7 @@ jobs:
           echo "Checking for releases since $CUTOFF_DATE..."
           
           RELEASE_JSON=$(gh release list --repo "$REPO" --limit 100 --json tagName,publishedAt | \
-            jq --arg cutoff "$CUTOFF_DATE" '
+            jq -c --arg cutoff "$CUTOFF_DATE" '
               [ .[] 
                 | select(.publishedAt >= $cutoff)
                 | {
