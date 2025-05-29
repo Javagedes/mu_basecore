@@ -130,7 +130,7 @@ jobs:
 
       - name: Checkout Code
         if: steps.pr-check.outputs.exists != 'true'
-        uses: actions
+        uses: actions/checkout@v4
         with:
           ref: ${{ matrix.release.branchName }}
 
