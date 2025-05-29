@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      releases: ${{ steps.releases.outputs.release }}
+      releases: ${{ steps.releases.outputs.releases }}
   
     steps:
       - name: Build PR Creation Matrix
