@@ -86,7 +86,7 @@ jobs:
       pull-requests: write
     
     env:
-      ARTIFACT_BASE_URL: https://github.com/microsoft/mu_basecore/releases/download
+      ARTIFACT_BASE_URL: https://github.com/${{ github.repository }}/releases/download
       BASETOOLS_PATH: BaseTools/Bin/basetoolsbin_ext_dep.yaml
       TAG_NAME: ${{ matrix.release.tagName }}
       BRANCH_NAME: ${{ matrix.release.branchName }}
