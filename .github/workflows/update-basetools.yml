@@ -77,8 +77,6 @@ jobs:
   update:
     name: "[${{ matrix.release.branchName }}] Update BaseTools Binary to ${{ matrix.release.tagName }}"
 
-    if: ${{ needs.check.outputs.releases != '[]' }}
-
     needs: check
 
     runs-on: ubuntu-latest
