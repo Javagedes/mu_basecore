@@ -824,3 +824,17 @@
         "$(RC)" $(RC_FLAGS) $(OUTPUT_DIR)(+)$(MODULE_NAME)hii.rc ${dst}
     <Command.XCODE>
         "$(GENFW)" -o $(OUTPUT_DIR)(+)$(MODULE_NAME)hii.rc -g $(MODULE_GUID) --hiibinpackage $(HII_BINARY_PACKAGES) $(GENFW_FLAGS)
+
+[Sbom-EFI-Image-File.UEFI_SBOM]
+    <InputFile>
+        *.ini
+
+    <ExtraDependency>
+        $(OUTPUT_DIR)(+)$(MODULE_NAME).efi
+    
+    <OutputFile>
+        $(OUTPUT_DIR)(+)$(MODULE_NAME).sbom
+    
+    <Command>
+        $(OBJCOPY)
+        # uswid --load $(SBOM_EFI_IMAGE_FILES) --save $(OUTPUT_DIR)(+)$(MODULE_NAME).efi

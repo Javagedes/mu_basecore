@@ -289,7 +289,9 @@ class InfBuildData(ModuleBuildClassObject):
             if 'PCI_COMPRESS' in self._Defs:
                 if self._Defs['PCI_COMPRESS'] not in ('TRUE', 'FALSE'):
                     EdkLogger.error("build", FORMAT_INVALID, "Expected TRUE/FALSE for PCI_COMPRESS: %s" % self.MetaFile)
-
+        elif 'UEFI_SBOM_SECTION' in self._Defs \
+           and self._Defs['UEFI_SBOM_SECTION'] == 'TRUE':
+            self._BuildType = 'UEFI_SBOM'
         elif 'UEFI_HII_RESOURCE_SECTION' in self._Defs \
            and self._Defs['UEFI_HII_RESOURCE_SECTION'] == 'TRUE':
             self._BuildType = 'UEFI_HII'

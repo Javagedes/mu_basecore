@@ -18,6 +18,7 @@
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   ENTRY_POINT                    = BdsInitialize
+  UEFI_SBOM_SECTION              = TRUE
 
 #
 # The following information is for reference only and not required by the build tools.
@@ -32,6 +33,7 @@
   HwErrRecSupport.h
   Language.c
   BdsEntry.c
+  file.ini
 
 
 [Packages]

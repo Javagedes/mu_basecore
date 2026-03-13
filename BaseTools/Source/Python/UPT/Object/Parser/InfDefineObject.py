@@ -798,6 +798,37 @@ class InfDefSection(InfDefSectionOptionRomInfo):
         return self.Specification
 
     #
+    # [<UefiSbom> <EOL>]{0, 1}
+    # <UefiSbom>              ::=  "UEFI_SBOM_SECTION" "=" <BoolType>
+    #
+    def SetUefiSbomSection(self, UefiSbomSection, Comments):
+        import sys
+        sys.exit(-1)
+        #
+        # Value has been set before.
+        #
+        if self.UefiSbomSection is not None:
+            ErrorInInf(ST.ERR_INF_PARSER_DEFINE_ITEM_MORE_THAN_ONE_FOUND
+                       %(DT.TAB_INF_DEFINES_UEFI_SBOM_SECTION),
+                       LineInfo=self.CurrentLine)
+            return False
+        if not (UefiSbomSection == '' or UefiSbomSection is None):
+            if (IsValidBoolType(UefiSbomSection)):
+                self.UefiSbomSection = InfDefMember()
+                self.UefiSbomSection.SetValue(UefiSbomSection)
+                self.UefiSbomSection.Comments = Comments
+                return True
+            else:
+                ErrorInInf(ST.ERR_INF_PARSER_DEFINE_FROMAT_INVALID%(UefiSbomSection),
+                           LineInfo=self.CurrentLine)
+                return False
+        else:
+            return False
+    
+    def GetUefiSbomSection(self):
+        return self.UefiSbomSection
+
+    #
     # [<UefiHiiResource> <EOL>]{0,1}
     # <UefiHiiResource>      ::=  "UEFI_HII_RESOURCE_SECTION" "=" <BoolType>
     #
@@ -881,6 +912,7 @@ gFUNCTION_MAPPING_FOR_DEFINE_SECTION = {
     DT.TAB_INF_DEFINES_PCI_COMPRESS                : InfDefSection.SetPciCompress,
     DT.TAB_INF_DEFINES_CUSTOM_MAKEFILE             : InfDefSection.SetCustomMakefile,
     DT.TAB_INF_DEFINES_SPEC                        : InfDefSection.SetSpecification,
+    DT.TAB_INF_DEFINES_UEFI_SBOM_SECTION           : InfDefSection.SetUefiSbomSection,
     DT.TAB_INF_DEFINES_UEFI_HII_RESOURCE_SECTION   : InfDefSection.SetUefiHiiResourceSection,
     DT.TAB_INF_DEFINES_DPX_SOURCE                  : InfDefSection.SetDpxSource
 }

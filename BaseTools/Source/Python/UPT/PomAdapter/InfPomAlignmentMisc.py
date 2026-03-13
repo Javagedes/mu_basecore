@@ -37,6 +37,7 @@ def GenModuleHeaderUserExt(DefineObj, ArchString):
     PciRevision = DefineObj.GetPciRevision()
     PciCompress = DefineObj.GetPciCompress()
     CustomMakefile = DefineObj.GetCustomMakefile()
+    UefiSbomSection = DefineObj.GetUefiSbomSection()
     UefiHiiResourceSection = DefineObj.GetUefiHiiResourceSection()
 
     if EdkReleaseVersion is not None:
@@ -131,6 +132,17 @@ def GenModuleHeaderUserExt(DefineObj, ArchString):
                                                    Comments.GetTailComments())
 
             DefinesDictNew[Statement] = ArchString
+    
+    if UefiSbomSection is not None:
+        Name = DT.TAB_INF_DEFINES_UEFI_SBOM_SECTION
+        Value = UefiSbomSection.GetValue()
+        HeaderComment = UefiSbomSection.Comments.GetHeaderComments()
+        TailComment = UefiSbomSection.Comments.GetTailComments()
+        Statement = _GenInfDefineStateMent(HeaderComment,
+                                           Name,
+                                           Value,
+                                           TailComment)
+        DefinesDictNew[Statement] = ""
 
     if UefiHiiResourceSection is not None:
         Name = DT.TAB_INF_DEFINES_UEFI_HII_RESOURCE_SECTION
