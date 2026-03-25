@@ -17,6 +17,22 @@ inputs:
     description: Comma-separated list of EDK II packages to run CI tests on. No value means all packages. Do not include spaces between package names.
     required: false
     default: ''
+  targets:
+    description: Comma-separated list of build targets to run CI tests on. No value means all targets. Do not include spaces between target names.
+    required: false
+    default: ''
+  architectures:
+    description: Comma-separated list of architectures to run CI tests on. No value means all architectures. Do not include spaces between architecture names.
+    required: false
+    default: ''
+  toolchain:
+    description: The toolchain to use for the CI build.
+    required: false
+    default: 'CLANGPDB'
+  stuart-args:
+    description: Additional arguments to pass to `stuart_ci_build`. Should be space-separated. For example, `--test-filter MyTest*`.
+    required: false
+    default: ''
   stuart-setup:
     description: Whether to run `stuart_setup` before running CI tests ('true' or 'false').
     required: false
@@ -25,6 +41,11 @@ inputs:
     description: Whether to run `stuart_ci_setup` before running CI tests ('true' or 'false').
     required: false
     default: 'true'
+
+outputs:
+  log-path:
+    description: 'Path to the folder containing the build logs'
+    value: ${{ steps.tempdir.outputs.path }}
 
 runs:
   using: composite
@@ -128,4 +149,30 @@ runs:
         else
           echo "No matching log files found"
         fi
-      working-directory: ${{ inputs.working-directory }}
+    
+    - name: Run CI tests
+      shell: bash
+      run: |
+        stuart_ci_build \
+          -c ${{ inputs.ci-config }} \
+          -p "${{ inputs.packages }}" \
+          -t "${{ inputs.targets }}" \
+          -a "${{ inputs.architectures }}" \
+          TOOL_CHAIN_TAG="${{ inputs.toolchain }}" \
+          ${{ inputs.stuart-args }}
+
+    - name: Move build log
+      if: always()
+      shell: bash
+      env:
+        TEMP_DIR: ${{ steps.tempdir.outputs.path }}
+      run: |
+        shopt -s globstar nullglob
+        files=(Build/**/CI_BUILDLOG*.txt Build/**/BUILDLOG_*.txt)
+
+        if ((${#files[@]})); then
+          echo "Moving ${#files[@]} log files"
+          mv "${files[@]}" "$TEMP_DIR"
+        else
+          echo "No matching log files found"
+        fi

@@ -18,7 +18,7 @@ on:
 
 jobs:
   package-ci:
-    name: EDK II Package CI - ${{ matrix.packages }} (${{ matrix.os }})
+    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] [${{ matrix.architectures }}] (${{ matrix.os }})"
 
     runs-on: ${{ matrix.os }}
 
@@ -31,7 +31,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
-        packages: ['ArmPkg,ArmPlatformPkg', 'BaseTools', 'MdePkg,MdeModulePkg']
+        architectures: ['AARCH64,X64']
+        toolchain: ['CLANGPDB']
+        config:
+          - packages: 'ArmPkg,ArmPlatformPkg'
+            targets: 'DEBUG,RELEASE'
+          - packages: 'MdePkg,MdeModulePkg'
+            targets: 'DEBUG,RELEASE'
 
         exclude:
           # Exclude container builds on Windows
@@ -57,9 +63,20 @@ jobs:
         run: pip install -r pip-requirements.txt
       
       - name: EDK II Package CI
+        id: package-ci
         uses: ./.github/actions/package-ci
         with:
           ci-config: '.pytool/CISettings.py'
-          packages: ${{ matrix.packages }}
+          packages: ${{ matrix.config.packages }}
+          targets: ${{ matrix.config.targets }}
+          architectures: ${{ matrix.architectures }}
+          toolchain: ${{ matrix.toolchain }}
           stuart-setup: 'true'
           stuart-ci-setup: 'false'
+      
+      - name: Upload CI build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.architectures }}-${{ matrix.os }}
+          path: ${{ steps.package-ci.outputs.log-path }}
