@@ -70,8 +70,62 @@ runs:
       run: |
         stuart_setup -c ${{ inputs.ci-config }}
     
+    - name: Move setup log
+      if: always() && fromJson(inputs.stuart-setup)
+      shell: bash
+      env:
+        TEMP_DIR: ${{ steps.tempdir.outputs.path }}
+      run: |
+        shopt -s globstar nullglob
+        files=(Build/SETUP*.txt)
+
+        if ((${#files[@]})); then
+          echo "Moving ${#files[@]} log files"
+          mv "${files[@]}" "$TEMP_DIR"
+        else
+          echo "No matching log files found"
+        fi
+    
     - name: Download CI dependencies (stuart_ci_setup)
       if: ${{ fromJson(inputs.stuart-ci-setup) }}
       shell: bash
       run: |
         stuart_ci_setup -c ${{ inputs.ci-config }}
+
+    - name: Move CI setup log
+      if: always() && fromJson(inputs.stuart-ci-setup)
+      shell: bash
+      env:
+        TEMP_DIR: ${{ steps.tempdir.outputs.path }}
+      run: |
+        shopt -s globstar nullglob
+        files=(Build/CI_SETUP*.txt)
+
+        if ((${#files[@]})); then
+          echo "Moving ${#files[@]} log files"
+          mv "${files[@]}" "$TEMP_DIR"
+        else
+          echo "No matching log files found"
+        fi
+    
+    - name: Download external dependencies (stuart_update)
+      shell: bash
+      run: |
+        stuart_update -c ${{ inputs.ci-config }}
+    
+    - name: Move update log
+      if: always()
+      shell: bash
+      env:
+        TEMP_DIR: ${{ steps.tempdir.outputs.path }}
+      run: |
+        shopt -s globstar nullglob
+        files=(Build/UPDATE*.txt)
+
+        if ((${#files[@]})); then
+          echo "Moving ${#files[@]} log files"
+          mv "${files[@]}" "$TEMP_DIR"
+        else
+          echo "No matching log files found"
+        fi
+      working-directory: ${{ inputs.working-directory }}
