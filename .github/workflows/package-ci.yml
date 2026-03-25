@@ -1,0 +1,65 @@
+# A workflow to build the EDKII packages in this repository using certain configurations.
+#
+##
+# Copyright (c) Microsoft Corporation.
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+name: Package CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release/202511
+  pull_request:
+    branches:
+      - release/202511
+
+jobs:
+  package-ci:
+    name: EDK II Package CI - ${{ matrix.packages }} (${{ matrix.os }})
+
+    runs-on: ${{ matrix.os }}
+
+    container:
+      image: ${{ matrix.container || null }}
+      options: --security-opt seccomp=unconfined
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
+        packages: ['ArmPkg,ArmPlatformPkg', 'BaseTools', 'MdePkg,MdeModulePkg']
+
+        exclude:
+          # Exclude container builds on Windows
+          - os: windows-latest
+            container: 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest'
+          # Exclude non-container builds on Ubuntu
+          - os: ubuntu-latest
+            container: ''
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Setup Python 3.12
+        if: ${{ matrix.container == null }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+          cache: 'pip'
+          cache-dependency-path: pip-requirements.txt
+      
+      - name: Install Python dependencies
+        run: pip install -r pip-requirements.txt
+      
+      - name: EDK II Package CI
+        uses: ./.github/actions/package-ci
+        with:
+          ci-config: '.pytool/CISettings.py'
+          packages: ${{ matrix.packages }}
+          stuart-setup: 'true'
+          stuart-ci-setup: 'false'

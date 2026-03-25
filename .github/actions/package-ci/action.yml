@@ -1,0 +1,77 @@
+# A callable Github Action to tun CI tests on EDK II package(s) using stuart. 
+#
+##
+# Copyright (c) Microsoft Corporation.
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+name: EDK II Package CI
+description: Prepare and run CI tests on EDK II package(s) using stuart.
+
+inputs:
+  ci-config:
+    description: Path to the CI configuration file (relative to the repository root). No value means '.pytool/CISettings.py'.
+    required: false
+    default: '.pytool/CISettings.py'
+  packages:
+    description: Comma-separated list of EDK II packages to run CI tests on. No value means all packages. Do not include spaces between package names.
+    required: false
+    default: ''
+  stuart-setup:
+    description: Whether to run `stuart_setup` before running CI tests ('true' or 'false').
+    required: false
+    default: 'false'
+  stuart-ci-setup:
+    description: Whether to run `stuart_ci_setup` before running CI tests ('true' or 'false').
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+
+  steps:
+    - name: Container Configuration
+      if: ${{ matrix.container != null }}
+      shell: bash
+      run: |
+        git config --global --add safe.directory '*'
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Create temporary directory for log files
+      id: tempdir
+      shell: bash
+      run: |
+        TEMP_DIR="ci-logs"
+        if [ -n "${{ inputs.packages }}" ]; then
+          TEMP_DIR="${TEMP_DIR}-$(echo "${{ inputs.packages }}" | tr ',' '-')"
+        fi
+        mkdir -p "$RUNNER_TEMP"/$TEMP_DIR
+        echo "path="$RUNNER_TEMP"/$TEMP_DIR" >> $GITHUB_OUTPUT
+    
+    - name: Gather submodule hashes
+      if: ${{ fromJson(inputs.stuart-setup) }}
+      id: submodules-hash
+      shell: bash
+      run: |
+        HASH=$(git submodule foreach --quiet 'echo $sha1' | sha256sum | awk '{print $1}')
+        echo "hash=$HASH" >> $GITHUB_OUTPUT
+    
+    - name: Cache submodules
+      if: ${{ fromJson(inputs.stuart-setup) }}
+      uses: actions/cache@v4
+      with:
+        path: .git/modules
+        key: ${{ runner.os }}-submodules-${{ steps.submodules-hash.outputs.hash }}
+    
+    - name: Download required submodules (stuart_setup)
+      if: ${{ fromJson(inputs.stuart-setup) }}
+      shell: bash
+      run: |
+        stuart_setup -c ${{ inputs.ci-config }}
+    
+    - name: Download CI dependencies (stuart_ci_setup)
+      if: ${{ fromJson(inputs.stuart-ci-setup) }}
+      shell: bash
+      run: |
+        stuart_ci_setup -c ${{ inputs.ci-config }}
