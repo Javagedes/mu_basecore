@@ -17,7 +17,7 @@ on:
       - release/202511
 
 env:
-  VALUE:
+  VALUE: |
     - packages: 'MdePkg,UefiCpuPkg'
       targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
 
@@ -93,7 +93,8 @@ jobs:
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
         architectures: ['AARCH64,X64']
         toolchain: ['CLANGPDB']
-        config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
+        # config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
+        config: ${{ fromJson(env.VALUE)}}
 
         exclude:
           # Exclude container builds on Windows
