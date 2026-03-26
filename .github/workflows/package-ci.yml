@@ -35,19 +35,21 @@ on:
 jobs:
   package-ci:
 
-    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
+    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.runner.os }})"
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner.os }}
 
     container:
-      image: ${{ matrix.container || null }}
+      image: ${{ matrix.runner.container || null }}
       options: --security-opt seccomp=unconfined
 
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
-        container: ['', '${{ inputs.container }}']
+        runner: 
+          - os: windows-latest
+          - os: ubuntu-latest
+            container: ${{ inputs.container }}
         architectures: ['AARCH64,IA32,X64']
         toolchain: ['CLANGPDB']
         config: ${{ fromJson(inputs.package-config) }}
@@ -99,5 +101,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.os }}
+          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.runner.os }}
           path: ${{ steps.package-ci.outputs.log-path }}
