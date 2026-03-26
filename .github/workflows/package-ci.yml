@@ -22,15 +22,9 @@ jobs:
     uses: ./.github/workflows/gather-packages.yml
     with:
       package-config: |
-        - packages: 'ArmPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'ArmPlatformPkg'
+        - packages: 'ArmPkg,ArmPlatformPkg,DynamicTablesPkg,EmbeddedPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'CryptoPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'DynamicTablesPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'EmbeddedPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'FatPkg'
           targets: 'DEBUG,RELEASE'
