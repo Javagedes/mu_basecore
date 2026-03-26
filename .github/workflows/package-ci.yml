@@ -17,7 +17,7 @@ on:
       - release/202511
 
 env:
-  VALUE: |
+  PACKAGE_CONFIG: |
     - packages: 'MdePkg,UefiCpuPkg'
       targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
 
@@ -38,42 +38,34 @@ jobs:
         id: set-packages
         shell: bash
         run: |
-          # Hardcoded package configurations
-          declare -A PACKAGE_TARGETS
-          PACKAGE_TARGETS[ArmPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[ArmPlatformPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[BaseTools]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[CryptoPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[DynamicTablesPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[EmbeddedPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[FatPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[FmpDevicePkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[IntelFsp2Pkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[IntelFsp2WrapperPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[MdeModulePkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[MdePkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[NetworkPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[PcAtChipsetPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[PolicyServicePkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[PrmPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[SecurityPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[ShellPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[StandaloneMmPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[UefiCpuPkg]="DEBUG,RELEASE"
-          PACKAGE_TARGETS[UnitTestFrameworkPkg]="DEBUG,RELEASE"
+          # Convert YAML config from env to JSON, then validate against repo directories
+          CONFIG=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
 
-          # Discover directories ending in "Pkg" at the repo root
-          CONFIG="[]"
-          for dir in */; do
-            pkg="${dir%/}"
-            if [[ -n "${PACKAGE_TARGETS[$pkg]+x}" ]]; then
-              targets="${PACKAGE_TARGETS[$pkg]}"
-              CONFIG=$(echo "$CONFIG" | jq -c --arg p "$pkg" --arg t "$targets" '. + [{"packages": $p, "targets": $t}]')
+          if ! echo "$CONFIG" | jq empty 2>/dev/null; then
+            echo "::error::Invalid configuration in PACKAGE_CONFIG"
+            exit 1
+          fi
+
+          VALIDATED="[]"
+          for entry in $(echo "$CONFIG" | jq -c '.[]'); do
+            pkg=$(echo "$entry" | jq -r '.packages')
+            # Check each comma-separated package name exists as a directory
+            all_found=true
+            IFS=',' read -ra PKGS <<< "$pkg"
+            for p in "${PKGS[@]}"; do
+              if [[ ! -d "$p" ]]; then
+                echo "::warning::Package directory '$p' not found in repo root, skipping entry"
+                all_found=false
+                break
+              fi
+            done
+            if $all_found; then
+              VALIDATED=$(echo "$VALIDATED" | jq -c --argjson e "$entry" '. + [$e]')
             fi
           done
 
-          echo "Discovered config: $CONFIG"
-          echo "packages=$CONFIG" >> "$GITHUB_OUTPUT"
+          echo "Discovered config: $VALIDATED"
+          echo "packages=$VALIDATED" >> "$GITHUB_OUTPUT"
 
   package-ci:
     name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] [${{ matrix.architectures }}] (${{ matrix.os }})"
