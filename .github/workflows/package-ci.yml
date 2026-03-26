@@ -16,6 +16,11 @@ on:
     branches:
       - release/202511
 
+env:
+  VALUE:
+    - packages: 'MdePkg,UefiCpuPkg'
+      targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
+
 jobs:
   gather-packages:
     name: Gather Repository Packages
