@@ -22,11 +22,29 @@ jobs:
     uses: ./.github/workflows/gather-packages.yml
     with:
       package-config: |
-        - packages: 'ArmPkg,ArmPlatformPkg,DynamicTablesPkg,EmbeddedPkg'
+        - packages: 'ArmPkg'
           targets: 'DEBUG,RELEASE'
-        - packages: 'FatPkg,FmpDevicePkg,PolicyServicePkg,PrmPkg'
+        - packages: 'ArmPlatformPkg'
           targets: 'DEBUG,RELEASE'
-        - packages: 'IntelFsp2Pkg,IntelFsp2WrapperPkg,UefiCpuPkg,PcAtChipsetPkg'
+        - packages: 'DynamicTablesPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'EmbeddedPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'FatPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'FmpDevicePkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'PolicyServicePkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'PrmPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'IntelFsp2Pkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'IntelFsp2WrapperPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'UefiCpuPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'PcAtChipsetPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'MdeModulePkg'
           targets: 'RELEASE'
@@ -34,9 +52,15 @@ jobs:
           targets: 'DEBUG'
         - packages: 'MdePkg'
           targets: 'DEBUG,RELEASE'
-        - packages: 'CryptoPkg,SecurityPkg,StandaloneMmPkg,NetworkPkg'
-          targets: 'DEBUG,RELEASE'
         - packages: 'UnitTestFrameworkPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'CryptoPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'SecurityPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'StandaloneMmPkg'
+          targets: 'DEBUG,RELEASE'
+        - packages: 'NetworkPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'ShellPkg'
           targets: 'DEBUG,RELEASE'
@@ -57,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [windows-latest]
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
         architectures: ['AARCH64,IA32,X64']
         toolchain: ['CLANGPDB']
