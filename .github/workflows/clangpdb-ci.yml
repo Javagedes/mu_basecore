@@ -15,7 +15,7 @@ on:
     branches:
       - release/202511
 
-job:
+jobs:
   gather-packages:
     name: Gather Repository Packages
     uses: ./.github/workflows/gather-packages.yml
