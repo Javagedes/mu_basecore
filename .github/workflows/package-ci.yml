@@ -66,7 +66,7 @@ jobs:
         targets: 'DEBUG,RELEASE'
 
   package-ci:
-    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] [${{ matrix.architectures }}] (${{ matrix.os }})"
+    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
 
     needs: gather-packages
 
@@ -132,5 +132,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.architectures }}-${{ matrix.os }}
+          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.os }}
           path: ${{ steps.package-ci.outputs.log-path }}
