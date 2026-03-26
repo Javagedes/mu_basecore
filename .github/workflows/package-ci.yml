@@ -34,10 +34,48 @@ jobs:
         architectures: ['AARCH64,X64']
         toolchain: ['CLANGPDB']
         config:
-          - packages: 'ArmPkg,ArmPlatformPkg'
-            targets: 'DEBUG,RELEASE'
-          - packages: 'MdePkg,MdeModulePkg'
-            targets: 'DEBUG,RELEASE'
+          - packages: ArmPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: ArmPlatformPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: BaseTools
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: CryptoPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: DynamicTablesPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: EmbeddedPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: FatPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: FmpDevicePkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: IntelFsp2Pkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: IntelFsp2WrapperPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: MdeModulePkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: MdePkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: NetworkPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: PcAtChipsetPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: PolicyServicePkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: PrmPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: SecurityPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: ShellPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: StandaloneMmPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: UefiCpuPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+          - packages: UnitTestFrameworkPkg
+            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
 
         exclude:
           # Exclude container builds on Windows
@@ -50,6 +88,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Container Configuration
+        if: ${{ matrix.container != null }}
+        shell: bash
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
       
       - name: Setup Python 3.12
         if: ${{ matrix.container == null }}
