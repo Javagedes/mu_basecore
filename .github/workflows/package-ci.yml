@@ -108,6 +108,17 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r pip-requirements.txt
       
+      - name: Setup Node
+        if: ${{ matrix.container == null }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      
+      - name: Install Node dependencies
+        if: ${{ matrix.container == null }}
+        run: |
+          npm install -g markdownlint-cli@0.32.2 cspell@5.20.0
+      
       - name: EDK II Package CI
         id: package-ci
         uses: ./.github/actions/package-ci
