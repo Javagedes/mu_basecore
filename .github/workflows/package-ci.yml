@@ -22,32 +22,10 @@ jobs:
     uses: ./.github/workflows/gather-packages.yml
     with:
       package-config: |
-        - packages: 'ArmPkg,ArmPlatformPkg,DynamicTablesPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'CryptoPkg,EmbeddedPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'UnitTestFrameworkPkg,FatPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'FmpDevicePkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'PolicyServicePkg,SecurityPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'PrmPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'IntelFsp2Pkg,IntelFsp2WrapperPkg,StandaloneMmPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'UefiCpuPkg,PcAtChipsetPkg'
-          targets: 'DEBUG,RELEASE'
         - packages: 'MdeModulePkg'
           targets: 'RELEASE'
         - packages: 'MdeModulePkg'
           targets: 'DEBUG'
-        - packages: 'MdePkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'NetworkPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'ShellPkg'
-          targets: 'DEBUG,RELEASE'
       default-config: |
         targets: 'DEBUG,RELEASE'
 

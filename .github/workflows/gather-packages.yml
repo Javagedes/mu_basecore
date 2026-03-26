@@ -32,8 +32,8 @@ on:
         description: >
           A YAML object of default properties (excluding "packages") applied
           to any *Pkg directories found in the repo root that are not covered
-          by package-config. The discovered packages are joined as a single
-          comma-separated entry.
+          by package-config. Each undeclared package is appended as its own
+          entry.
           Example:
             targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
             architectures: 'X64'
@@ -128,11 +128,12 @@ jobs:
             fi
           done
 
-          # Append undeclared packages as a single entry using default config
+          # Append each undeclared package as its own entry using default config
           if [[ ${#UNDECLARED[@]} -gt 0 ]]; then
-            UNDECLARED_CSV=$(IFS=','; echo "${UNDECLARED[*]}")
-            echo "Appending undeclared packages: $UNDECLARED_CSV"
-            VALIDATED=$(echo "$VALIDATED" | jq -c --arg p "$UNDECLARED_CSV" --argjson d "$DEFAULT_JSON" '. + [$d + {"packages": $p}]')
+            for pkg in "${UNDECLARED[@]}"; do
+              echo "Appending undeclared package: $pkg"
+              VALIDATED=$(echo "$VALIDATED" | jq -c --arg p "$pkg" --argjson d "$DEFAULT_JSON" '. + [$d + {"packages": $p}]')
+            done
           fi
 
           echo "Discovered config: $VALIDATED"
