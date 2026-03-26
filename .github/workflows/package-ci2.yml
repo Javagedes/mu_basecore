@@ -20,14 +20,15 @@ on:
               architectures: 'X64,AARCH64'
             - packages: 'ShellPkg'
               targets: 'DEBUG'
-        required: true
         type: string
+        required: true
       container:
         description: A container image to run the build in when using a linux runner.
-        required: true
         type: string
+        required: true
       python-version:
         description: Python version to use when not running in a container
+        type: string
         required: false
         default: '3.12'
 
