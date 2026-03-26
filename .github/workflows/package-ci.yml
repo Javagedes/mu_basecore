@@ -17,8 +17,63 @@ on:
       - release/202511
 
 jobs:
+  gather-packages:
+    name: Gather Repository Packages
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      packages: ${{ steps.set-packages.outputs.packages }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Discover and validate packages
+        id: set-packages
+        shell: bash
+        run: |
+          # Hardcoded package configurations
+          declare -A PACKAGE_TARGETS
+          PACKAGE_TARGETS[ArmPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[ArmPlatformPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[BaseTools]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[CryptoPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[DynamicTablesPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[EmbeddedPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[FatPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[FmpDevicePkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[IntelFsp2Pkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[IntelFsp2WrapperPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[MdeModulePkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[MdePkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[NetworkPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[PcAtChipsetPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[PolicyServicePkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[PrmPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[SecurityPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[ShellPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[StandaloneMmPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[UefiCpuPkg]="DEBUG,RELEASE"
+          PACKAGE_TARGETS[UnitTestFrameworkPkg]="DEBUG,RELEASE"
+
+          # Discover directories ending in "Pkg" at the repo root
+          CONFIG="[]"
+          for dir in */; do
+            pkg="${dir%/}"
+            if [[ -n "${PACKAGE_TARGETS[$pkg]+x}" ]]; then
+              targets="${PACKAGE_TARGETS[$pkg]}"
+              CONFIG=$(echo "$CONFIG" | jq -c --arg p "$pkg" --arg t "$targets" '. + [{"packages": $p, "targets": $t}]')
+            fi
+          done
+
+          echo "Discovered config: $CONFIG"
+          echo "packages=$CONFIG" >> "$GITHUB_OUTPUT"
+
   package-ci:
     name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] [${{ matrix.architectures }}] (${{ matrix.os }})"
+
+    needs: gather-packages
 
     runs-on: ${{ matrix.os }}
 
@@ -33,49 +88,7 @@ jobs:
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
         architectures: ['AARCH64,X64']
         toolchain: ['CLANGPDB']
-        config:
-          - packages: ArmPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: ArmPlatformPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: BaseTools
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: CryptoPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: DynamicTablesPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: EmbeddedPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: FatPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: FmpDevicePkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: IntelFsp2Pkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: IntelFsp2WrapperPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: MdeModulePkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: MdePkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: NetworkPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: PcAtChipsetPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: PolicyServicePkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: PrmPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: SecurityPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: ShellPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: StandaloneMmPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: UefiCpuPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
-          - packages: UnitTestFrameworkPkg
-            targets: DEBUG,RELEASE,NO-TARGET,NOOPT
+        config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
 
         exclude:
           # Exclude container builds on Windows
@@ -107,17 +120,6 @@ jobs:
       
       - name: Install Python dependencies
         run: pip install -r pip-requirements.txt
-      
-      - name: Setup Node
-        if: ${{ matrix.container == null }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: 24
-      
-      - name: Install Node dependencies
-        if: ${{ matrix.container == null }}
-        run: |
-          npm install -g markdownlint-cli@0.32.2 cspell@5.20.0
       
       - name: EDK II Package CI
         id: package-ci
