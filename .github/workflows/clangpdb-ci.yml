@@ -29,11 +29,11 @@ jobs:
         targets: 'DEBUG,RELEASE'
 
   ci:
-    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
+    name: CI
 
     needs: gather-packages
 
-    uses: ./.github/workflows/package-ci2.yml
+    uses: ./.github/workflows/package-ci.yml
     with:
       package-config: ${{ needs.gather-packages.outputs.packages }}
       container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
