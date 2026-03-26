@@ -1,0 +1,37 @@
+# A workflow to build EDKII packages using the CLANGPDB toolchain in windows and ubuntu environments.
+##
+# Copyright (c) Microsoft Corporation.
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+name: CLANGPDB Package CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release/202511
+  pull_request:
+    branches:
+      - release/202511
+
+job:
+  gather-packages:
+    name: Gather Repository Packages
+    uses: ./.github/workflows/gather-packages.yml
+    with:
+      package-config: |
+        - packages: 'MdeModulePkg'
+          targets: 'RELEASE'
+        - packages: 'MdeModulePkg'
+          targets: 'DEBUG'
+      default-config: |
+        targets: 'DEBUG,RELEASE'
+
+  ci:
+    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
+    uses: ./.github/workflows/package-ci2.yml
+    with:
+      package-config: ${{ needs.gather-packages.outputs.packages }}
+      container: ${{ ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest }}
+      python-version: '3.12'

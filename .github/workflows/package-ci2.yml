@@ -8,32 +8,30 @@
 name: Package CI
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - release/202511
-  pull_request:
-    branches:
-      - release/202511
+  workflow_call:
+    inputs:
+      package-config:
+        description: >
+          A YAML array of objects. Each object must have a "packages" key.
+          All other keys are passed through to the output.
+          Example:
+            - packages: 'MdePkg,UefiCpuPkg'
+              targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
+              architectures: 'X64,AARCH64'
+            - packages: 'ShellPkg'
+              targets: 'DEBUG'
+        required: true
+        type: string
+      container:
+        description: A container image to run the build in when using a linux runner.
+        required: true
+        type: string
+      python-version:
+        description: Python version to use when not running in a container
+        required: false
+        default: '3.12'
 
 jobs:
-  gather-packages:
-    name: Gather Repository Packages
-    uses: ./.github/workflows/gather-packages.yml
-    with:
-      package-config: |
-        - packages: 'MdeModulePkg'
-          targets: 'RELEASE'
-        - packages: 'MdeModulePkg'
-          targets: 'DEBUG'
-      default-config: |
-        targets: 'DEBUG,RELEASE'
-
-  package-ci:
-    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
-
-    needs: gather-packages
-
     runs-on: ${{ matrix.os }}
 
     container:
@@ -44,15 +42,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
+        container: ['', '${{ inputs.container }}']
         architectures: ['AARCH64,IA32,X64']
         toolchain: ['CLANGPDB']
-        config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
+        config: ${{ fromJson(inputs.package-config) }}
 
         exclude:
           # Exclude container builds on Windows
           - os: windows-latest
-            container: 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest'
+            container: '${{ inputs.container }}'
           # Exclude non-container builds on Ubuntu
           - os: ubuntu-latest
             container: ''
@@ -69,11 +67,11 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
       
-      - name: Setup Python 3.12
+      - name: Setup Python ${{ inputs.python-version }}
         if: ${{ matrix.container == null }}
         uses: actions/setup-python@v6
         with:
-          python-version: 3.12
+          python-version: ${{ inputs.python-version }}
           cache: 'pip'
           cache-dependency-path: pip-requirements.txt
       
