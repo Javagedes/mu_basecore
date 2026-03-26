@@ -85,8 +85,7 @@ jobs:
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
         architectures: ['AARCH64,X64']
         toolchain: ['CLANGPDB']
-        # config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
-        config: ${{ fromJson(env.VALUE)}}
+        config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
 
         exclude:
           # Exclude container builds on Windows
