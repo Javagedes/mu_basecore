@@ -64,6 +64,36 @@ jobs:
             fi
           done
 
+          # Collect all packages already declared in config
+          DECLARED_PKGS=()
+          for entry in $(echo "$VALIDATED" | jq -c '.[]'); do
+            IFS=',' read -ra PKGS <<< "$(echo "$entry" | jq -r '.packages')"
+            DECLARED_PKGS+=("${PKGS[@]}")
+          done
+
+          # Find *Pkg directories not already in config
+          UNDECLARED=()
+          for dir in *Pkg/; do
+            pkg="${dir%/}"
+            found=false
+            for declared in "${DECLARED_PKGS[@]}"; do
+              if [[ "$declared" == "$pkg" ]]; then
+                found=true
+                break
+              fi
+            done
+            if ! $found; then
+              UNDECLARED+=("$pkg")
+            fi
+          done
+
+          # Append undeclared packages as a single entry with default targets
+          if [[ ${#UNDECLARED[@]} -gt 0 ]]; then
+            UNDECLARED_CSV=$(IFS=','; echo "${UNDECLARED[*]}")
+            echo "Appending undeclared packages: $UNDECLARED_CSV"
+            VALIDATED=$(echo "$VALIDATED" | jq -c --arg p "$UNDECLARED_CSV" --arg t "DEBUG,RELEASE,NO-TARGET,NOOPT" '. + [{"packages": $p, "targets": $t}]')
+          fi
+
           echo "Discovered config: $VALIDATED"
           echo "packages=$VALIDATED" >> "$GITHUB_OUTPUT"
 
