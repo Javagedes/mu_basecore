@@ -30,6 +30,9 @@ jobs:
 
   ci:
     name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.os }})"
+
+    needs: gather-packages
+
     uses: ./.github/workflows/package-ci2.yml
     with:
       package-config: ${{ needs.gather-packages.outputs.packages }}
