@@ -81,7 +81,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         container: ['', 'ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest']
-        architectures: ['AARCH64,X64']
+        architectures: ['AARCH64,IA32,X64']
         toolchain: ['CLANGPDB']
         config: ${{ fromJson(needs.gather-packages.outputs.packages) }}
 
