@@ -33,5 +33,5 @@ jobs:
     uses: ./.github/workflows/package-ci2.yml
     with:
       package-config: ${{ needs.gather-packages.outputs.packages }}
-      container: ${{ ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest }}
+      container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
       python-version: '3.12'
