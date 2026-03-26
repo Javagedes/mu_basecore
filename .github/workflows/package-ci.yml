@@ -22,11 +22,7 @@ jobs:
     uses: ./.github/workflows/gather-packages.yml
     with:
       package-config: |
-        - packages: 'ArmPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'ArmPlatformPkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'DynamicTablesPkg'
+        - packages: 'ArmPkg,ArmPlatformPkg,DynamicTablesPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'EmbeddedPkg'
           targets: 'DEBUG,RELEASE'
@@ -38,9 +34,7 @@ jobs:
           targets: 'DEBUG,RELEASE'
         - packages: 'PrmPkg'
           targets: 'DEBUG,RELEASE'
-        - packages: 'IntelFsp2Pkg'
-          targets: 'DEBUG,RELEASE'
-        - packages: 'IntelFsp2WrapperPkg'
+        - packages: 'IntelFsp2Pkg,IntelFsp2WrapperPkg'
           targets: 'DEBUG,RELEASE'
         - packages: 'UefiCpuPkg'
           targets: 'DEBUG,RELEASE'
