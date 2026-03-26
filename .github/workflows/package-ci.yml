@@ -16,86 +16,16 @@ on:
     branches:
       - release/202511
 
-env:
-  PACKAGE_CONFIG: |
-    - packages: 'MdePkg,UefiCpuPkg'
-      targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
-
 jobs:
   gather-packages:
     name: Gather Repository Packages
-
-    runs-on: ubuntu-latest
-
-    outputs:
-      packages: ${{ steps.set-packages.outputs.packages }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Discover and validate packages
-        id: set-packages
-        shell: bash
-        run: |
-          # Convert YAML config from env to JSON, then validate against repo directories
-          CONFIG=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
-
-          if ! echo "$CONFIG" | jq empty 2>/dev/null; then
-            echo "::error::Invalid configuration in PACKAGE_CONFIG"
-            exit 1
-          fi
-
-          VALIDATED="[]"
-          for entry in $(echo "$CONFIG" | jq -c '.[]'); do
-            pkg=$(echo "$entry" | jq -r '.packages')
-            # Check each comma-separated package name exists as a directory
-            all_found=true
-            IFS=',' read -ra PKGS <<< "$pkg"
-            for p in "${PKGS[@]}"; do
-              if [[ ! -d "$p" ]]; then
-                echo "::warning::Package directory '$p' not found in repo root, skipping entry"
-                all_found=false
-                break
-              fi
-            done
-            if $all_found; then
-              VALIDATED=$(echo "$VALIDATED" | jq -c --argjson e "$entry" '. + [$e]')
-            fi
-          done
-
-          # Collect all packages already declared in config
-          DECLARED_PKGS=()
-          for entry in $(echo "$VALIDATED" | jq -c '.[]'); do
-            IFS=',' read -ra PKGS <<< "$(echo "$entry" | jq -r '.packages')"
-            DECLARED_PKGS+=("${PKGS[@]}")
-          done
-
-          # Find *Pkg directories not already in config
-          UNDECLARED=()
-          for dir in *Pkg/; do
-            pkg="${dir%/}"
-            found=false
-            for declared in "${DECLARED_PKGS[@]}"; do
-              if [[ "$declared" == "$pkg" ]]; then
-                found=true
-                break
-              fi
-            done
-            if ! $found; then
-              UNDECLARED+=("$pkg")
-            fi
-          done
-
-          # Append undeclared packages as a single entry with default targets
-          if [[ ${#UNDECLARED[@]} -gt 0 ]]; then
-            UNDECLARED_CSV=$(IFS=','; echo "${UNDECLARED[*]}")
-            echo "Appending undeclared packages: $UNDECLARED_CSV"
-            VALIDATED=$(echo "$VALIDATED" | jq -c --arg p "$UNDECLARED_CSV" --arg t "DEBUG,RELEASE,NO-TARGET,NOOPT" '. + [{"packages": $p, "targets": $t}]')
-          fi
-
-          echo "Discovered config: $VALIDATED"
-          echo "packages=$VALIDATED" >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/gather-packages.yml
+    with:
+      package-config: |
+        - packages: 'MdePkg,UefiCpuPkg'
+          targets: 'DEBUG,RELEASE'
+      default-config: |
+        targets: 'DEBUG,RELEASE'
 
   package-ci:
     name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] [${{ matrix.architectures }}] (${{ matrix.os }})"
