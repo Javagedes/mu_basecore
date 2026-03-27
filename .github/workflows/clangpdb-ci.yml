@@ -22,15 +22,19 @@ jobs:
     with:
       # Manually declared package configurations.
       package-config: |
-        - packages: MdeModulePkg,MdePkg
+        - packages: MdeModulePkg
           targets: RELEASE
-        - packages: MdeModulePkg,MdePkg
+          toolchain: CLANGPDB
+          architectures: IA32,X64,AARCH64
+        - packages: MdeModulePkg
           targets: DEBUG
+          toolchain: CLANGPDB
+          architectures: IA32,X64,AARCH64
       # Default config applied to any undeclared packages in the repo
       default-config: |
         targets: ["DEBUG,RELEASE"]
-        toolchain: [CLANGPDB]
-        architectures: [IA32,X64,AARCH64]
+        toolchain: ["CLANGPDB"]
+        architectures: ["IA32,X64,AARCH64"]
 
   windows-ci:
     name: Windows CLANGPDB CI
@@ -40,7 +44,7 @@ jobs:
     uses: ./.github/workflows/package-ci.yml
     with:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
-      container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
+      runner: windows-latest
       python-version: '3.12'
 
   ubuntu-ci:
@@ -51,5 +55,6 @@ jobs:
     uses: ./.github/workflows/package-ci.yml
     with:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
+      runner: ubuntu-latest
       container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
       python-version: '3.12'

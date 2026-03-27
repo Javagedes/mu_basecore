@@ -40,7 +40,7 @@ on:
 jobs:
   package-ci:
 
-    name: "[${{ matrix.packages }}] [${{ matrix.architectures }}] [${{ matrix.targets }}]"
+    name: "${{ matrix.packages }} ${{ matrix.architectures }} ${{ matrix.targets }}"
 
     runs-on: ${{ inputs.runner }}
 
