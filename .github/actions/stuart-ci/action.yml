@@ -145,13 +145,20 @@ runs:
     - name: Run CI tests
       shell: bash
       run: |
-        stuart_ci_build \
-          -c ${{ inputs.ci-config }} \
-          -p "${{ inputs.packages }}" \
-          -t "${{ inputs.targets }}" \
-          -a "${{ inputs.architectures }}" \
-          TOOL_CHAIN_TAG="${{ inputs.toolchain }}" \
-          ${{ inputs.stuart-args }}
+        ARGS=(-c "${{ inputs.ci-config }}")
+        if [ -n "${{ inputs.packages }}" ]; then
+          ARGS+=(-p "${{ inputs.packages }}")
+        fi
+        if [ -n "${{ inputs.targets }}" ]; then
+          ARGS+=(-t "${{ inputs.targets }}")
+        fi
+        if [ -n "${{ inputs.architectures }}" ]; then
+          ARGS+=(-a "${{ inputs.architectures }}")
+        fi
+        if [ -n "${{ inputs.toolchain }}" ]; then
+          ARGS+=(TOOL_CHAIN_TAG="${{ inputs.toolchain }}")
+        fi
+        stuart_ci_build "${ARGS[@]}" ${{ inputs.stuart-args }}
 
     - name: Move build log
       if: always()
