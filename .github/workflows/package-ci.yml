@@ -51,12 +51,7 @@ jobs:
           - os: ubuntu-latest
             container: ${{ inputs.container }}
         config: ${{ fromJson(inputs.package-config) }}
-        targets: ${{ fromJson(inputs.package-config).targets }}
-          # Default to all architectures if not specified in config
-        # architectures: ['AARCH64,IA32,X64']
-        # toolchain: ['CLANGPDB']
-        # config: ${{ fromJson(inputs.package-config) }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -87,8 +82,8 @@ jobs:
           ci-config: '.pytool/CISettings.py'
           packages: ${{ matrix.config.packages }}
           targets: ${{ matrix.config.targets }}
-          architectures: ${{ matrix.architectures }}
-          toolchain: ${{ matrix.toolchain }}
+          architectures: ${{ matrix.config.architectures }}
+          toolchain: ${{ matrix.config.toolchain }}
           stuart-setup: 'true'
           stuart-ci-setup: 'false'
       

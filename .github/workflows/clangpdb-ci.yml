@@ -20,13 +20,21 @@ jobs:
     name: Gather Repository Packages
     uses: ./.github/workflows/gather-packages.yml
     with:
+      # Manually declared package configurations.
       package-config: |
-        - packages: 'MdeModulePkg'
-          targets: 'RELEASE'
-        - packages: 'MdeModulePkg'
-          targets: 'DEBUG'
+        - packages: MdeModulePkg
+          targets: RELEASE
+          toolchain: CLANGPDB
+          architectures: IA32,X64,AARCH64
+        - packages: MdeModulePkg
+          targets: DEBUG
+          toolchain: CLANGPDB
+          architectures: IA32,X64,AARCH64
+      # Default config applied to any undeclared packages in the repo
       default-config: |
-        targets: [DEBUG,RELEASE]
+        targets: DEBUG,RELEASE
+        toolchain: CLANGPDB
+        architectures: IA32,X64,AARCH64
 
   ci:
     name: CI
