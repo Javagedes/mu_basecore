@@ -31,33 +31,34 @@ on:
         type: string
         required: false
         default: '3.12'
+      runner:
+        description: The type of runner to use for the CI build. Possible values are 'ubuntu-latest', 'windows-latest', and 'self-hosted'. Default is 'ubuntu-latest'.
+        type: string
+        required: false
+        default: 'ubuntu-latest'
 
 jobs:
   package-ci:
 
-    name: "[${{ matrix.config.packages }}] [${{ matrix.config.targets }}] (${{ matrix.runner.os }})"
+    name: "[${{ matrix.packages }}] [${{ matrix.targets }}]"
 
-    runs-on: ${{ matrix.runner.os }}
+    runs-on: ${{ inputs.runner }}
 
     container:
-      image: ${{ matrix.runner.container || null }}
+      image: ${{ inputs.container || null }}
       options: --security-opt seccomp=unconfined
 
     strategy:
       fail-fast: false
       matrix:
-        runner: 
-          - os: windows-latest
-          - os: ubuntu-latest
-            container: ${{ inputs.container }}
-        config: ${{ fromJson(inputs.package-config) }}
+        include: ${{ fromJson(inputs.package-config) }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Container Configuration
-        if: ${{ matrix.runner.container != null }}
+        if: ${{ inputs.container != null }}
         shell: bash
         run: |
           git config --global --add safe.directory '*'
@@ -65,7 +66,7 @@ jobs:
           git config --global user.email "actions@github.com"
       
       - name: Setup Python ${{ inputs.python-version }}
-        if: ${{ matrix.runner.container == null }}
+        if: ${{ inputs.container == null }}
         uses: actions/setup-python@v6
         with:
           python-version: ${{ inputs.python-version }}
@@ -80,10 +81,10 @@ jobs:
         uses: ./.github/actions/stuart-ci
         with:
           ci-config: '.pytool/CISettings.py'
-          packages: ${{ matrix.config.packages }}
-          targets: ${{ matrix.config.targets }}
-          architectures: ${{ matrix.config.architectures }}
-          toolchain: ${{ matrix.config.toolchain }}
+          packages: ${{ matrix.packages }}
+          targets: ${{ matrix.targets }}
+          architectures: ${{ matrix.architectures }}
+          toolchain: ${{ matrix.toolchain }}
           stuart-setup: 'true'
           stuart-ci-setup: 'false'
       
@@ -91,5 +92,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-logs-${{ matrix.config.packages }}-${{ matrix.config.targets }}-${{ matrix.runner.os }}
+          name: ci-logs-${{ matrix.packages }}-${{ matrix.targets }}-${{ inputs.runner }}
           path: ${{ steps.package-ci.outputs.log-path }}

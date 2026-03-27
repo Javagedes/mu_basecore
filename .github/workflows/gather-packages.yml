@@ -136,7 +136,7 @@ jobs:
             done
           fi
 
-          echo "Discovered config: $VALIDATED"
+          echo "Discovered config:"
           echo ""
           echo "::group::Generated JSON output"
           echo "$VALIDATED" | jq .
