@@ -51,6 +51,7 @@ jobs:
           - os: ubuntu-latest
             container: ${{ inputs.container }}
         config: ${{ fromJson(inputs.package-config) }}
+        targets: ${{ fromJson(inputs.package-config).targets }}
           # Default to all architectures if not specified in config
         # architectures: ['AARCH64,IA32,X64']
         # toolchain: ['CLANGPDB']
