@@ -1,10 +1,9 @@
 # A reusable workflow to discover and validate EDK II packages in a repository.
 #
-# Accepts a YAML package configuration and a default configuration object for
-# any packages found in the repo but not explicitly listed.
-#
-# Each config entry must have a "packages" key. All other keys (targets,
-# architectures, etc.) are passed through as-is to the output.
+# Produces a matrix object where:
+#   - default-config arrays become top-level matrix dimensions (cross-product)
+#     for any undeclared *Pkg directories
+#   - package-config entries go into the matrix "include" for exact combinations
 #
 ##
 # Copyright (c) Microsoft Corporation.
@@ -18,32 +17,36 @@ on:
     inputs:
       package-config:
         description: >
-          A YAML array of objects. Each object must have a "packages" key.
-          All other keys are passed through to the output.
+          A YAML array of objects placed into the matrix "include". Each
+          object must have a "packages" key. All other keys are passed
+          through as-is.
           Example:
-            - packages: 'MdePkg,UefiCpuPkg'
-              targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
-              architectures: 'X64,AARCH64'
-            - packages: 'ShellPkg'
-              targets: 'DEBUG'
+            - packages: MdeModulePkg
+              targets: RELEASE
+              toolchain: CLANGPDB
+            - packages: MdeModulePkg
+              targets: DEBUG
+              toolchain: CLANGPDB
         required: true
         type: string
       default-config:
         description: >
-          A YAML object of default properties (excluding "packages") applied
-          to any *Pkg directories found in the repo root that are not covered
-          by package-config. Each undeclared package is appended as its own
-          entry.
+          A YAML object whose values are arrays used as top-level matrix
+          dimensions. Undeclared *Pkg directories are added as the
+          "packages" array. These dimensions form a cross-product.
           Example:
-            targets: 'DEBUG,RELEASE,NO-TARGET,NOOPT'
-            architectures: 'X64'
+            targets: [DEBUG, RELEASE]
+            toolchain: [CLANGPDB]
+            architectures: [IA32, X64, AARCH64]
         required: true
         type: string
     outputs:
       packages:
         description: >
-          A JSON array of validated package configuration objects suitable
-          for use with fromJson() in a matrix strategy.
+          A JSON matrix object with top-level dimensions from default-config,
+          a "packages" array of undeclared packages, and an "include" array
+          from package-config. Suitable for use with fromJson() in a matrix
+          strategy.
         value: ${{ jobs.gather-packages.outputs.packages }}
 
 jobs:
@@ -66,31 +69,29 @@ jobs:
           PACKAGE_CONFIG: ${{ inputs.package-config }}
           DEFAULT_CONFIG: ${{ inputs.default-config }}
         run: |
-          # Convert YAML config from input to JSON, then validate against repo directories
-          CONFIG=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
+          # Convert YAML inputs to JSON
+          INCLUDE_JSON=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
+          DEFAULT_JSON=$(echo "$DEFAULT_CONFIG" | yq -o=json -I=0 '.')
 
-          if ! echo "$CONFIG" | jq empty 2>/dev/null; then
+          if ! echo "$INCLUDE_JSON" | jq empty 2>/dev/null; then
             echo "::error::Invalid configuration in package-config input"
             exit 1
           fi
-
-          # Convert default config YAML object to JSON
-          DEFAULT_JSON=$(echo "$DEFAULT_CONFIG" | yq -o=json -I=0 '.')
 
           if ! echo "$DEFAULT_JSON" | jq empty 2>/dev/null; then
             echo "::error::Invalid configuration in default-config input"
             exit 1
           fi
 
-          VALIDATED="[]"
-          for entry in $(echo "$CONFIG" | jq -c '.[]'); do
+          # Validate include entries against repo directories
+          VALIDATED_INCLUDE="[]"
+          for entry in $(echo "$INCLUDE_JSON" | jq -c '.[]'); do
             pkg=$(echo "$entry" | jq -r '.packages // empty')
             if [[ -z "$pkg" ]]; then
               echo "::warning::Config entry missing required 'packages' key, skipping"
               continue
             fi
 
-            # Check each comma-separated package name exists as a directory
             all_found=true
             IFS=',' read -ra PKGS <<< "$pkg"
             for p in "${PKGS[@]}"; do
@@ -101,19 +102,19 @@ jobs:
               fi
             done
             if $all_found; then
-              VALIDATED=$(echo "$VALIDATED" | jq -c --argjson e "$entry" '. + [$e]')
+              VALIDATED_INCLUDE=$(echo "$VALIDATED_INCLUDE" | jq -c --argjson e "$entry" '. + [$e]')
             fi
           done
 
-          # Collect all packages already declared in config
+          # Collect all packages declared in include entries
           DECLARED_PKGS=()
-          for entry in $(echo "$VALIDATED" | jq -c '.[]'); do
+          for entry in $(echo "$VALIDATED_INCLUDE" | jq -c '.[]'); do
             IFS=',' read -ra PKGS <<< "$(echo "$entry" | jq -r '.packages')"
             DECLARED_PKGS+=("${PKGS[@]}")
           done
 
-          # Find *Pkg directories not already in config
-          UNDECLARED=()
+          # Find *Pkg directories not already declared
+          UNDECLARED="[]"
           for dir in *Pkg/; do
             pkg="${dir%/}"
             found=false
@@ -124,22 +125,18 @@ jobs:
               fi
             done
             if ! $found; then
-              UNDECLARED+=("$pkg")
+              echo "Undeclared package: $pkg"
+              UNDECLARED=$(echo "$UNDECLARED" | jq -c --arg p "$pkg" '. + [$p]')
             fi
           done
 
-          # Append each undeclared package as its own entry using default config
-          if [[ ${#UNDECLARED[@]} -gt 0 ]]; then
-            for pkg in "${UNDECLARED[@]}"; do
-              echo "Appending undeclared package: $pkg"
-              VALIDATED=$(echo "$VALIDATED" | jq -c --arg p "$pkg" --argjson d "$DEFAULT_JSON" '. + [$d + {"packages": $p}]')
-            done
-          fi
+          # Build the matrix object:
+          #   - default-config dimensions + packages array = cross-product
+          #   - package-config entries = include (exact combinations)
+          OUTPUT=$(echo "$DEFAULT_JSON" | jq -c --argjson pkgs "$UNDECLARED" --argjson inc "$VALIDATED_INCLUDE" '. + {"packages": $pkgs, "include": $inc}')
 
-          echo "Discovered config:"
-          echo ""
-          echo "::group::Generated JSON output"
-          echo "$VALIDATED" | jq .
+          echo "::group::Generated matrix JSON"
+          echo "$OUTPUT" | jq .
           echo "::endgroup::"
           echo ""
-          echo "packages=$VALIDATED" >> "$GITHUB_OUTPUT"
+          echo "packages=$OUTPUT" >> "$GITHUB_OUTPUT"

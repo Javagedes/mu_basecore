@@ -40,7 +40,7 @@ on:
 jobs:
   package-ci:
 
-    name: "[${{ matrix.packages }}] [${{ matrix.targets }}]"
+    name: "[${{ matrix.packages }}] [${{ matrix.architectures }}] [${{ matrix.targets }}]"
 
     runs-on: ${{ inputs.runner }}
 
@@ -50,8 +50,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        include: ${{ fromJson(inputs.package-config) }}
+      matrix: ${{ fromJson(inputs.package-config) }}
 
     steps:
       - name: Checkout repository
@@ -92,5 +91,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ci-logs-${{ matrix.packages }}-${{ matrix.targets }}-${{ inputs.runner }}
+          name: ci-logs-${{ matrix.packages }}-${{ matrix.architectures }}-${{ matrix.targets }}-${{ inputs.runner }}
           path: ${{ steps.package-ci.outputs.log-path }}
