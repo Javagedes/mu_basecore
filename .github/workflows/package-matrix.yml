@@ -15,7 +15,7 @@ name: Build Matrix Configuration
 on:
   workflow_call:
     inputs:
-      include:
+      package-config:
         description: >
           A YAML array of objects placed into the matrix "include". Each
           object must have a "packages" key. All other keys are passed
@@ -66,16 +66,16 @@ jobs:
         id: set-packages
         shell: bash
         env:
-          INCLUDE: ${{ inputs.include }}
+          PACKAGE_CONFIG: ${{ inputs.package-config }}
           DEFAULT_CONFIG: ${{ inputs.default-config }}
         run: |
           # Convert YAML inputs to JSON
-          INCLUDE_JSON=$(echo "$INCLUDE" | yq -o=json -I=0 '.')
+          PACKAGE_CONFIG_JSON=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
           DEFAULT_JSON=$(echo "$DEFAULT_CONFIG" | yq -o=json -I=0 '.')
 
           # Collect all package names mentioned across include entries
           # (handles comma-separated values like "MdePkg,UefiCpuPkg")
-          DECLARED=$(echo "$INCLUDE_JSON" | jq -r '.[].packages // empty' | tr ',' '\n' | sort -u)
+          DECLARED=$(echo "$PACKAGE_CONFIG_JSON" | jq -r '.[].packages // empty' | tr ',' '\n' | sort -u)
 
           # Find *Pkg directories not covered by any include entry
           UNDECLARED="[]"
@@ -89,7 +89,7 @@ jobs:
           # Build matrix: default-config dimensions + undeclared packages + include
           OUTPUT=$(echo "$DEFAULT_JSON" | jq -c \
             --argjson pkgs "$UNDECLARED" \
-            --argjson inc "$INCLUDE_JSON" \
+            --argjson inc "$PACKAGE_CONFIG_JSON" \
             '. + {"packages": $pkgs, "include": $inc}')
 
           echo "::group::Generated matrix JSON"
