@@ -22,9 +22,9 @@ jobs:
     with:
       # Manually declared package configurations.
       package-config: |
-        - packages: MdeModulePkg
+        - packages: MdeModulePkg,MdePkg
           targets: RELEASE
-        - packages: MdeModulePkg
+        - packages: MdeModulePkg,MdePkg
           targets: DEBUG
       # Default config applied to any undeclared packages in the repo
       default-config: |
