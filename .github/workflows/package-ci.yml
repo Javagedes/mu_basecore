@@ -25,7 +25,8 @@ on:
       container:
         description: A container image to run the build in when using a linux runner.
         type: string
-        required: true
+        required: false
+        default: ''
       python-version:
         description: Python version to use when not running in a container
         type: string
