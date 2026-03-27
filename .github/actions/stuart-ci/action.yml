@@ -158,6 +158,7 @@ runs:
         if [ -n "${{ inputs.toolchain }}" ]; then
           ARGS+=(TOOL_CHAIN_TAG="${{ inputs.toolchain }}")
         fi
+        echo "stuart_ci_build ${ARGS[*]} ${{ inputs.stuart-args }}"
         stuart_ci_build "${ARGS[@]}" ${{ inputs.stuart-args }}
 
     - name: Move build log
