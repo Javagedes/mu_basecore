@@ -53,14 +53,6 @@ jobs:
         architectures: ['AARCH64,IA32,X64']
         toolchain: ['CLANGPDB']
         config: ${{ fromJson(inputs.package-config) }}
-
-        exclude:
-          # Exclude container builds on Windows
-          - os: windows-latest
-            container: '${{ inputs.container }}'
-          # Exclude non-container builds on Ubuntu
-          - os: ubuntu-latest
-            container: ''
     
     steps:
       - name: Checkout repository
