@@ -39,7 +39,7 @@ jobs:
 
     uses: ./.github/workflows/package-ci.yml
     with:
-      package-config: ${{ needs.package-matrix.outputs.packages }}
+      package-config: ${{ needs.package-matrix.outputs.matrix }}
       container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
       python-version: '3.12'
 
@@ -50,6 +50,6 @@ jobs:
 
     uses: ./.github/workflows/package-ci.yml
     with:
-      package-config: ${{ needs.package-matrix.outputs.packages }}
+      package-config: ${{ needs.package-matrix.outputs.matrix }}
       container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
       python-version: '3.12'
