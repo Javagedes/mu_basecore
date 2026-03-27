@@ -50,7 +50,7 @@ jobs:
           - os: windows-latest
           - os: ubuntu-latest
             container: ${{ inputs.container }}
-        ${{ fromJson(inputs.package-config) }}:
+        config: ${{ fromJson(inputs.package-config) }}
           # Default to all architectures if not specified in config
         # architectures: ['AARCH64,IA32,X64']
         # toolchain: ['CLANGPDB']

@@ -137,4 +137,9 @@ jobs:
           fi
 
           echo "Discovered config: $VALIDATED"
+          echo ""
+          echo "::group::Generated JSON output"
+          echo "$VALIDATED" | jq .
+          echo "::endgroup::"
+          echo ""
           echo "packages=$VALIDATED" >> "$GITHUB_OUTPUT"
