@@ -69,7 +69,7 @@ jobs:
 
       - name: Fetch PR target branch
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
-        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+        run: git fetch --depth=1 origin ${{ github.base_ref }}:${{ github.base_ref }}
 
       - name: Setup Python 3.12
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
