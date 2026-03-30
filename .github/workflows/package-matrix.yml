@@ -96,7 +96,7 @@ jobs:
 
           CSV=$(tail -1 stuart_pr_eval.log)
           # echo "csv=$CSV" >> "$GITHUB_OUTPUT"
-          echo "csv=MdePkg,MdeModulePkg" >> "$GITHUB_OUTPUT"
+          echo "csv=" >> "$GITHUB_OUTPUT"
 
       - name: Build matrix from all packages
         id: set-packages
