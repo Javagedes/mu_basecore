@@ -3,7 +3,12 @@
 # Produces a matrix object where:
 #   - default-config arrays become top-level matrix dimensions (cross-product)
 #     for any undeclared *Pkg directories
-#   - package-config entries go into the matrix "include" for exact combinations
+#   - package-config entries go into the matrix "include" for exact combinations.
+#     Any package names here are excluded from the default-config cross-product.
+#
+# If `ci-config` is provided and the event is a pull request, `stuart_pr_eval` is
+# used to filter the produced job matrix to only include packages affected by the
+# PR changes.
 #
 ##
 # Copyright (c) Microsoft Corporation.
@@ -95,8 +100,7 @@ jobs:
             2>&1 | tee stuart_pr_eval.log
 
           CSV=$(tail -1 stuart_pr_eval.log)
-          # echo "csv=$CSV" >> "$GITHUB_OUTPUT"
-          echo "csv=" >> "$GITHUB_OUTPUT"
+          echo "csv=$CSV" >> "$GITHUB_OUTPUT"
 
       - name: Build matrix from all packages
         id: set-packages

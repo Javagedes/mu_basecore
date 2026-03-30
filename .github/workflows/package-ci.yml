@@ -37,11 +37,6 @@ on:
         type: string
         required: false
         default: 'ubuntu-latest'
-      stuart-pr-eval:
-        description: Whether to run `stuart_pr_eval` to evaluate if any package tests should be run based on the changed files ('true' or 'false').
-        type: boolean
-        required: false
-        default: false
 
 jobs:
   package-ci:
@@ -72,20 +67,6 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install -r pip-requirements.txt
-      
-      - name: Check if ${{ matrix.packages }} needs testing
-        id: filter-packages
-        if: ${{ inputs.stuart-pr-eval && github.event_name == 'pull_request'}}
-        shell: bash
-        run: >
-          stuart_pr_eval
-            -c ${{ inputs.ci-config }} 
-            -t ${{ matrix.targets }}
-            --pr-target ${{ github.base_ref }}
-            --output-count-format-string "echo count={pkgcount} >> $GITHUB_OUTPUT"
-      - name: log PR eval result
-        if: ${{ inputs.stuart-pr-eval && github.event_name == 'pull_request'}}
-        run: echo "PR evaluation determined that ${{ steps.filter-packages.outputs.count }} packages need testing."
 
       - name: Container Configuration
         if: ${{ inputs.container != null }}
