@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      matrix: ${{ steps.set-packages.outputs.matrix }}
+      matrix: ${{ steps.filter-matrix.outputs.matrix || steps.set-packages.outputs.matrix }}
 
     steps:
       - name: Checkout repository
@@ -97,25 +97,18 @@ jobs:
           CSV=$(tail -1 stuart_pr_eval.log)
           echo "csv=$CSV" >> "$GITHUB_OUTPUT"
 
-      - name: Discover and validate packages
+      - name: Build matrix from all packages
         id: set-packages
         shell: bash
         env:
           PACKAGE_CONFIG: ${{ inputs.package-config }}
           DEFAULT_CONFIG: ${{ inputs.default-config }}
-          PACKAGE_CSV: ${{ steps.filter-packages.outputs.csv }}
         run: |
-          # Echo package CSV from PR evaluation (if any)
-          if [ -n "$PACKAGE_CSV" ]; then
-            echo "PR evaluation determined that the following packages need testing: $PACKAGE_CSV"
-          fi
-
           # Convert YAML inputs to JSON
           PACKAGE_CONFIG_JSON=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
           DEFAULT_JSON=$(echo "$DEFAULT_CONFIG" | yq -o=json -I=0 '.')
 
           # Collect all package names mentioned across include entries
-          # (handles comma-separated values like "MdePkg,UefiCpuPkg")
           DECLARED=$(echo "$PACKAGE_CONFIG_JSON" | jq -r '.[].packages // empty' | tr ',' '\n' | sort -u)
 
           # Find *Pkg directories not covered by any include entry
@@ -134,6 +127,31 @@ jobs:
             '. + {"packages": $pkgs, "include": $inc}')
 
           echo "::group::Generated matrix JSON"
+          echo "$OUTPUT" | jq .
+          echo "::endgroup::"
+          echo ""
+          echo "matrix=$OUTPUT" >> "$GITHUB_OUTPUT"
+
+      - name: Filter matrix to PR-affected packages
+        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
+        id: filter-matrix
+        shell: bash
+        env:
+          MATRIX: ${{ steps.set-packages.outputs.matrix }}
+          PACKAGE_CSV: ${{ steps.filter-packages.outputs.csv }}
+        run: |
+          echo "Filtering matrix to packages that need testing: $PACKAGE_CSV"
+
+          # Convert CSV to a JSON array of package names
+          CSV_JSON=$(echo "$PACKAGE_CSV" | tr ',' '\n' | jq -R . | jq -sc '.')
+
+          # Filter "packages" array to only those in CSV
+          # Filter "include" array to only entries with at least one package in CSV
+          OUTPUT=$(echo "$MATRIX" | jq -c --argjson csv "$CSV_JSON" \
+            '.packages = [.packages[] | select(. as $p | $csv | index($p))]
+             | .include = [.include[] | select(.packages | split(",") | any(. as $p | $csv | index($p)))]')
+
+          echo "::group::Filtered matrix JSON"
           echo "$OUTPUT" | jq .
           echo "::endgroup::"
           echo ""
