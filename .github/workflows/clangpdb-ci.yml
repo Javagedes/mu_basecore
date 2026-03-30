@@ -22,13 +22,13 @@ jobs:
     with:
       ci-config: '.pytool/CISettings.py'
       # Manually declared package configurations.
-      # package-config: |
-      #   - packages: MdeModulePkg
-      #     targets: RELEASE
-      #     toolchain: CLANGPDB
-      #   - packages: MdeModulePkg
-      #     targets: DEBUG
-      #     toolchain: CLANGPDB
+      package-config: |
+        - packages: MdeModulePkg
+          targets: RELEASE
+          toolchain: CLANGPDB
+        - packages: MdeModulePkg
+          targets: DEBUG
+          toolchain: CLANGPDB
       # Default config applied to any undeclared packages in the repo
       default-config: |
         targets: ["DEBUG,RELEASE"]
