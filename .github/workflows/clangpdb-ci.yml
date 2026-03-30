@@ -15,9 +15,6 @@ on:
     branches:
       - release/202511
 
-env:
-  PYTHON_VERSION: '3.12'
-
 jobs:
   package-matrix:
     name: Gather Repository Packages
@@ -36,7 +33,7 @@ jobs:
       default-config: |
         targets: ["DEBUG,RELEASE"]
         toolchain: ["CLANGPDB"]
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: '3.12'
 
   windows-ci:
     name: Windows CLANGPDB CI
@@ -47,7 +44,7 @@ jobs:
     with:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
       runner: windows-latest
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: '3.12'
       setup-cmd: setup
 
   ubuntu-ci:
@@ -60,5 +57,5 @@ jobs:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
       runner: ubuntu-latest
       container: ghcr.io/microsoft/mu_devops/ubuntu-24-test:latest
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: '3.12'
       setup-cmd: setup
