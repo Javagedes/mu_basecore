@@ -66,8 +66,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+
+      - name: Fetch PR target branch
+        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
       - name: Setup Python 3.12
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
@@ -80,10 +82,6 @@ jobs:
       - name: Install Python dependencies
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
         run: pip install -r pip-requirements.txt
-      
-      - name: Fetch PR target branch
-        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
-        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
       - name: Filter to packages that need testing
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
@@ -93,7 +91,6 @@ jobs:
             -c ${{ inputs.ci-config }} \
             --pr-target ${{ github.base_ref }} \
             --output-csv-format-string "echo csv={pkgcsv} >> $GITHUB_OUTPUT" \
-            -v
 
       - name: Discover and validate packages
         id: set-packages
