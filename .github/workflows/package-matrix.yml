@@ -40,6 +40,11 @@ on:
             architectures: [IA32, X64, AARCH64]
         required: true
         type: string
+      ci-config:
+        description: Path to the CI configuration file. If provided, it will be used to determine which packages need testing based on the changed files in a pull request. No value means '.pytool/CISettings.py'.
+        type: string
+        required: false
+        default: ''
     outputs:
       matrix:
         description: >
@@ -62,13 +67,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Setup Python 3.12
+        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+          cache: 'pip'
+          cache-dependency-path: pip-requirements.txt
+
+      - name: Install Python dependencies
+        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
+        run: pip install -r pip-requirements.txt
+      
+      - name: Filter to packages that need testing
+        if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
+        id: filter-packages
+        run: |
+          stuart_pr_eval \
+            -c ${{ inputs.ci-config }} \
+            --pr-target ${{ github.base_ref }} \
+            --output-csv-format-string "echo csv={pkgcsv} >> $GITHUB_OUTPUT"
+
       - name: Discover and validate packages
         id: set-packages
         shell: bash
         env:
           PACKAGE_CONFIG: ${{ inputs.package-config }}
           DEFAULT_CONFIG: ${{ inputs.default-config }}
+          PACKAGE_CSV: ${{ steps.filter-packages.outputs.csv }}
         run: |
+          # Echo package CSV from PR evaluation (if any)
+          if [ -n "$PACKAGE_CSV" ]; then
+            echo "PR evaluation determined that the following packages need testing: $PACKAGE_CSV"
+          fi
+
           # Convert YAML inputs to JSON
           PACKAGE_CONFIG_JSON=$(echo "$PACKAGE_CONFIG" | yq -o=json -I=0 '.')
           DEFAULT_JSON=$(echo "$DEFAULT_CONFIG" | yq -o=json -I=0 '.')

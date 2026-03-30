@@ -20,6 +20,7 @@ jobs:
     name: Gather Repository Packages
     uses: ./.github/workflows/package-matrix.yml
     with:
+      ci-config: '.pytool/CISettings.py'
       # Manually declared package configurations.
       package-config: |
         - packages: MdeModulePkg
