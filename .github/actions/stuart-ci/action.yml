@@ -51,14 +51,6 @@ runs:
   using: composite
 
   steps:
-    - name: Container Configuration
-      if: ${{ matrix.container != null }}
-      shell: bash
-      run: |
-        git config --global --add safe.directory '*'
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-
     - name: Create temporary directory for log files
       id: tempdir
       shell: bash
@@ -80,7 +72,7 @@ runs:
     
     - name: Cache submodules
       if: ${{ fromJson(inputs.stuart-setup) }}
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: .git/modules
         key: ${{ runner.os }}-submodules-${{ steps.submodules-hash.outputs.hash }}
@@ -153,13 +145,21 @@ runs:
     - name: Run CI tests
       shell: bash
       run: |
-        stuart_ci_build \
-          -c ${{ inputs.ci-config }} \
-          -p "${{ inputs.packages }}" \
-          -t "${{ inputs.targets }}" \
-          -a "${{ inputs.architectures }}" \
-          TOOL_CHAIN_TAG="${{ inputs.toolchain }}" \
-          ${{ inputs.stuart-args }}
+        ARGS=(-c "${{ inputs.ci-config }}")
+        if [ -n "${{ inputs.packages }}" ]; then
+          ARGS+=(-p "${{ inputs.packages }}")
+        fi
+        if [ -n "${{ inputs.targets }}" ]; then
+          ARGS+=(-t "${{ inputs.targets }}")
+        fi
+        if [ -n "${{ inputs.architectures }}" ]; then
+          ARGS+=(-a "${{ inputs.architectures }}")
+        fi
+        if [ -n "${{ inputs.toolchain }}" ]; then
+          ARGS+=(TOOL_CHAIN_TAG="${{ inputs.toolchain }}")
+        fi
+        echo "stuart_ci_build ${ARGS[*]} ${{ inputs.stuart-args }}"
+        stuart_ci_build "${ARGS[@]}" ${{ inputs.stuart-args }}
 
     - name: Move build log
       if: always()
