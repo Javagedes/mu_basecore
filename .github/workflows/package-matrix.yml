@@ -88,7 +88,8 @@ jobs:
           stuart_pr_eval \
             -c ${{ inputs.ci-config }} \
             --pr-target ${{ github.base_ref }} \
-            --output-csv-format-string "echo csv={pkgcsv} >> $GITHUB_OUTPUT"
+            --output-csv-format-string "echo csv={pkgcsv} >> $GITHUB_OUTPUT" \
+            -v
 
       - name: Discover and validate packages
         id: set-packages
