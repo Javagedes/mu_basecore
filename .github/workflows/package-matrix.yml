@@ -83,7 +83,7 @@ jobs:
       
       - name: Fetch PR target branch
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
-        run: git fetch origin ${{ github.base_ref }}
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
       - name: Filter to packages that need testing
         if: ${{ inputs.ci-config != '' && github.event_name == 'pull_request' }}
