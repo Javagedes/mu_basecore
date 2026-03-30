@@ -18,7 +18,7 @@ on:
 jobs:
   package-matrix:
     name: Gather Repository Packages
-    uses: ./.github/workflows/package-matrix.yml
+    uses: microsoft/mu_devops/.github/workflows/PackageMatrix.yml@personal/joeyvagedes/ci-workflow
     with:
       ci-config: '.pytool/CISettings.py'
       # Manually declared package configurations.
@@ -39,7 +39,7 @@ jobs:
 
     needs: package-matrix
 
-    uses: ./.github/workflows/package-ci.yml
+    uses: microsoft/mu_devops/.github/workflows/PackageCi.yml@personal/joeyvagedes/ci-workflow
     with:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
       runner: windows-latest
@@ -50,7 +50,7 @@ jobs:
 
     needs: package-matrix
 
-    uses: ./.github/workflows/package-ci.yml
+    uses: microsoft/mu_devops/.github/workflows/PackageCi.yml@personal/joeyvagedes/ci-workflow
     with:
       package-config: ${{ needs.package-matrix.outputs.matrix }}
       runner: ubuntu-latest
