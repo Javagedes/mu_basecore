@@ -39,7 +39,7 @@ _ModuleEntryPoint (
   // Cache a pointer to the HobList
   //
   gHobList = HobStart;
-
+  asdfasdfasdf
   //
   // Call the DXE Core entry point
   //
