@@ -20,6 +20,7 @@
 
 [Sources]
   DxeImageVerificationLibGoogleTest.cpp
+  PolicyGoogleTest.cpp
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -33,6 +34,7 @@
   GoogleTestLib
   BaseCryptLib
   DebugLib
+  BaseMemoryLib
 
 [Guids]
   ## SOMETIMES_CONSUMES   ## Variable:L"SecureBoot"
@@ -69,10 +71,3 @@
 
 [Protocols]
   gEfiFirmwareVolume2ProtocolGuid       ## SOMETIMES_CONSUMES
-  gEfiBlockIoProtocolGuid               ## SOMETIMES_CONSUMES
-  gEfiSimpleFileSystemProtocolGuid      ## SOMETIMES_CONSUMES
-
-[Pcd]
-  gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy          ## SOMETIMES_CONSUMES
-  gEfiSecurityPkgTokenSpaceGuid.PcdRemovableMediaImageVerificationPolicy     ## SOMETIMES_CONSUMES
-  gEfiSecurityPkgTokenSpaceGuid.PcdFixedMediaImageVerificationPolicy         ## SOMETIMES_CONSUMES

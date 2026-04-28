@@ -66,6 +66,8 @@
   SecurityPkg/Library/DxeImageVerificationLib2/GoogleTest/DxeImageVerificationLibGoogleTest.inf {
     <LibraryClasses>
       UefiRuntimeServicesTableLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiRuntimeServicesTableLib/MockUefiRuntimeServicesTableLib.inf
+      UefiBootServicesTableLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiBootServicesTableLib/MockUefiBootServicesTableLib.inf
+      DevicePathLib|MdePkg/Test/Mock/Library/GoogleTest/MockDevicePathLib/MockDevicePathLib.inf
       DxeImageVerificationLib|SecurityPkg/Library/DxeImageVerificationLib2/DxeImageVerificationLib.inf
       BaseCryptLib|CryptoPkg/Library/BaseCryptLibNull/BaseCryptLibNull.inf
       UefiLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiLib/MockUefiLib.inf

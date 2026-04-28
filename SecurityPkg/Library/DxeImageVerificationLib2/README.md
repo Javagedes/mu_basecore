@@ -29,3 +29,54 @@ there is nothing to publish:
   `RegisterSecurity2Handler` for
   `EFI_AUTH_OPERATION_VERIFY_IMAGE | EFI_AUTH_OPERATION_IMAGE_REQUIRED`.
 - `DxeImageVerificationHandler` will store the execution information.
+
+### Policy module
+
+The image-source classification and policy lookup have been deliberately
+simplified.
+
+#### Image classification (`GetImageType`)
+
+The legacy library distinguishes five image sources, derived from a mix
+of `LocateDevicePath`, `BlockIo->Media->RemovableMedia`,
+`SimpleFileSystem`, and a walk of the device path looking for
+`MEDIA_RELATIVE_OFFSET_RANGE_DP` and `MSG_MAC_ADDR_DP` nodes:
+
+- `IMAGE_FROM_FV`
+- `IMAGE_FROM_OPTION_ROM`
+- `IMAGE_FROM_REMOVABLE_MEDIA`
+- `IMAGE_FROM_FIXED_MEDIA`
+- `IMAGE_UNKNOWN`
+
+`DxeImageVerificationLib2` collapses this to two values:
+
+- `IMAGE_FROM_FV`: the device path resolves to a Firmware Volume.
+- `IMAGE_UNKNOWN`: everything else.
+
+`GetImageType` consequently only probes for `gEfiFirmwareVolume2ProtocolGuid`
+and falls back to `IMAGE_UNKNOWN`. The Block I/O, Simple File System, and
+device-path-node-walk helpers have been removed along with their
+dependencies on `DevicePathLib` and the corresponding protocol GUIDs.
+
+#### Policy lookup (`GetPolicyForImageType`)
+
+The legacy library reads three platform PCDs to map the per-source
+classification to one of six policy values
+(`ALWAYS_EXECUTE`, `NEVER_EXECUTE`, `ALLOW_EXECUTE_ON_SECURITY_VIOLATION`,
+`DEFER_EXECUTE_ON_SECURITY_VIOLATION`, `DENY_EXECUTE_ON_SECURITY_VIOLATION`,
+`QUERY_USER_ON_SECURITY_VIOLATION`):
+
+- `PcdOptionRomImageVerificationPolicy`
+- `PcdRemovableMediaImageVerificationPolicy`
+- `PcdFixedMediaImageVerificationPolicy`
+
+`DxeImageVerificationLib2` removes those PCDs and the `PcdLib`
+dependency. The mapping is reduced to two values:
+
+| `ImageType`     | Policy                                |
+| --------------- | ------------------------------------- |
+| `IMAGE_FROM_FV` | `ALWAYS_EXECUTE`                      |
+| anything else   | `DENY_EXECUTE_ON_SECURITY_VIOLATION`  |
+
+`ALWAYS_EXECUTE` (`0x0`) and `DENY_EXECUTE_ON_SECURITY_VIOLATION` (`0x1`)
+are the only policy values exposed by `Policy.h`.

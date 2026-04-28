@@ -32,6 +32,8 @@
 [Sources]
   DxeImageVerificationLib.c
   DxeImageVerificationLib.h
+  Policy.c
+  Policy.h
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -48,8 +50,11 @@
   BaseMemoryLib
   DebugLib
   SecurityManagementLib
+  DevicePathLib
+  PcdLib
 
 [Protocols]
+  gEfiFirmwareVolume2ProtocolGuid       ## SOMETIMES_CONSUMES
 
 [Guids]
   ## SOMETIMES_CONSUMES   ## Variable:L"DB"
@@ -80,8 +85,3 @@
   gEfiCertX509Sha384Guid                ## SOMETIMES_CONSUMES    ## GUID     # Unique ID for the type of the signature.
   gEfiCertX509Sha512Guid                ## SOMETIMES_CONSUMES    ## GUID     # Unique ID for the type of the signature.
   gEfiCertPkcs7Guid                     ## SOMETIMES_CONSUMES    ## GUID     # Unique ID for the type of the certificate.
-
-[Pcd]
-  gEfiSecurityPkgTokenSpaceGuid.PcdOptionRomImageVerificationPolicy          ## SOMETIMES_CONSUMES
-  gEfiSecurityPkgTokenSpaceGuid.PcdRemovableMediaImageVerificationPolicy     ## SOMETIMES_CONSUMES
-  gEfiSecurityPkgTokenSpaceGuid.PcdFixedMediaImageVerificationPolicy         ## SOMETIMES_CONSUMES
