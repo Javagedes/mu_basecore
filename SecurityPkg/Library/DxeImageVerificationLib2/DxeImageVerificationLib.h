@@ -13,15 +13,28 @@
 #define DXE_IMAGE_VERIFICATION_LIB_H_
 
 #include <Uefi.h>
-#include <Library/DebugLib.h>
-#include <Library/SecurityManagementLib.h>
+#include <Guid/ImageAuthentication.h>
 #include <Protocol/DevicePath.h>
+#include <UefiSecureBoot.h>
+#include <Library/DebugLib.h>
+#include <Library/SecureBootVariableLib.h>
+#include <Library/SecurityManagementLib.h>
 
 /**
   Provide verification service for signed images, which include both
   signature validation and platform policy control. For signature types,
   both UEFI WIN_CERTIFICATE_UEFI_GUID and MSFT Authenticode type
   signatures are supported.
+
+  This handler exists solely to enforce UEFI Secure Boot. When Secure
+  Boot is not enabled, the handler has no work to do and returns
+  EFI_SUCCESS without inspecting the image.
+
+  The platform authorization policy is resolved before the Secure Boot
+  state is read because the overwhelming majority of dispatched images
+  are firmware-volume drivers, for which the policy short-circuits to
+  ALWAYS_EXECUTE. Resolving that policy is much cheaper than reading the
+  `SecureBoot` UEFI variable, so the cheap check runs first.
 
   Caution: This function may receive untrusted input.
   PE/COFF image is external input, so this function will validate its
@@ -39,16 +52,21 @@
   @param[in]  BootPolicy            BootPolicy that was used to call the
                                     LoadImage() UEFI service.
 
-  @retval EFI_SUCCESS            The file authenticated and the platform
-                                 policy permits execution.
+  @retval EFI_SUCCESS            The image is permitted to execute,
+                                 either because the platform policy
+                                 unconditionally allows it or because
+                                 Secure Boot is not enabled and this
+                                 handler has nothing to enforce.
   @retval EFI_SECURITY_VIOLATION The file did not authenticate; the
                                  platform policy places it in the
                                  untrusted state.
   @retval EFI_ACCESS_DENIED      The file did not authenticate and the
                                  platform policy forbids execution.
   @retval EFI_INVALID_PARAMETER  Invalid input was supplied.
-  @retval EFI_UNSUPPORTED        The verification service is not yet
-                                 implemented in this library.
+  @retval EFI_UNSUPPORTED        Secure Boot is enabled and the
+                                 verification path required to make a
+                                 decision is not yet implemented in
+                                 this library.
 **/
 EFI_STATUS
 EFIAPI

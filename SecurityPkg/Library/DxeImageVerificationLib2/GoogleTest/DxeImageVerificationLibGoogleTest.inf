@@ -35,6 +35,7 @@
   BaseCryptLib
   DebugLib
   BaseMemoryLib
+  SecureBootVariableLib
 
 [Guids]
   ## SOMETIMES_CONSUMES   ## Variable:L"SecureBoot"

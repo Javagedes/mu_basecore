@@ -9,6 +9,7 @@
 #include <GoogleTest/Library/MockUefiLib.h>
 #include <GoogleTest/Library/MockUefiRuntimeServicesTableLib.h>
 #include <GoogleTest/Library/MockUefiBootServicesTableLib.h>
+#include <GoogleTest/Library/MockSecureBootVariableLib.h>
 
 extern "C" {
   #include <Uefi.h>
@@ -44,6 +45,7 @@ static EFI_DEVICE_PATH_PROTOCOL  mHandlerDevicePath;
 class DxeImageVerificationHandlerTest : public ::testing::Test {
 protected:
   MockUefiBootServicesTableLib BsMock;
+  MockSecureBootVariableLib SbMock;
 };
 
 // ---------------------------------------------------------------------------
@@ -72,17 +74,53 @@ TEST_F (DxeImageVerificationHandlerTest, FvImage_ReturnsSuccess) {
     );
 }
 
-TEST_F (DxeImageVerificationHandlerTest, NonFvImage_ReturnsUnsupported) {
+TEST_F (DxeImageVerificationHandlerTest, NonFvImage_SecureBootEnabled_ReturnsUnsupported) {
   //
-  // Non-FV image is classified as IMAGE_UNKNOWN, which maps to the
-  // fail-closed DENY_EXECUTE_ON_SECURITY_VIOLATION policy. The handler
-  // stub returns EFI_UNSUPPORTED for that case.
+  // Non-FV image with Secure Boot enabled falls through to the
+  // not-yet-implemented signature verification path.
   //
   EXPECT_CALL (BsMock, gBS_LocateDevicePath)
     .WillOnce (Return (EFI_NOT_FOUND));
+  EXPECT_CALL (SbMock, IsSecureBootEnabled)
+    .WillOnce (Return ((BOOLEAN)TRUE));
 
   EXPECT_EQ (
     DxeImageVerificationHandler (0, &mHandlerDevicePath, NULL, 0, FALSE),
     EFI_UNSUPPORTED
+    );
+}
+
+TEST_F (DxeImageVerificationHandlerTest, NonFvImage_SecureBootDisabled_ReturnsSuccess) {
+  //
+  // Non-FV image but Secure Boot is disabled: the handler must skip
+  // verification and return EFI_SUCCESS.
+  //
+  EXPECT_CALL (BsMock, gBS_LocateDevicePath)
+    .WillOnce (Return (EFI_NOT_FOUND));
+  EXPECT_CALL (SbMock, IsSecureBootEnabled)
+    .WillOnce (Return ((BOOLEAN)FALSE));
+
+  EXPECT_EQ (
+    DxeImageVerificationHandler (0, &mHandlerDevicePath, NULL, 0, FALSE),
+    EFI_SUCCESS
+    );
+}
+
+TEST_F (DxeImageVerificationHandlerTest, FvImage_DoesNotConsultSecureBoot) {
+  //
+  // The ALWAYS_EXECUTE short-circuit must run before IsSecureBootEnabled
+  // is consulted. Setting no expectation on SbMock plus StrictMock-style
+  // EXPECT_CALL omission verifies it is never invoked.
+  //
+  EXPECT_CALL (BsMock, gBS_LocateDevicePath)
+    .WillOnce (Return (EFI_SUCCESS));
+  EXPECT_CALL (BsMock, gBS_OpenProtocol)
+    .WillOnce (Return (EFI_SUCCESS));
+  EXPECT_CALL (SbMock, IsSecureBootEnabled)
+    .Times (0);
+
+  EXPECT_EQ (
+    DxeImageVerificationHandler (0, &mHandlerDevicePath, NULL, 0, FALSE),
+    EFI_SUCCESS
     );
 }

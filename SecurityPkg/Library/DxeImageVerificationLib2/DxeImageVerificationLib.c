@@ -17,6 +17,17 @@
 /**
   Provide verification service for signed images.
 
+  This handler exists solely to enforce UEFI Secure Boot. When Secure
+  Boot is not enabled, no verification is required and the handler
+  returns EFI_SUCCESS without inspecting the image.
+
+  The platform authorization policy is resolved before the Secure Boot
+  state is read. The overwhelming majority of dispatched images are
+  firmware-volume drivers, which short-circuit to ALWAYS_EXECUTE; that
+  resolution is much cheaper than reading the `SecureBoot` UEFI
+  variable, so the cheap check runs first and the variable is only
+  consulted when the policy did not already authorize the image.
+
   See DxeImageVerificationLib.h for the full contract.
 
   @param[in]  AuthenticationStatus  Unused (stub).
@@ -25,12 +36,17 @@
   @param[in]  FileSize              Unused (stub).
   @param[in]  BootPolicy            Unused (stub).
 
-  @retval EFI_SUCCESS            The image is authorized to execute by
-                                 platform policy (ALWAYS_EXECUTE).
+  @retval EFI_SUCCESS            The image is permitted to execute,
+                                 either because the platform policy
+                                 unconditionally allows it (e.g. an FV
+                                 image -> ALWAYS_EXECUTE) or because
+                                 Secure Boot is not enabled and this
+                                 handler has nothing to enforce.
   @retval EFI_INVALID_PARAMETER  File is NULL.
-  @retval EFI_UNSUPPORTED        The remainder of the verification
-                                 service is not yet implemented in this
-                                 library.
+  @retval EFI_UNSUPPORTED        Secure Boot is enabled and the
+                                 verification path required to make a
+                                 decision is not yet implemented in
+                                 this library.
 **/
 EFI_STATUS
 EFIAPI
@@ -54,6 +70,9 @@ DxeImageVerificationHandler (
 
   //
   // Resolve the platform authorization policy from the image's origin.
+  // This runs before the Secure Boot variable check because it is much
+  // cheaper, and the common case (FV-dispatched drivers) short-circuits
+  // if the policy is ALWAYS_EXECUTE.
   //
   Status = GetExecutionPolicy (File, &Policy);
   if (EFI_ERROR (Status)) {
@@ -61,9 +80,17 @@ DxeImageVerificationHandler (
   }
 
   //
-  // If policy unconditionally permits execution, return directly.
+  // Policy unconditionally permits execution; no further checks needed.
   //
   if (Policy == ALWAYS_EXECUTE) {
+    return EFI_SUCCESS;
+  }
+
+  //
+  // This handler only enforces UEFI Secure Boot. If Secure Boot is not
+  // enabled there is nothing for us to verify.
+  //
+  if (!IsSecureBootEnabled ()) {
     return EFI_SUCCESS;
   }
 

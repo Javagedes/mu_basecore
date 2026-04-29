@@ -49,6 +49,7 @@
   UefiRuntimeServicesTableLib
   BaseMemoryLib
   DebugLib
+  SecureBootVariableLib
   SecurityManagementLib
   DevicePathLib
   PcdLib

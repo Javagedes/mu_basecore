@@ -80,3 +80,35 @@ dependency. The mapping is reduced to two values:
 
 `ALWAYS_EXECUTE` (`0x0`) and `DENY_EXECUTE_ON_SECURITY_VIOLATION` (`0x1`)
 are the only policy values exposed by `Policy.h`.
+
+### Secure Boot enablement check
+
+The legacy handler decides whether Secure Boot is active by reading the
+`SecureBoot` UEFI variable directly with `gRT->GetVariable` and then
+inspecting the variable's *attributes* alongside its value. The check
+treats the platform as "Secure Boot disabled" only when the variable is
+present, equals `SECURE_BOOT_MODE_DISABLE`, and has attributes
+`BS|RT`. The intent is to keep verification running in Audit Mode, where
+the firmware re-publishes `SecureBoot` with a `BS`-only attribute set
+even though the value is `0`.
+
+`DxeImageVerificationLib2` removes that attribute-based Audit Mode
+inference and instead delegates to
+[`SecureBootVariableLib::IsSecureBootEnabled`](../../Include/Library/SecureBootVariableLib.h).
+Concretely:
+
+- The handler stops touching `gRT->GetVariable` for `SecureBoot` and
+  takes a `SecureBootVariableLib` dependency.
+- "Is Secure Boot on?" is now a single boolean answer shared with every
+  other consumer of `SecureBootVariableLib` in the tree, instead of an
+  ad-hoc check that only this library understood.
+- The handler is explicitly framed as a Secure-Boot-only enforcer: when
+  `IsSecureBootEnabled()` returns `FALSE`, the handler returns
+  `EFI_SUCCESS` because there is nothing for it to enforce. The Audit
+  Mode special case is intentionally not re-implemented here; if a
+  future change needs Audit-Mode-aware behavior, it should be added to
+  `SecureBootVariableLib` so every consumer gets it.
+
+The Secure Boot variable read only happens after policy resolution
+returns something other than `ALWAYS_EXECUTE`, so the common case
+(FV-dispatched drivers) does not pay for the variable access.
