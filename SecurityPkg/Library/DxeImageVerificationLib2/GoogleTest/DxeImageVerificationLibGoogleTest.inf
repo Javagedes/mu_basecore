@@ -20,6 +20,7 @@
 
 [Sources]
   DxeImageVerificationLibGoogleTest.cpp
+  DatabaseGoogleTest.cpp
   ImageGoogleTest.cpp
   PolicyGoogleTest.cpp
 
