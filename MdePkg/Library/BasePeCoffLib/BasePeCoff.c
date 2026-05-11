@@ -306,6 +306,29 @@ PeCoffLoaderGetPeHeader (
         }
       }
 
+      // MU_CHANGE START - DataDirectory callback for PeCoffLoaderGetImageInfo()
+      //
+      // Optional: deliver each present DataDirectory entry to the caller.
+      // Skipped entirely when no callback is registered to keep the
+      // common case zero-overhead.
+      //
+      if (ImageContext->DataDirectoryCallback != NULL) {
+        UINT32  DirIndex;
+
+        for (DirIndex = 0; DirIndex < Hdr.Pe32->OptionalHeader.NumberOfRvaAndSizes; DirIndex++) {
+          Status = ImageContext->DataDirectoryCallback (
+                                   DirIndex,
+                                   &Hdr.Pe32->OptionalHeader.DataDirectory[DirIndex],
+                                   ImageContext->DataDirectoryCallbackContext
+                                   );
+          if (RETURN_ERROR (Status)) {
+            ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
+            return Status;
+          }
+        }
+      }
+      // MU_CHANGE END
+
       //
       // Use PE32 offset
       //
@@ -427,6 +450,29 @@ PeCoffLoaderGetPeHeader (
           }
         }
       }
+
+      // MU_CHANGE START - DataDirectory callback for PeCoffLoaderGetImageInfo()
+      //
+      // Optional: deliver each present DataDirectory entry to the caller.
+      // Skipped entirely when no callback is registered to keep the
+      // common case zero-overhead.
+      //
+      if (ImageContext->DataDirectoryCallback != NULL) {
+        UINT32  DirIndex;
+
+        for (DirIndex = 0; DirIndex < Hdr.Pe32Plus->OptionalHeader.NumberOfRvaAndSizes; DirIndex++) {
+          Status = ImageContext->DataDirectoryCallback (
+                                   DirIndex,
+                                   &Hdr.Pe32Plus->OptionalHeader.DataDirectory[DirIndex],
+                                   ImageContext->DataDirectoryCallbackContext
+                                   );
+          if (RETURN_ERROR (Status)) {
+            ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
+            return Status;
+          }
+        }
+      }
+      // MU_CHANGE END
 
       //
       // Use PE32+ offset

@@ -69,6 +69,46 @@ RETURN_STATUS
   OUT    VOID   *Buffer
   );
 
+// MU_CHANGE START - DataDirectory callback for PeCoffLoaderGetImageInfo()
+/**
+  Optional callback invoked by PeCoffLoaderGetImageInfo() once for each
+  entry present in the image's optional header DataDirectory[] array.
+
+  Registering a non-NULL DataDirectoryCallback in PE_COFF_LOADER_IMAGE_CONTEXT
+  is the only thing that triggers PeCoffLoaderGetImageInfo() to walk the
+  data directory; when no callback is registered the loader does not
+  iterate and there is no per-entry overhead.
+
+  The DataDirectory pointer is owned by the caller's image buffer and
+  must not be retained past the callback's return. CallbackContext is
+  the value the caller stored in
+  PE_COFF_LOADER_IMAGE_CONTEXT::DataDirectoryCallbackContext and is
+  passed back unmodified; PeCoffLib never dereferences it.
+
+  Returning a non-RETURN_SUCCESS status aborts the iteration and causes
+  PeCoffLoaderGetImageInfo() to return that status.
+
+  @param  Index             EFI_IMAGE_DIRECTORY_ENTRY_* slot of the
+                            entry being delivered.
+  @param  DataDirectory     Pointer to the DataDirectory entry. Lives
+                            inside the caller's image buffer; do not
+                            retain past callback return.
+  @param  CallbackContext   Caller-owned opaque pointer (the value of
+                            DataDirectoryCallbackContext). May be NULL.
+
+  @retval RETURN_SUCCESS    Continue iterating remaining entries.
+  @retval Other             Abort iteration; status is propagated to
+                            the caller of PeCoffLoaderGetImageInfo().
+**/
+typedef
+RETURN_STATUS
+(EFIAPI *PE_COFF_LOADER_DATA_DIRECTORY_CALLBACK)(
+  IN UINT32                          Index,
+  IN CONST EFI_IMAGE_DATA_DIRECTORY  *DataDirectory,
+  IN VOID                            *CallbackContext  OPTIONAL
+  );
+// MU_CHANGE END
+
 ///
 /// The context structure used while PE/COFF image is being loaded and relocated.
 ///
@@ -204,6 +244,22 @@ typedef struct {
   /// Private storage for implementation specific data.
   ///
   UINT64                      Context;
+  // MU_CHANGE START - DataDirectory callback for PeCoffLoaderGetImageInfo()
+  ///
+  /// Optional. If non-NULL, PeCoffLoaderGetImageInfo() iterates the
+  /// optional header DataDirectory[] array and invokes this callback
+  /// once per entry. When NULL (the default), PeCoffLoaderGetImageInfo()
+  /// does not walk the directory and there is no per-entry overhead.
+  /// Returning a non-success status from the callback aborts
+  /// PeCoffLoaderGetImageInfo() with that status.
+  ///
+  PE_COFF_LOADER_DATA_DIRECTORY_CALLBACK    DataDirectoryCallback;
+  ///
+  /// Caller-owned opaque pointer passed unmodified to
+  /// DataDirectoryCallback. PeCoffLib never dereferences this field.
+  ///
+  VOID                                      *DataDirectoryCallbackContext;
+  // MU_CHANGE END
 } PE_COFF_LOADER_IMAGE_CONTEXT;
 
 /**
