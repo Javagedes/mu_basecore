@@ -12,6 +12,7 @@
 **/
 
 #include "DxeImageVerificationLib.h"
+#include "Database.h"
 #include "Image.h"
 #include "Policy.h"
 
@@ -153,8 +154,29 @@ ValidateUnsignedImage (
   IN  UINTN  FileSize
   )
 {
+  EFI_STATUS          Status;
+  HASH_ALGORITHM_SET  HashAlgorithms;
+
   //
-  // TODO: implement DB/DBX hash lookup for unsigned images.
+  // Determine which image-hash algorithms are currently in use across
+  // db and dbx. If neither database enrolls any recognized hash type,
+  // there is no algorithm with which to authorize an unsigned image,
+  // so refuse to dispatch it.
+  //
+  Status = GetDatabaseHashAlgorithms (&HashAlgorithms);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: GetDatabaseHashAlgorithms failed - %r\n", Status));
+    return EFI_ACCESS_DENIED;
+  }
+
+  if (HashAlgorithms.Count == 0) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: no hash algorithms enrolled in db/dbx; rejecting unsigned image.\n"));
+    return EFI_ACCESS_DENIED;
+  }
+
+  //
+  // TODO: hash FileBuffer with each algorithm in HashAlgorithms and
+  // check membership against db (must hit) and dbx (must miss).
   //
   return EFI_UNSUPPORTED;
 }

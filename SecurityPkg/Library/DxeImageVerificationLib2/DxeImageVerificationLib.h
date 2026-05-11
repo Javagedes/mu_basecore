@@ -25,15 +25,20 @@
   Validate an unsigned PE/COFF image against the platform signature
   databases.
 
-  TODO: Not yet implemented. The handler currently calls this stub when
-  Secure Boot is enabled and the dispatched image carries no embedded
-  signature.
+  Currently fetches the union of image-hash algorithms enrolled in `db`
+  and `dbx` via GetDatabaseHashAlgorithms and rejects the image when no
+  recognized algorithm is enrolled (an unsigned image cannot be
+  authorized in that case). The actual hash + db/dbx membership check
+  is not yet implemented.
 
   @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]  FileSize    Size of FileBuffer in bytes.
 
-  @retval EFI_UNSUPPORTED  The unsigned-image verification path is not
-                           yet implemented.
+  @retval EFI_ACCESS_DENIED  GetDatabaseHashAlgorithms failed, or no
+                             image-hash algorithm is enrolled in either
+                             db or dbx.
+  @retval EFI_UNSUPPORTED    Hash algorithms are available but the
+                             actual hash lookup is not yet implemented.
 **/
 EFI_STATUS
 ValidateUnsignedImage (

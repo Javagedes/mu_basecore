@@ -32,6 +32,8 @@
 [Sources]
   DxeImageVerificationLib.c
   DxeImageVerificationLib.h
+  Database.c
+  Database.h
   Image.c
   Image.h
   Policy.c
