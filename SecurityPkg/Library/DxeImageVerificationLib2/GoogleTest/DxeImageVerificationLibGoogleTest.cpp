@@ -74,10 +74,11 @@ TEST_F (DxeImageVerificationHandlerTest, FvImage_ReturnsSuccess) {
     );
 }
 
-TEST_F (DxeImageVerificationHandlerTest, NonFvImage_SecureBootEnabled_ReturnsUnsupported) {
+TEST_F (DxeImageVerificationHandlerTest, NonFvImage_SecureBootEnabled_NullBuffer_ReturnsAccessDenied) {
   //
-  // Non-FV image with Secure Boot enabled falls through to the
-  // not-yet-implemented signature verification path.
+  // Non-FV image with Secure Boot enabled: the handler tries to parse
+  // the PE/COFF image, which fails because FileBuffer is NULL, and
+  // returns EFI_ACCESS_DENIED.
   //
   EXPECT_CALL (BsMock, gBS_LocateDevicePath)
     .WillOnce (Return (EFI_NOT_FOUND));
@@ -86,7 +87,7 @@ TEST_F (DxeImageVerificationHandlerTest, NonFvImage_SecureBootEnabled_ReturnsUns
 
   EXPECT_EQ (
     DxeImageVerificationHandler (0, &mHandlerDevicePath, NULL, 0, FALSE),
-    EFI_UNSUPPORTED
+    EFI_ACCESS_DENIED
     );
 }
 
