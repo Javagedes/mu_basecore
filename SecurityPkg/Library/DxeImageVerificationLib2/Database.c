@@ -76,10 +76,10 @@ IsKnownImageHashGuid (
   @param[in]  Context     Opaque pointer passed unmodified to Callback.
 
   @retval EFI_SUCCESS            Buffer was fully consumed and Callback
-                                 returned RETURN_SUCCESS for every list.
+                                 returned EFI_SUCCESS for every list.
   @retval EFI_INVALID_PARAMETER  Buffer or Callback is NULL.
   @retval EFI_VOLUME_CORRUPTED   Buffer is structurally invalid.
-  @retval Other                  First non-RETURN_SUCCESS status returned
+  @retval Other                  First non-EFI_SUCCESS status returned
                                  by Callback. Iteration stops immediately.
 **/
 EFI_STATUS
@@ -94,7 +94,7 @@ WalkSignatureDatabase (
   UINTN               Remaining;
   EFI_SIGNATURE_LIST  *List;
   UINTN               PayloadSize;
-  RETURN_STATUS       CallbackStatus;
+  EFI_STATUS          CallbackStatus;
 
   if ((Buffer == NULL) || (Callback == NULL)) {
     return EFI_INVALID_PARAMETER;
@@ -138,7 +138,7 @@ WalkSignatureDatabase (
     }
 
     CallbackStatus = Callback (List, Context);
-    if (CallbackStatus != RETURN_SUCCESS) {
+    if (EFI_ERROR (CallbackStatus)) {
       return CallbackStatus;
     }
 
@@ -157,10 +157,10 @@ WalkSignatureDatabase (
 /**
   Walker callback for GetDatabaseHashAlgorithms: appends the list's
   SignatureType to the caller's set if it is a recognized image hash
-  GUID. Always returns RETURN_SUCCESS to keep iterating.
+  GUID. Always returns EFI_SUCCESS to keep iterating.
 **/
 STATIC
-RETURN_STATUS
+EFI_STATUS
 EFIAPI
 CollectHashAlgorithmCallback (
   IN CONST EFI_SIGNATURE_LIST  *List,
@@ -169,13 +169,17 @@ CollectHashAlgorithmCallback (
 {
   HASH_ALGORITHM_SET  *Set;
 
+  if (Context == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
   Set = (HASH_ALGORITHM_SET *)Context;
 
   if (IsKnownImageHashGuid (&List->SignatureType)) {
     AppendUnique (Set, &List->SignatureType);
   }
 
-  return RETURN_SUCCESS;
+  return EFI_SUCCESS;
 }
 
 /**
@@ -298,4 +302,184 @@ GetDatabaseHashAlgorithms (
            &gEfiImageSecurityDatabaseGuid,
            HashAlgorithms
            );
+}
+
+//
+// Per-walk context for IsSignatureFoundInDatabase. The caller
+// populates the three input fields and clears Found; the walker
+// callback updates Found if a matching entry is encountered.
+//
+typedef struct {
+  CONST UINT8       *Signature;
+  CONST EFI_GUID    *SignatureType;
+  UINTN             SignatureSize;
+  BOOLEAN           Found;
+} SIGNATURE_SEARCH_CTX;
+
+/**
+  Walker callback for IsSignatureFoundInDatabase. Records a hit by
+  setting Search->Found to TRUE and returning EFI_SUCCESS so the walk
+  proceeds to completion.
+
+  Returns EFI_INVALID_PARAMETER if the caller-provided context is
+  missing required fields.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+SignatureSearchCallback (
+  IN CONST EFI_SIGNATURE_LIST  *List,
+  IN VOID                      *Context  OPTIONAL
+  )
+{
+  SIGNATURE_SEARCH_CTX      *Search;
+  UINTN                     EntryCount;
+  CONST UINT8               *EntryCursor;
+  CONST EFI_SIGNATURE_DATA  *Entry;
+  UINTN                     Index;
+
+  if (Context == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Search = (SIGNATURE_SEARCH_CTX *)Context;
+
+  if ((Search->Signature == NULL) ||
+      (Search->SignatureType == NULL) ||
+      (Search->SignatureSize == 0))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  //
+  // A list belongs to a different algorithm if either the type GUID or
+  // the per-entry size disagrees. EFI_SIGNATURE_DATA already carries an
+  // owner EFI_GUID, so the payload size is SignatureSize - sizeof(GUID).
+  //
+  if (!CompareGuid (&List->SignatureType, Search->SignatureType)) {
+    return EFI_SUCCESS;
+  }
+
+  if (List->SignatureSize != sizeof (EFI_GUID) + Search->SignatureSize) {
+    return EFI_SUCCESS;
+  }
+
+  EntryCount = (List->SignatureListSize
+                - sizeof (EFI_SIGNATURE_LIST)
+                - List->SignatureHeaderSize) / List->SignatureSize;
+  EntryCursor = (CONST UINT8 *)List
+                + sizeof (EFI_SIGNATURE_LIST)
+                + List->SignatureHeaderSize;
+
+  for (Index = 0; Index < EntryCount; Index++) {
+    Entry = (CONST EFI_SIGNATURE_DATA *)EntryCursor;
+    if (CompareMem (Entry->SignatureData, Search->Signature, Search->SignatureSize) == 0) {
+      Search->Found = TRUE;
+      return EFI_ABORTED;
+    }
+
+    EntryCursor += List->SignatureSize;
+  }
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Search a single image-signature-database UEFI variable for an exact
+  signature match.
+
+  Walks the variable named DatabaseName under gEfiImageSecurityDatabaseGuid
+  with WalkSignatureDatabase and reports whether any EFI_SIGNATURE_LIST
+  whose SignatureType equals SignatureType contains an EFI_SIGNATURE_DATA
+  whose SignatureData payload equals the SignatureSize bytes at
+  Signature. The walker validates list structure before the callback is
+  invoked, and lists whose per-entry size does not match
+  (sizeof (EFI_GUID) + SignatureSize) are skipped (they describe a
+  different algorithm).
+
+  An absent variable counts as "not found" and returns EFI_SUCCESS with
+  *IsFound == FALSE.
+
+  @param[in]   DatabaseName   Variable name (e.g. EFI_IMAGE_SECURITY_DATABASE).
+  @param[in]   Signature      Pointer to the raw signature payload to
+                              search for (digest bytes for hash types,
+                              certificate bytes for x509 types).
+  @param[in]   SignatureType  GUID identifying the signature algorithm
+                              (e.g. gEfiCertSha256Guid). Lists with a
+                              different type are ignored.
+  @param[in]   SignatureSize  Size of Signature in bytes. Must be
+                              non-zero.
+  @param[out]  IsFound        TRUE if the signature was located.
+                              Only valid when EFI_SUCCESS is returned.
+
+  @retval EFI_SUCCESS            Search completed; *IsFound is valid.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL or
+                                 SignatureSize is 0.
+  @retval EFI_VOLUME_CORRUPTED   Variable is structurally malformed.
+  @retval Other                  Status from GetVariable2.
+**/
+EFI_STATUS
+IsSignatureFoundInDatabase (
+  IN  CONST CHAR16    *DatabaseName,
+  IN  CONST UINT8     *Signature,
+  IN  CONST EFI_GUID  *SignatureType,
+  IN  UINTN           SignatureSize,
+  OUT BOOLEAN         *IsFound
+  )
+{
+  EFI_STATUS            Status;
+  VOID                  *Buffer;
+  UINTN                 BufferSize;
+  SIGNATURE_SEARCH_CTX  Search;
+
+  if ((DatabaseName == NULL) || (Signature == NULL) ||
+      (SignatureType == NULL) || (IsFound == NULL) || (SignatureSize == 0))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *IsFound   = FALSE;
+  Buffer     = NULL;
+  BufferSize = 0;
+  Search     = (SIGNATURE_SEARCH_CTX) {
+    .Signature     = Signature,
+    .SignatureType = SignatureType,
+    .SignatureSize = SignatureSize,
+    .Found         = FALSE
+  };
+
+  Status = GetVariable2 (DatabaseName, &gEfiImageSecurityDatabaseGuid, &Buffer, &BufferSize);
+  if (Status == EFI_NOT_FOUND) {
+    Status = EFI_SUCCESS;
+    goto Done;
+  }
+
+  if (EFI_ERROR (Status)) {
+    goto Done;
+  }
+
+  Status = WalkSignatureDatabase (
+             Buffer,
+             BufferSize,
+             SignatureSearchCallback,
+             &Search
+             );
+  //
+  // SignatureSearchCallback returns EFI_ABORTED purely to stop the walk
+  // once a match is recorded in Search.Found; translate it back here.
+  //
+  if (Status == EFI_ABORTED) {
+    Status = EFI_SUCCESS;
+  }
+
+  if (!EFI_ERROR (Status)) {
+    *IsFound = Search.Found;
+  }
+
+Done:
+  if (Buffer != NULL) {
+    FreePool (Buffer);
+  }
+
+  return Status;
 }
