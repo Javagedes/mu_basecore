@@ -12,6 +12,7 @@
 **/
 
 #include "DxeImageVerificationLib.h"
+#include "Image.h"
 #include "Policy.h"
 
 /**
@@ -32,8 +33,8 @@
 
   @param[in]  AuthenticationStatus  Unused (stub).
   @param[in]  File                  Device path describing the image origin.
-  @param[in]  FileBuffer            Unused (stub).
-  @param[in]  FileSize              Unused (stub).
+  @param[in]  FileBuffer            Pointer to the in-memory PE/COFF image.
+  @param[in]  FileSize              Size of FileBuffer in bytes.
   @param[in]  BootPolicy            Unused (stub).
 
   @retval EFI_SUCCESS            The image is permitted to execute,
@@ -42,11 +43,12 @@
                                  image -> ALWAYS_EXECUTE) or because
                                  Secure Boot is not enabled and this
                                  handler has nothing to enforce.
+  @retval EFI_ACCESS_DENIED      The image's PE/COFF headers could not
+                                 be parsed.
   @retval EFI_INVALID_PARAMETER  File is NULL.
-  @retval EFI_UNSUPPORTED        Secure Boot is enabled and the
-                                 verification path required to make a
-                                 decision is not yet implemented in
-                                 this library.
+  @retval Other                  Status returned from
+                                 ValidateSignedImage or
+                                 ValidateUnsignedImage.
 **/
 EFI_STATUS
 EFIAPI
@@ -58,8 +60,9 @@ DxeImageVerificationHandler (
   IN  BOOLEAN                         BootPolicy
   )
 {
-  EFI_STATUS  Status;
-  UINT32      Policy;
+  EFI_STATUS                Status;
+  UINT32                    Policy;
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir;
 
   //
   // Sanity check.
@@ -94,7 +97,24 @@ DxeImageVerificationHandler (
     return EFI_SUCCESS;
   }
 
-  return EFI_UNSUPPORTED;
+  //
+  // Inspect the image to locate its security data directory. Any failure
+  // to parse the PE/COFF headers is treated as a verification failure.
+  //
+  Status = GetImageSecurityDataDirectory (FileBuffer, FileSize, &SecDataDir);
+  if (EFI_ERROR (Status)) {
+    return EFI_ACCESS_DENIED;
+  }
+
+  //
+  // Dispatch to the appropriate verification path based on whether the
+  // image carries an embedded signature.
+  //
+  if (SecDataDir.Size == 0) {
+    return ValidateUnsignedImage (FileBuffer, FileSize);
+  }
+
+  return ValidateSignedImage (FileBuffer, FileSize, &SecDataDir);
 }
 
 /**
@@ -119,4 +139,41 @@ DxeImageVerificationLibConstructor (
            DxeImageVerificationHandler,
            EFI_AUTH_OPERATION_VERIFY_IMAGE | EFI_AUTH_OPERATION_IMAGE_REQUIRED
            );
+}
+
+/**
+  Validate an unsigned PE/COFF image against the platform signature
+  databases.
+
+  See DxeImageVerificationLib.h for the full contract.
+**/
+EFI_STATUS
+ValidateUnsignedImage (
+  IN  VOID   *FileBuffer,
+  IN  UINTN  FileSize
+  )
+{
+  //
+  // TODO: implement DB/DBX hash lookup for unsigned images.
+  //
+  return EFI_UNSUPPORTED;
+}
+
+/**
+  Validate a signed PE/COFF image's embedded signatures against the
+  platform signature databases.
+
+  See DxeImageVerificationLib.h for the full contract.
+**/
+EFI_STATUS
+ValidateSignedImage (
+  IN  VOID                            *FileBuffer,
+  IN  UINTN                           FileSize,
+  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
+  )
+{
+  //
+  // TODO: implement Authenticode/UEFI signature verification.
+  //
+  return EFI_UNSUPPORTED;
 }

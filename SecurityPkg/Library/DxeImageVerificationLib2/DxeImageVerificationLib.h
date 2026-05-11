@@ -14,11 +14,55 @@
 
 #include <Uefi.h>
 #include <Guid/ImageAuthentication.h>
+#include <IndustryStandard/PeImage.h>
 #include <Protocol/DevicePath.h>
 #include <UefiSecureBoot.h>
 #include <Library/DebugLib.h>
 #include <Library/SecureBootVariableLib.h>
 #include <Library/SecurityManagementLib.h>
+
+/**
+  Validate an unsigned PE/COFF image against the platform signature
+  databases.
+
+  TODO: Not yet implemented. The handler currently calls this stub when
+  Secure Boot is enabled and the dispatched image carries no embedded
+  signature.
+
+  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]  FileSize    Size of FileBuffer in bytes.
+
+  @retval EFI_UNSUPPORTED  The unsigned-image verification path is not
+                           yet implemented.
+**/
+EFI_STATUS
+ValidateUnsignedImage (
+  IN  VOID   *FileBuffer,
+  IN  UINTN  FileSize
+  );
+
+/**
+  Validate a signed PE/COFF image's embedded Authenticode/UEFI signatures
+  against the platform signature databases.
+
+  TODO: Not yet implemented. The handler currently calls this stub when
+  Secure Boot is enabled and the dispatched image declares a non-empty
+  security data directory.
+
+  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]  FileSize    Size of FileBuffer in bytes.
+  @param[in]  SecDataDir  Security data directory describing the
+                          embedded WIN_CERTIFICATE table.
+
+  @retval EFI_UNSUPPORTED  The signed-image verification path is not yet
+                           implemented.
+**/
+EFI_STATUS
+ValidateSignedImage (
+  IN  VOID                            *FileBuffer,
+  IN  UINTN                           FileSize,
+  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
+  );
 
 /**
   Provide verification service for signed images, which include both

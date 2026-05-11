@@ -32,6 +32,8 @@
 [Sources]
   DxeImageVerificationLib.c
   DxeImageVerificationLib.h
+  Image.c
+  Image.h
   Policy.c
   Policy.h
 
@@ -49,10 +51,11 @@
   UefiRuntimeServicesTableLib
   BaseMemoryLib
   DebugLib
+  PcdLib
+  PeCoffLib
   SecureBootVariableLib
   SecurityManagementLib
   DevicePathLib
-  PcdLib
 
 [Protocols]
   gEfiFirmwareVolume2ProtocolGuid       ## SOMETIMES_CONSUMES
