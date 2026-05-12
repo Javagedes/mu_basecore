@@ -23,6 +23,7 @@
   DatabaseGoogleTest.cpp
   ImageGoogleTest.cpp
   PolicyGoogleTest.cpp
+  ValidateUnsignedImageGoogleTest.cpp
 
 [Packages]
   MdePkg/MdePkg.dec

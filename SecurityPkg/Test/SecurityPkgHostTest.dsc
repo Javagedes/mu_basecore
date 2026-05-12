@@ -70,7 +70,7 @@
       UefiBootServicesTableLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiBootServicesTableLib/MockUefiBootServicesTableLib.inf
       DevicePathLib|MdePkg/Test/Mock/Library/GoogleTest/MockDevicePathLib/MockDevicePathLib.inf
       DxeImageVerificationLib|SecurityPkg/Library/DxeImageVerificationLib2/DxeImageVerificationLib.inf
-      BaseCryptLib|CryptoPkg/Library/BaseCryptLibNull/BaseCryptLibNull.inf
+      BaseCryptLib|CryptoPkg/Test/Mock/Library/GoogleTest/MockBaseCryptLib/MockBaseCryptLib.inf
       UefiLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiLib/MockUefiLib.inf
       SecureBootVariableLib|SecurityPkg/Test/Mock/Library/GoogleTest/MockSecureBootVariableLib/MockSecureBootVariableLib.inf
       SecurityManagementLib|MdeModulePkg/Test/Mock/Library/GoogleTest/MockSecurityManagementLib/MockSecurityManagementLib.inf

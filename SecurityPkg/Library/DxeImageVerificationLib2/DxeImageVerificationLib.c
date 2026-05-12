@@ -156,6 +156,12 @@ ValidateUnsignedImage (
 {
   EFI_STATUS          Status;
   HASH_ALGORITHM_SET  HashAlgorithms;
+  UINTN               Index;
+  CONST EFI_GUID      *HashType;
+  UINTN               DigestSize;
+  UINT8               ImageDigest[SHA512_DIGEST_SIZE];
+  BOOLEAN             IsFound;
+  BOOLEAN             IsFoundInDb;
 
   //
   // Determine which image-hash algorithms are currently in use across
@@ -175,10 +181,49 @@ ValidateUnsignedImage (
   }
 
   //
-  // TODO: hash FileBuffer with each algorithm in HashAlgorithms and
-  // check membership against db (must hit) and dbx (must miss).
+  // For each algorithm in use, compute the image's Authenticode digest and query the dbx / db.
+  // A hit in the dbx immediately denies the image. If no dbx hit occurs across all algorithms,
+  // the image is authorized or denied based on whether at least one db hit was recorded.
   //
-  return EFI_UNSUPPORTED;
+  IsFoundInDb = FALSE;
+  for (Index = 0; Index < HashAlgorithms.Count; Index++) {
+    HashType = &HashAlgorithms.Guids[Index];
+
+    Status = GetAuthenticodeHash (FileBuffer, FileSize, HashType, ImageDigest, &DigestSize);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: GetAuthenticodeHash failed - %r\n", Status));
+      return EFI_ACCESS_DENIED;
+    }
+
+    Status = IsSignatureFoundInDatabase (
+               EFI_IMAGE_SECURITY_DATABASE1,
+               ImageDigest,
+               HashType,
+               DigestSize,
+               &IsFound
+               );
+    if (EFI_ERROR (Status) || IsFound) {
+      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image is not signed and image is forbidden by DBX.\n"));
+      return EFI_ACCESS_DENIED;
+    }
+
+    if (IsFoundInDb) {
+      continue;
+    }
+
+    Status = IsSignatureFoundInDatabase (
+               EFI_IMAGE_SECURITY_DATABASE,
+               ImageDigest,
+               HashType,
+               DigestSize,
+               &IsFound
+               );
+    if (!EFI_ERROR (Status) && IsFound) {
+      IsFoundInDb = TRUE;
+    }
+  }
+
+  return IsFoundInDb ? EFI_SUCCESS : EFI_ACCESS_DENIED;
 }
 
 /**

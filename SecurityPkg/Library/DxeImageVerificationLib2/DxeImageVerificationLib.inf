@@ -52,6 +52,7 @@
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
   BaseMemoryLib
+  BaseCryptLib
   DebugLib
   PcdLib
   PeCoffLib
