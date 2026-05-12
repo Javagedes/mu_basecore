@@ -17,39 +17,52 @@
 #include "Policy.h"
 
 /**
-  Provide verification service for signed images.
+  Provide verification service for signed images, which include both
+  signature validation and platform policy control. For signature types,
+  both UEFI WIN_CERTIFICATE_UEFI_GUID and MSFT Authenticode type
+  signatures are supported.
 
   This handler exists solely to enforce UEFI Secure Boot. When Secure
-  Boot is not enabled, no verification is required and the handler
-  returns EFI_SUCCESS without inspecting the image.
+  Boot is not enabled, the handler has no work to do and returns
+  EFI_SUCCESS without inspecting the image.
 
   The platform authorization policy is resolved before the Secure Boot
-  state is read. The overwhelming majority of dispatched images are
-  firmware-volume drivers, which short-circuit to ALWAYS_EXECUTE; that
-  resolution is much cheaper than reading the `SecureBoot` UEFI
-  variable, so the cheap check runs first and the variable is only
-  consulted when the policy did not already authorize the image.
+  state is read because the overwhelming majority of dispatched images
+  are firmware-volume drivers, for which the policy short-circuits to
+  ALWAYS_EXECUTE. Resolving that policy is much cheaper than reading the
+  `SecureBoot` UEFI variable, so the cheap check runs first.
 
-  See DxeImageVerificationLib.h for the full contract.
+  Caution: This function may receive untrusted input.
+  PE/COFF image is external input, so this function will validate its
+  data structure within this image buffer before use.
 
-  @param[in]  AuthenticationStatus  Unused (stub).
-  @param[in]  File                  Device path describing the image origin.
-  @param[in]  FileBuffer            Pointer to the in-memory PE/COFF image.
+  @param[in]  AuthenticationStatus  Authentication status returned from
+                                    the security measurement services
+                                    for the input file.
+  @param[in]  File                  Device path of the file being
+                                    dispatched. Optional; used for
+                                    logging.
+  @param[in]  FileBuffer            File buffer matching the input file
+                                    device path.
   @param[in]  FileSize              Size of FileBuffer in bytes.
-  @param[in]  BootPolicy            Unused (stub).
+  @param[in]  BootPolicy            BootPolicy that was used to call the
+                                    LoadImage() UEFI service.
 
   @retval EFI_SUCCESS            The image is permitted to execute,
                                  either because the platform policy
-                                 unconditionally allows it (e.g. an FV
-                                 image -> ALWAYS_EXECUTE) or because
+                                 unconditionally allows it or because
                                  Secure Boot is not enabled and this
                                  handler has nothing to enforce.
-  @retval EFI_ACCESS_DENIED      The image's PE/COFF headers could not
-                                 be parsed.
-  @retval EFI_INVALID_PARAMETER  File is NULL.
-  @retval Other                  Status returned from
-                                 ValidateSignedImage or
-                                 ValidateUnsignedImage.
+  @retval EFI_SECURITY_VIOLATION The file did not authenticate; the
+                                 platform policy places it in the
+                                 untrusted state.
+  @retval EFI_ACCESS_DENIED      The file did not authenticate and the
+                                 platform policy forbids execution.
+  @retval EFI_INVALID_PARAMETER  Invalid input was supplied.
+  @retval EFI_UNSUPPORTED        Secure Boot is enabled and the
+                                 verification path required to make a
+                                 decision is not yet implemented in
+                                 this library.
 **/
 EFI_STATUS
 EFIAPI
@@ -121,11 +134,10 @@ DxeImageVerificationHandler (
 /**
   Register the image verification security measurement handler.
 
-  See DxeImageVerificationLib.h for the full contract.
+  @param[in]  ImageHandle  Image handle of the loaded driver.
+  @param[in]  SystemTable  Pointer to the EFI System Table.
 
-  @param[in]  ImageHandle  Unused (stub).
-  @param[in]  SystemTable  Unused (stub).
-
+  @retval EFI_SUCCESS      The handlers were registered successfully.
   @retval EFI_UNSUPPORTED  Registration is not yet implemented in this
                            library.
 **/
@@ -146,7 +158,21 @@ DxeImageVerificationLibConstructor (
   Validate an unsigned PE/COFF image against the platform signature
   databases.
 
-  See DxeImageVerificationLib.h for the full contract.
+  For each image-hash algorithm enrolled in db or dbx, computes the
+  image's Authenticode digest and checks dbx then db. A dbx hit denies
+  the image. The image is authorized only if it is found in db and
+  never in dbx.
+
+  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]  FileSize    Size of FileBuffer in bytes.
+
+  @retval EFI_SUCCESS        The image's hash was found in db (and not
+                             in dbx) under at least one enrolled
+                             algorithm.
+  @retval EFI_ACCESS_DENIED  The image was rejected: either no hash
+                             algorithm is enrolled, the digest is
+                             present in dbx, the digest is not present
+                             in db, or a database lookup failed.
 **/
 EFI_STATUS
 ValidateUnsignedImage (
@@ -162,6 +188,30 @@ ValidateUnsignedImage (
   UINT8               ImageDigest[SHA512_DIGEST_SIZE];
   BOOLEAN             IsFound;
   BOOLEAN             IsFoundInDb;
+  VOID                *Db;
+  UINTN               DbSize;
+  VOID                *Dbx;
+  UINTN               DbxSize;
+
+  Db  = NULL;
+  Dbx = NULL;
+
+  //
+  // Load the authorized (db) and forbidden (dbx) signature databases.
+  //
+  Status = LoadSignatureDatabase (EFI_IMAGE_SECURITY_DATABASE, &Db, &DbSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: failed to load db - %r\n", Status));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  Status = LoadSignatureDatabase (EFI_IMAGE_SECURITY_DATABASE1, &Dbx, &DbxSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: failed to load dbx - %r\n", Status));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
 
   //
   // Determine which image-hash algorithms are currently in use across
@@ -169,15 +219,17 @@ ValidateUnsignedImage (
   // there is no algorithm with which to authorize an unsigned image,
   // so refuse to dispatch it.
   //
-  Status = GetDatabaseHashAlgorithms (&HashAlgorithms);
+  Status = GetDatabaseHashAlgorithms (Db, DbSize, Dbx, DbxSize, &HashAlgorithms);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: GetDatabaseHashAlgorithms failed - %r\n", Status));
-    return EFI_ACCESS_DENIED;
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
   }
 
   if (HashAlgorithms.Count == 0) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: no hash algorithms enrolled in db/dbx; rejecting unsigned image.\n"));
-    return EFI_ACCESS_DENIED;
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
   }
 
   //
@@ -192,11 +244,13 @@ ValidateUnsignedImage (
     Status = GetAuthenticodeHash (FileBuffer, FileSize, HashType, ImageDigest, &DigestSize);
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: GetAuthenticodeHash failed - %r\n", Status));
-      return EFI_ACCESS_DENIED;
+      Status = EFI_ACCESS_DENIED;
+      goto Exit;
     }
 
     Status = IsSignatureFoundInDatabase (
-               EFI_IMAGE_SECURITY_DATABASE1,
+               Dbx,
+               DbxSize,
                ImageDigest,
                HashType,
                DigestSize,
@@ -204,7 +258,8 @@ ValidateUnsignedImage (
                );
     if (EFI_ERROR (Status) || IsFound) {
       DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image is not signed and image is forbidden by DBX.\n"));
-      return EFI_ACCESS_DENIED;
+      Status = EFI_ACCESS_DENIED;
+      goto Exit;
     }
 
     if (IsFoundInDb) {
@@ -212,7 +267,8 @@ ValidateUnsignedImage (
     }
 
     Status = IsSignatureFoundInDatabase (
-               EFI_IMAGE_SECURITY_DATABASE,
+               Db,
+               DbSize,
                ImageDigest,
                HashType,
                DigestSize,
@@ -223,14 +279,35 @@ ValidateUnsignedImage (
     }
   }
 
-  return IsFoundInDb ? EFI_SUCCESS : EFI_ACCESS_DENIED;
+  Status = IsFoundInDb ? EFI_SUCCESS : EFI_ACCESS_DENIED;
+
+Exit:
+  if (Db != NULL) {
+    FreePool (Db);
+  }
+
+  if (Dbx != NULL) {
+    FreePool (Dbx);
+  }
+
+  return Status;
 }
 
 /**
-  Validate a signed PE/COFF image's embedded signatures against the
-  platform signature databases.
+  Validate a signed PE/COFF image's embedded Authenticode/UEFI signatures
+  against the platform signature databases.
 
-  See DxeImageVerificationLib.h for the full contract.
+  TODO: Not yet implemented. The handler currently calls this stub when
+  Secure Boot is enabled and the dispatched image declares a non-empty
+  security data directory.
+
+  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]  FileSize    Size of FileBuffer in bytes.
+  @param[in]  SecDataDir  Security data directory describing the
+                          embedded WIN_CERTIFICATE table.
+
+  @retval EFI_UNSUPPORTED  The signed-image verification path is not yet
+                           implemented.
 **/
 EFI_STATUS
 ValidateSignedImage (

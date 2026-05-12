@@ -544,3 +544,44 @@ TEST_F (ValidateUnsignedImageTest, DbHitOnEarlyAlgorithmCleanLater_Success) {
 
   EXPECT_EQ (ValidateUnsignedImage (Image, sizeof (Image)), EFI_SUCCESS);
 }
+
+TEST_F (ValidateUnsignedImageTest, MalformedDb_AccessDenied) {
+  // db is structurally corrupt; GetDatabaseHashAlgorithms reports
+  // EFI_VOLUME_CORRUPTED and ValidateUnsignedImage must deny without
+  // proceeding to hash computation.
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+  ((EFI_SIGNATURE_LIST *)Db.data ())->SignatureListSize = (UINT32)(Db.size () + 1);
+  SetVariable (u"db", std::move (Db));
+
+  UINT8  Image[1] = { 0 };
+
+  EXPECT_EQ (ValidateUnsignedImage (Image, sizeof (Image)), EFI_ACCESS_DENIED);
+}
+
+TEST_F (ValidateUnsignedImageTest, LoadDbFails_AccessDenied) {
+  // GetVariable2 returns a non-NOT_FOUND error for db; LoadSignatureDatabase
+  // surfaces it and ValidateUnsignedImage denies without touching dbx or
+  // computing any hash.
+  Vars[u"db"] = { EFI_DEVICE_ERROR, { } };
+
+  UINT8  Image[1] = { 0 };
+
+  EXPECT_EQ (ValidateUnsignedImage (Image, sizeof (Image)), EFI_ACCESS_DENIED);
+}
+
+TEST_F (ValidateUnsignedImageTest, LoadDbxFails_AccessDenied) {
+  // db loads cleanly but dbx returns a non-NOT_FOUND error; the dbx
+  // load failure must deny before hash computation.
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+  SetVariable (u"db", std::move (Db));
+
+  Vars[u"dbx"] = { EFI_DEVICE_ERROR, { } };
+
+  UINT8  Image[1] = { 0 };
+
+  EXPECT_EQ (ValidateUnsignedImage (Image, sizeof (Image)), EFI_ACCESS_DENIED);
+}

@@ -8,6 +8,56 @@
 #include "Database.h"
 
 /**
+  Load a signature-database UEFI variable (under
+  gEfiImageSecurityDatabaseGuid) into a pool-allocated buffer.
+
+  EFI_NOT_FOUND is normalized to EFI_SUCCESS with *Buffer == NULL and
+  *BufferSize == 0, so callers may treat "absent" and "empty"
+  identically. All other GetVariable2 failures are reported verbatim.
+
+  On EFI_SUCCESS, *Buffer may still be NULL (the variable was absent);
+  callers must check before dereferencing. When *Buffer is non-NULL the
+  caller takes ownership of the allocation and must release it with
+  FreePool.
+
+  @param[in]   DatabaseName  Variable name (e.g. EFI_IMAGE_SECURITY_DATABASE,
+                             EFI_IMAGE_SECURITY_DATABASE1).
+  @param[out]  Buffer        Pool-allocated copy of the variable contents,
+                             or NULL if the variable does not exist.
+                             Caller frees with FreePool when non-NULL.
+  @param[out]  BufferSize    Size of *Buffer in bytes, or 0 if the
+                             variable does not exist.
+
+  @retval EFI_SUCCESS            *Buffer / *BufferSize are valid (and may
+                                 indicate an absent variable).
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval Other                  Status from gRT->GetVariable.
+**/
+EFI_STATUS
+LoadSignatureDatabase (
+  IN  CONST CHAR16  *DatabaseName,
+  OUT VOID          **Buffer,
+  OUT UINTN         *BufferSize
+  )
+{
+  EFI_STATUS  Status;
+
+  if ((DatabaseName == NULL) || (Buffer == NULL) || (BufferSize == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *Buffer     = NULL;
+  *BufferSize = 0;
+
+  Status = GetVariable2 (DatabaseName, &gEfiImageSecurityDatabaseGuid, Buffer, BufferSize);
+  if (Status == EFI_NOT_FOUND) {
+    return EFI_SUCCESS;
+  }
+
+  return Status;
+}
+
+/**
   Append a GUID to the set if it is not already present.
 
   @param[in,out]  Set   The set to update.
@@ -183,100 +233,44 @@ CollectHashAlgorithmCallback (
 }
 
 /**
-  Read a single image-signature-database UEFI variable and add every
-  recognized image-hash signature-type GUID it contains to
-  HashAlgorithms (deduplicated).
+  Report the union of image hash algorithms enrolled across the
+  caller-provided authorized (`db`) and forbidden (`dbx`) signature
+  database buffers.
 
-  HashAlgorithms is updated in place and is left in a partially-merged
-  state if WalkSignatureDatabase reports EFI_VOLUME_CORRUPTED.
-
-  @param[in]      DatabaseName    Variable name (e.g. EFI_IMAGE_SECURITY_DATABASE,
-                                  EFI_IMAGE_SECURITY_DATABASE1).
-  @param[in]      VendorGuid      Vendor GUID for DatabaseName, typically
-                                  gEfiImageSecurityDatabaseGuid.
-  @param[in,out]  HashAlgorithms  Caller-owned set to merge into. Must
-                                  already be initialized (e.g. by
-                                  ZeroMem) by the caller.
-
-  @retval EFI_SUCCESS            Variable read (or absent) and merged.
-  @retval EFI_VOLUME_CORRUPTED   Variable is structurally malformed; see
-                                 WalkSignatureDatabase.
-  @retval Other                  Status from GetVariable2 other than
-                                 EFI_NOT_FOUND.
-**/
-STATIC
-EFI_STATUS
-AddHashAlgorithms (
-  IN     CONST CHAR16        *DatabaseName,
-  IN     CONST EFI_GUID      *VendorGuid,
-  IN OUT HASH_ALGORITHM_SET  *HashAlgorithms
-  )
-{
-  EFI_STATUS  Status;
-  VOID        *Buffer;
-  UINTN       BufferSize;
-
-  Buffer     = NULL;
-  BufferSize = 0;
-  Status     = GetVariable2 (DatabaseName, VendorGuid, &Buffer, &BufferSize);
-  if (Status == EFI_NOT_FOUND) {
-    Status = EFI_SUCCESS;
-    goto Done;
-  }
-
-  if (EFI_ERROR (Status)) {
-    goto Done;
-  }
-
-  Status = WalkSignatureDatabase (
-             Buffer,
-             BufferSize,
-             CollectHashAlgorithmCallback,
-             HashAlgorithms
-             );
-
-Done:
-  if (Buffer != NULL) {
-    FreePool (Buffer);
-  }
-
-  return Status;
-}
-
-/**
-  Report the union of image hash algorithms currently in use across the
-  authorized (`db`) and forbidden (`dbx`) image signature databases.
-
-  Reads EFI_IMAGE_SECURITY_DATABASE (L"db") and
-  EFI_IMAGE_SECURITY_DATABASE1 (L"dbx") under
-  gEfiImageSecurityDatabaseGuid, walks every EFI_SIGNATURE_LIST in each,
-  and for each list whose SignatureType is a recognized plain hash GUID
+  Walks every EFI_SIGNATURE_LIST in each buffer, and for each list
+  whose SignatureType is a recognized plain hash GUID
   (IsKnownImageHashGuid returns TRUE) records that GUID in
-  HashAlgorithms exactly once. A missing variable contributes nothing.
+  HashAlgorithms exactly once. A NULL buffer contributes nothing.
 
-  Caution: This function consumes external input. Each variable buffer
-  is bounds-checked at every step before being dereferenced.
+  Caution: This function consumes external input. Each buffer is
+  bounds-checked at every step before being dereferenced.
 
+  @param[in]   Db              Pointer to the raw `db` variable contents,
+                               or NULL if `db` is absent / empty.
+  @param[in]   DbSize          Size of Db in bytes. Ignored if Db is NULL.
+  @param[in]   Dbx             Pointer to the raw `dbx` variable contents,
+                               or NULL if `dbx` is absent / empty.
+  @param[in]   DbxSize         Size of Dbx in bytes. Ignored if Dbx is NULL.
   @param[out]  HashAlgorithms  On success, populated with the
                                deduplicated set of hash signature types
-                               observed across `db` and `dbx`. Always
-                               zero-initialized first, so two absent
-                               variables yield Count == 0.
+                               observed across Db and Dbx. Always
+                               zero-initialized first, so two NULL
+                               buffers yield Count == 0.
 
   @retval EFI_SUCCESS            HashAlgorithms is populated. Count may
-                                 be 0 if both variables are missing,
-                                 empty, or only contain non-hash
-                                 signature types.
+                                 be 0 if both buffers are NULL, empty,
+                                 or only contain non-hash signature
+                                 types.
   @retval EFI_INVALID_PARAMETER  HashAlgorithms is NULL.
-  @retval EFI_OUT_OF_RESOURCES   Could not allocate a buffer for one of
-                                 the variables.
-  @retval EFI_VOLUME_CORRUPTED   One of the variables' signature lists
-                                 is malformed (see WalkSignatureDatabase).
-  @retval Other                  Status from gRT->GetVariable other than
-                                 EFI_NOT_FOUND / EFI_BUFFER_TOO_SMALL.
+  @retval EFI_VOLUME_CORRUPTED   One of the buffers' signature lists is
+                                 malformed (see WalkSignatureDatabase).
 **/
 EFI_STATUS
 GetDatabaseHashAlgorithms (
+  IN  CONST VOID          *Db        OPTIONAL,
+  IN  UINTN               DbSize,
+  IN  CONST VOID          *Dbx       OPTIONAL,
+  IN  UINTN               DbxSize,
   OUT HASH_ALGORITHM_SET  *HashAlgorithms
   )
 {
@@ -288,20 +282,21 @@ GetDatabaseHashAlgorithms (
 
   ZeroMem (HashAlgorithms, sizeof (*HashAlgorithms));
 
-  Status = AddHashAlgorithms (
-             EFI_IMAGE_SECURITY_DATABASE,
-             &gEfiImageSecurityDatabaseGuid,
-             HashAlgorithms
-             );
-  if (EFI_ERROR (Status)) {
-    return Status;
+  if (Db != NULL) {
+    Status = WalkSignatureDatabase (Db, DbSize, CollectHashAlgorithmCallback, HashAlgorithms);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
   }
 
-  return AddHashAlgorithms (
-           EFI_IMAGE_SECURITY_DATABASE1,
-           &gEfiImageSecurityDatabaseGuid,
-           HashAlgorithms
-           );
+  if (Dbx != NULL) {
+    Status = WalkSignatureDatabase (Dbx, DbxSize, CollectHashAlgorithmCallback, HashAlgorithms);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+  }
+
+  return EFI_SUCCESS;
 }
 
 //
@@ -385,22 +380,25 @@ SignatureSearchCallback (
 }
 
 /**
-  Search a single image-signature-database UEFI variable for an exact
+  Search a preloaded image-signature-database buffer for an exact
   signature match.
 
-  Walks the variable named DatabaseName under gEfiImageSecurityDatabaseGuid
-  with WalkSignatureDatabase and reports whether any EFI_SIGNATURE_LIST
-  whose SignatureType equals SignatureType contains an EFI_SIGNATURE_DATA
-  whose SignatureData payload equals the SignatureSize bytes at
-  Signature. The walker validates list structure before the callback is
-  invoked, and lists whose per-entry size does not match
-  (sizeof (EFI_GUID) + SignatureSize) are skipped (they describe a
-  different algorithm).
+  Walks Database with WalkSignatureDatabase and reports whether any
+  EFI_SIGNATURE_LIST whose SignatureType equals SignatureType contains
+  an EFI_SIGNATURE_DATA whose SignatureData payload equals the
+  SignatureSize bytes at Signature. The walker validates list structure
+  before the callback is invoked, and lists whose per-entry size does
+  not match (sizeof (EFI_GUID) + SignatureSize) are skipped (they
+  describe a different algorithm).
 
-  An absent variable counts as "not found" and returns EFI_SUCCESS with
+  A NULL Database counts as "not found" and returns EFI_SUCCESS with
   *IsFound == FALSE.
 
-  @param[in]   DatabaseName   Variable name (e.g. EFI_IMAGE_SECURITY_DATABASE).
+  @param[in]   Database       Pointer to the raw database contents
+                              (e.g. as returned by LoadSignatureDatabase),
+                              or NULL if the database is absent / empty.
+  @param[in]   DatabaseSize   Size of Database in bytes. Ignored if
+                              Database is NULL.
   @param[in]   Signature      Pointer to the raw signature payload to
                               search for (digest bytes for hash types,
                               certificate bytes for x509 types).
@@ -415,12 +413,12 @@ SignatureSearchCallback (
   @retval EFI_SUCCESS            Search completed; *IsFound is valid.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL or
                                  SignatureSize is 0.
-  @retval EFI_VOLUME_CORRUPTED   Variable is structurally malformed.
-  @retval Other                  Status from GetVariable2.
+  @retval EFI_VOLUME_CORRUPTED   Database is structurally malformed.
 **/
 EFI_STATUS
 IsSignatureFoundInDatabase (
-  IN  CONST CHAR16    *DatabaseName,
+  IN  CONST VOID      *Database  OPTIONAL,
+  IN  UINTN           DatabaseSize,
   IN  CONST UINT8     *Signature,
   IN  CONST EFI_GUID  *SignatureType,
   IN  UINTN           SignatureSize,
@@ -428,39 +426,30 @@ IsSignatureFoundInDatabase (
   )
 {
   EFI_STATUS            Status;
-  VOID                  *Buffer;
-  UINTN                 BufferSize;
   SIGNATURE_SEARCH_CTX  Search;
 
-  if ((DatabaseName == NULL) || (Signature == NULL) ||
-      (SignatureType == NULL) || (IsFound == NULL) || (SignatureSize == 0))
+  if ((Signature == NULL) || (SignatureType == NULL) ||
+      (IsFound == NULL) || (SignatureSize == 0))
   {
     return EFI_INVALID_PARAMETER;
   }
 
-  *IsFound   = FALSE;
-  Buffer     = NULL;
-  BufferSize = 0;
-  Search     = (SIGNATURE_SEARCH_CTX) {
+  *IsFound = FALSE;
+
+  if (Database == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  Search = (SIGNATURE_SEARCH_CTX) {
     .Signature     = Signature,
     .SignatureType = SignatureType,
     .SignatureSize = SignatureSize,
     .Found         = FALSE
   };
 
-  Status = GetVariable2 (DatabaseName, &gEfiImageSecurityDatabaseGuid, &Buffer, &BufferSize);
-  if (Status == EFI_NOT_FOUND) {
-    Status = EFI_SUCCESS;
-    goto Done;
-  }
-
-  if (EFI_ERROR (Status)) {
-    goto Done;
-  }
-
   Status = WalkSignatureDatabase (
-             Buffer,
-             BufferSize,
+             Database,
+             DatabaseSize,
              SignatureSearchCallback,
              &Search
              );
@@ -474,11 +463,6 @@ IsSignatureFoundInDatabase (
 
   if (!EFI_ERROR (Status)) {
     *IsFound = Search.Found;
-  }
-
-Done:
-  if (Buffer != NULL) {
-    FreePool (Buffer);
   }
 
   return Status;

@@ -26,16 +26,10 @@
   Validate an unsigned PE/COFF image against the platform signature
   databases.
 
-  Fetches the union of image-hash algorithms enrolled in `db` and
-  `dbx` via GetDatabaseHashAlgorithms. For each enrolled algorithm,
-  computes the image's Authenticode digest and queries dbx, then db.
-  A hit in dbx denies the image immediately. A hit in db is recorded
-  but the loop continues so that a later iteration can still find a
-  revoking entry in dbx for a different algorithm (FR-3 — dbx
-  overrides db, including across algorithms). After the loop, the
-  image is authorized only if at least one db hit was recorded and
-  no dbx hit ever occurred. If no algorithm produces a hit in either
-  database the image is denied.
+  For each image-hash algorithm enrolled in db or dbx, computes the
+  image's Authenticode digest and checks dbx then db. A dbx hit denies
+  the image. The image is authorized only if it is found in db and
+  never in dbx.
 
   @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]  FileSize    Size of FileBuffer in bytes.

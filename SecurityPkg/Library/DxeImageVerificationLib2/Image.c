@@ -54,7 +54,17 @@ SecurityDirectoryCallback (
   Locate the EFI_IMAGE_DIRECTORY_ENTRY_SECURITY data directory in the
   PE/COFF image contained in FileBuffer.
 
-  See Image.h for the full contract.
+  Header parsing, signature validation, optional-header magic checks,
+  and bounds checking of the security data directory are delegated to
+  PeCoffLib via PeCoffLoaderGetImageInfo() and the data-directory
+  callback hook on PE_COFF_LOADER_IMAGE_CONTEXT. If the image is valid
+  but does not declare a security data directory, SecDataDir is filled
+  with zeros and EFI_SUCCESS is returned; callers must check
+  SecDataDir->Size to distinguish unsigned images.
+
+  Caution: This function may receive untrusted input. The PE/COFF image
+  is external input and is bounds-checked by PeCoffLib before any field
+  is dereferenced.
 
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]   FileSize    Size of FileBuffer in bytes.

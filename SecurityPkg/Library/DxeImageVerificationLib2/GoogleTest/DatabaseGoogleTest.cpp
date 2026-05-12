@@ -1,12 +1,13 @@
 /** @file
   Unit tests for the signature-database helpers in
   DxeImageVerificationLib (Database.c): IsKnownImageHashGuid,
-  WalkSignatureDatabase, and GetDatabaseHashAlgorithms.
+  WalkSignatureDatabase, GetDatabaseHashAlgorithms,
+  IsSignatureFoundInDatabase, and LoadSignatureDatabase.
 
-  WalkSignatureDatabase is exercised against synthetic in-memory
+  WalkSignatureDatabase, GetDatabaseHashAlgorithms, and
+  IsSignatureFoundInDatabase are exercised against synthetic in-memory
   EFI_SIGNATURE_LIST buffers built by helpers in this file.
-  GetDatabaseHashAlgorithms is exercised against a mocked GetVariable2
-  so the exact db/dbx contents are controlled per-test.
+  LoadSignatureDatabase is exercised against a mocked GetVariable2.
 
   Copyright (C) Microsoft Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -16,8 +17,6 @@
 #include <GoogleTest/Library/MockUefiLib.h>
 
 #include <vector>
-#include <map>
-#include <string>
 #include <cstring>
 
 extern "C" {
@@ -29,11 +28,8 @@ extern "C" {
 }
 
 using ::testing::_;
-using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
-using ::testing::SetArgPointee;
-using ::testing::StrEq;
 
 // ---------------------------------------------------------------------------
 // Helpers for constructing signature-list buffers.
@@ -315,188 +311,125 @@ TEST_F (WalkSignatureDatabaseTest, CallbackAborts_PropagatesStatus) {
 }
 
 // ---------------------------------------------------------------------------
-// GetDatabaseHashAlgorithms (uses MockUefiLib::GetVariable2)
+// GetDatabaseHashAlgorithms
 // ---------------------------------------------------------------------------
 
-//
-// Per-database fake payloads owned by the test fixture. Returned to
-// the SUT via AllocateCopyPool from the GetVariable2 mock so the SUT
-// can FreePool them like real data.
-//
-struct FakeVariable {
-  EFI_STATUS            Status;
-  std::vector<UINT8>    Bytes;
-};
-
-class GetDatabaseHashAlgorithmsTest : public ::testing::Test {
-protected:
-  MockUefiLib UefiLibMock;
-  std::map<std::u16string, FakeVariable> Vars;
-
-  void
-  SetUp (
-    ) override
-  {
-    // Default: both variables missing.
-    Vars[u"db"] = { EFI_NOT_FOUND, { }
-    };
-    Vars[u"dbx"] = { EFI_NOT_FOUND, { }
-    };
-
-    ON_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
-      .WillByDefault (
-         Invoke (
-           [this] (
-                   IN CONST CHAR16    *Name,
-                   IN CONST EFI_GUID  *Guid,
-                   OUT      VOID      **Value,
-                   OUT      UINTN     *Size
-           ) -> EFI_STATUS {
-      (VOID)Guid;
-      // CHAR16 is 16-bit; std::u16string also stores 16-bit code units.
-      auto  it = Vars.find (std::u16string ((const char16_t *)Name));
-      if (it == Vars.end ()) {
-        return EFI_NOT_FOUND;
-      }
-
-      if (it->second.Status != EFI_SUCCESS) {
-        return it->second.Status;
-      }
-
-      *Value = AllocateCopyPool (it->second.Bytes.size (), it->second.Bytes.data ());
-      if (Size != NULL) {
-        *Size = it->second.Bytes.size ();
-      }
-
-      return EFI_SUCCESS;
-    }
-           )
-         );
-
-    EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _)).Times (testing::AnyNumber ());
-  }
-
-  void
-  SetVariable (
-    const std::u16string  &Name,
-    std::vector<UINT8>    Bytes
-    )
-  {
-    Vars[Name] = { EFI_SUCCESS, std::move (Bytes) };
-  }
-};
-
-TEST_F (GetDatabaseHashAlgorithmsTest, NullArg_ReturnsInvalidParameter) {
-  EXPECT_EQ (GetDatabaseHashAlgorithms (NULL), EFI_INVALID_PARAMETER);
+TEST (GetDatabaseHashAlgorithmsTest, NullArg_ReturnsInvalidParameter) {
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (NULL, 0, NULL, 0, NULL),
+    EFI_INVALID_PARAMETER
+    );
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, BothVariablesMissing_EmptySet) {
+TEST (GetDatabaseHashAlgorithmsTest, BothBuffersNull_EmptySet) {
   HASH_ALGORITHM_SET  Set;
 
-  ZeroMem (&Set, sizeof (Set));
-
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (NULL, 0, NULL, 0, &Set),
+    EFI_SUCCESS
+    );
   EXPECT_EQ (Set.Count, 0u);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, OnlyDb_HashType_Reported) {
+TEST (GetDatabaseHashAlgorithmsTest, OnlyDb_HashType_Reported) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  SetVariable (u"db", std::move (Db));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (Db.data (), Db.size (), NULL, 0, &Set),
+    EFI_SUCCESS
+    );
   ASSERT_EQ (Set.Count, 1u);
   EXPECT_EQ (CompareGuid (&Set.Guids[0], &gEfiCertSha256Guid), TRUE);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, OnlyDbx_HashType_Reported) {
+TEST (GetDatabaseHashAlgorithmsTest, OnlyDbx_HashType_Reported) {
   std::vector<UINT8>  Dbx;
 
   AppendSignatureList (Dbx, gEfiCertSha384Guid, 0, kSha384EntrySize, 2);
-  SetVariable (u"dbx", std::move (Dbx));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (NULL, 0, Dbx.data (), Dbx.size (), &Set),
+    EFI_SUCCESS
+    );
   ASSERT_EQ (Set.Count, 1u);
   EXPECT_EQ (CompareGuid (&Set.Guids[0], &gEfiCertSha384Guid), TRUE);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, BothPresent_Union) {
+TEST (GetDatabaseHashAlgorithmsTest, BothPresent_Union) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  SetVariable (u"db", std::move (Db));
 
   std::vector<UINT8>  Dbx;
 
   AppendSignatureList (Dbx, gEfiCertSha384Guid, 0, kSha384EntrySize, 1);
-  SetVariable (u"dbx", std::move (Dbx));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (Db.data (), Db.size (), Dbx.data (), Dbx.size (), &Set),
+    EFI_SUCCESS
+    );
   EXPECT_EQ (Set.Count, 2u);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, DuplicateAcrossDbAndDbx_Deduplicated) {
+TEST (GetDatabaseHashAlgorithmsTest, DuplicateAcrossDbAndDbx_Deduplicated) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  SetVariable (u"db", std::move (Db));
 
   std::vector<UINT8>  Dbx;
 
   AppendSignatureList (Dbx, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  SetVariable (u"dbx", std::move (Dbx));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (Db.data (), Db.size (), Dbx.data (), Dbx.size (), &Set),
+    EFI_SUCCESS
+    );
   ASSERT_EQ (Set.Count, 1u);
   EXPECT_EQ (CompareGuid (&Set.Guids[0], &gEfiCertSha256Guid), TRUE);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, NonHashSignatureTypes_Ignored) {
+TEST (GetDatabaseHashAlgorithmsTest, NonHashSignatureTypes_Ignored) {
   std::vector<UINT8>  Db;
 
   // X509 cert list is not a plain image hash; should not contribute.
   AppendSignatureList (Db, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 16, 1);
-  SetVariable (u"db", std::move (Db));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_SUCCESS);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (Db.data (), Db.size (), NULL, 0, &Set),
+    EFI_SUCCESS
+    );
   EXPECT_EQ (Set.Count, 0u);
 }
 
-TEST_F (GetDatabaseHashAlgorithmsTest, MalformedDb_ReturnsCorrupted) {
+TEST (GetDatabaseHashAlgorithmsTest, MalformedDb_ReturnsCorrupted) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   // Corrupt the list size.
   ((EFI_SIGNATURE_LIST *)Db.data ())->SignatureListSize = (UINT32)(Db.size () + 1);
-  SetVariable (u"db", std::move (Db));
 
   HASH_ALGORITHM_SET  Set;
 
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_VOLUME_CORRUPTED);
-}
-
-TEST_F (GetDatabaseHashAlgorithmsTest, GetVariableUnexpectedError_Propagated) {
-  Vars[u"db"] = { EFI_DEVICE_ERROR, { }
-  };
-
-  HASH_ALGORITHM_SET  Set;
-
-  EXPECT_EQ (GetDatabaseHashAlgorithms (&Set), EFI_DEVICE_ERROR);
+  EXPECT_EQ (
+    GetDatabaseHashAlgorithms (Db.data (), Db.size (), NULL, 0, &Set),
+    EFI_VOLUME_CORRUPTED
+    );
 }
 
 // ---------------------------------------------------------------------------
-// IsSignatureFoundInDatabase (uses MockUefiLib::GetVariable2)
+// IsSignatureFoundInDatabase
 // ---------------------------------------------------------------------------
 
 //
@@ -521,139 +454,73 @@ SetEntryPayload (
   std::memcpy (Buffer.data () + PayloadOff, Bytes.data (), Bytes.size ());
 }
 
-class IsSignatureFoundInDatabaseTest : public ::testing::Test {
-protected:
-  MockUefiLib UefiLibMock;
-  std::map<std::u16string, FakeVariable> Vars;
-
-  void
-  SetUp (
-    ) override
-  {
-    Vars[u"db"] = { EFI_NOT_FOUND, { }
-    };
-    Vars[u"dbx"] = { EFI_NOT_FOUND, { }
-    };
-
-    ON_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
-      .WillByDefault (
-         Invoke (
-           [this] (
-                   IN CONST CHAR16    *Name,
-                   IN CONST EFI_GUID  *Guid,
-                   OUT      VOID      **Value,
-                   OUT      UINTN     *Size
-           ) -> EFI_STATUS {
-      (VOID)Guid;
-      auto  it = Vars.find (std::u16string ((const char16_t *)Name));
-      if (it == Vars.end ()) {
-        return EFI_NOT_FOUND;
-      }
-
-      if (it->second.Status != EFI_SUCCESS) {
-        return it->second.Status;
-      }
-
-      *Value = AllocateCopyPool (it->second.Bytes.size (), it->second.Bytes.data ());
-      if (Size != NULL) {
-        *Size = it->second.Bytes.size ();
-      }
-
-      return EFI_SUCCESS;
-    }
-           )
-         );
-
-    EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _)).Times (testing::AnyNumber ());
-  }
-
-  void
-  SetVariable (
-    const std::u16string  &Name,
-    std::vector<UINT8>    Bytes
-    )
-  {
-    Vars[Name] = { EFI_SUCCESS, std::move (Bytes) };
-  }
-};
-
 // SHA-256 digest payload size (no owner GUID).
 static constexpr UINTN  kSha256DigestSize = 32;
 static constexpr UINTN  kSha384DigestSize = 48;
 
-TEST_F (IsSignatureFoundInDatabaseTest, NullDatabaseName_ReturnsInvalidParameter) {
-  UINT8    Sig[kSha256DigestSize] = { 0 };
-  BOOLEAN  Found                  = FALSE;
-
-  EXPECT_EQ (
-    IsSignatureFoundInDatabase (NULL, Sig, &gEfiCertSha256Guid, sizeof (Sig), &Found),
-    EFI_INVALID_PARAMETER
-    );
-}
-
-TEST_F (IsSignatureFoundInDatabaseTest, NullSignature_ReturnsInvalidParameter) {
+TEST (IsSignatureFoundInDatabaseTest, NullSignature_ReturnsInvalidParameter) {
   BOOLEAN  Found = FALSE;
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase ((const CHAR16 *)u"db", NULL, &gEfiCertSha256Guid, kSha256DigestSize, &Found),
+    IsSignatureFoundInDatabase (NULL, 0, NULL, &gEfiCertSha256Guid, kSha256DigestSize, &Found),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, NullSignatureType_ReturnsInvalidParameter) {
+TEST (IsSignatureFoundInDatabaseTest, NullSignatureType_ReturnsInvalidParameter) {
   UINT8    Sig[kSha256DigestSize] = { 0 };
   BOOLEAN  Found                  = FALSE;
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase ((const CHAR16 *)u"db", Sig, NULL, sizeof (Sig), &Found),
+    IsSignatureFoundInDatabase (NULL, 0, Sig, NULL, sizeof (Sig), &Found),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, NullIsFound_ReturnsInvalidParameter) {
+TEST (IsSignatureFoundInDatabaseTest, NullIsFound_ReturnsInvalidParameter) {
   UINT8  Sig[kSha256DigestSize] = { 0 };
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase ((const CHAR16 *)u"db", Sig, &gEfiCertSha256Guid, sizeof (Sig), NULL),
+    IsSignatureFoundInDatabase (NULL, 0, Sig, &gEfiCertSha256Guid, sizeof (Sig), NULL),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, ZeroSignatureSize_ReturnsInvalidParameter) {
+TEST (IsSignatureFoundInDatabaseTest, ZeroSignatureSize_ReturnsInvalidParameter) {
   UINT8    Sig   = 0;
   BOOLEAN  Found = FALSE;
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase ((const CHAR16 *)u"db", &Sig, &gEfiCertSha256Guid, 0, &Found),
+    IsSignatureFoundInDatabase (NULL, 0, &Sig, &gEfiCertSha256Guid, 0, &Found),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, MissingVariable_NotFoundSuccess) {
+TEST (IsSignatureFoundInDatabaseTest, NullDatabase_NotFoundSuccess) {
   UINT8    Sig[kSha256DigestSize] = { 0xAB };
   BOOLEAN  Found                  = TRUE;  // pre-set to verify it gets cleared
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase ((const CHAR16 *)u"db", Sig, &gEfiCertSha256Guid, sizeof (Sig), &Found),
+    IsSignatureFoundInDatabase (NULL, 0, Sig, &gEfiCertSha256Guid, sizeof (Sig), &Found),
     EFI_SUCCESS
     );
   EXPECT_FALSE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, ExactMatch_Found) {
+TEST (IsSignatureFoundInDatabaseTest, ExactMatch_Found) {
   std::vector<UINT8>  Db;
   size_t              Off = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 2);
 
   std::vector<UINT8>  Target (kSha256DigestSize, 0xAA);
 
   SetEntryPayload (Db, Off, 1, Target);
-  SetVariable (u"db", std::move (Db));
 
   BOOLEAN  Found = FALSE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Target.data (),
       &gEfiCertSha256Guid,
       Target.size (),
@@ -664,21 +531,21 @@ TEST_F (IsSignatureFoundInDatabaseTest, ExactMatch_Found) {
   EXPECT_TRUE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, NoMatchingEntry_NotFound) {
+TEST (IsSignatureFoundInDatabaseTest, NoMatchingEntry_NotFound) {
   std::vector<UINT8>  Db;
   size_t              Off = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
 
   std::vector<UINT8>  Stored (kSha256DigestSize, 0xAA);
 
   SetEntryPayload (Db, Off, 0, Stored);
-  SetVariable (u"db", std::move (Db));
 
   std::vector<UINT8>  Wanted (kSha256DigestSize, 0xBB);
   BOOLEAN             Found = FALSE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Wanted.data (),
       &gEfiCertSha256Guid,
       Wanted.size (),
@@ -689,7 +556,7 @@ TEST_F (IsSignatureFoundInDatabaseTest, NoMatchingEntry_NotFound) {
   EXPECT_FALSE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureType_Skipped) {
+TEST (IsSignatureFoundInDatabaseTest, MismatchedSignatureType_Skipped) {
   // Database contains a SHA-384 entry whose payload bytes happen to
   // match the search target; lookup with a SHA-256 type GUID must skip
   // the SHA-384 list and report not-found.
@@ -699,14 +566,14 @@ TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureType_Skipped) {
   std::vector<UINT8>  Stored (kSha384DigestSize, 0xAA);
 
   SetEntryPayload (Db, Off, 0, Stored);
-  SetVariable (u"db", std::move (Db));
 
   std::vector<UINT8>  Wanted (kSha256DigestSize, 0xAA);
   BOOLEAN             Found = TRUE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Wanted.data (),
       &gEfiCertSha256Guid,
       Wanted.size (),
@@ -717,7 +584,7 @@ TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureType_Skipped) {
   EXPECT_FALSE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
+TEST (IsSignatureFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
   // List type matches but per-entry size doesn't, so the list describes
   // a different algorithm and must be skipped.
   std::vector<UINT8>  Db;
@@ -726,14 +593,14 @@ TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
   std::vector<UINT8>  Stored (kSha384DigestSize, 0xCC);
 
   SetEntryPayload (Db, Off, 0, Stored);
-  SetVariable (u"db", std::move (Db));
 
   std::vector<UINT8>  Wanted (kSha256DigestSize, 0xCC);
   BOOLEAN             Found = TRUE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Wanted.data (),
       &gEfiCertSha256Guid,
       Wanted.size (),
@@ -744,7 +611,7 @@ TEST_F (IsSignatureFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
   EXPECT_FALSE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, MatchInSecondList_Found) {
+TEST (IsSignatureFoundInDatabaseTest, MatchInSecondList_Found) {
   // First list is the wrong algorithm, second list contains the target.
   std::vector<UINT8>  Db;
 
@@ -754,13 +621,13 @@ TEST_F (IsSignatureFoundInDatabaseTest, MatchInSecondList_Found) {
   std::vector<UINT8>  Target (kSha256DigestSize, 0x77);
 
   SetEntryPayload (Db, SecondOff, 1, Target);
-  SetVariable (u"db", std::move (Db));
 
   BOOLEAN  Found = FALSE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Target.data (),
       &gEfiCertSha256Guid,
       Target.size (),
@@ -771,19 +638,19 @@ TEST_F (IsSignatureFoundInDatabaseTest, MatchInSecondList_Found) {
   EXPECT_TRUE (Found);
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, MalformedDb_ReturnsCorrupted) {
+TEST (IsSignatureFoundInDatabaseTest, MalformedDb_ReturnsCorrupted) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Db.data ())->SignatureListSize = (UINT32)(Db.size () + 1);
-  SetVariable (u"db", std::move (Db));
 
   UINT8    Sig[kSha256DigestSize] = { 0 };
   BOOLEAN  Found                  = FALSE;
 
   EXPECT_EQ (
     IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
+      Db.data (),
+      Db.size (),
       Sig,
       &gEfiCertSha256Guid,
       sizeof (Sig),
@@ -793,21 +660,104 @@ TEST_F (IsSignatureFoundInDatabaseTest, MalformedDb_ReturnsCorrupted) {
     );
 }
 
-TEST_F (IsSignatureFoundInDatabaseTest, GetVariableUnexpectedError_Propagated) {
-  Vars[u"db"] = { EFI_DEVICE_ERROR, { }
-  };
+// ---------------------------------------------------------------------------
+// LoadSignatureDatabase (uses MockUefiLib::GetVariable2)
+// ---------------------------------------------------------------------------
 
-  UINT8    Sig[kSha256DigestSize] = { 0 };
-  BOOLEAN  Found                  = FALSE;
+class LoadSignatureDatabaseTest : public ::testing::Test {
+protected:
+  MockUefiLib UefiLibMock;
+};
+
+TEST_F (LoadSignatureDatabaseTest, NullDatabaseName_ReturnsInvalidParameter) {
+  VOID   *Buffer = NULL;
+  UINTN  Size    = 0;
 
   EXPECT_EQ (
-    IsSignatureFoundInDatabase (
-      (const CHAR16 *)u"db",
-      Sig,
-      &gEfiCertSha256Guid,
-      sizeof (Sig),
-      &Found
-      ),
+    LoadSignatureDatabase (NULL, &Buffer, &Size),
+    EFI_INVALID_PARAMETER
+    );
+}
+
+TEST_F (LoadSignatureDatabaseTest, NullBuffer_ReturnsInvalidParameter) {
+  UINTN  Size = 0;
+
+  EXPECT_EQ (
+    LoadSignatureDatabase ((const CHAR16 *)u"db", NULL, &Size),
+    EFI_INVALID_PARAMETER
+    );
+}
+
+TEST_F (LoadSignatureDatabaseTest, NullSize_ReturnsInvalidParameter) {
+  VOID  *Buffer = NULL;
+
+  EXPECT_EQ (
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, NULL),
+    EFI_INVALID_PARAMETER
+    );
+}
+
+TEST_F (LoadSignatureDatabaseTest, VariableMissing_SuccessWithNullBuffer) {
+  // EFI_NOT_FOUND is normalized to EFI_SUCCESS with *Buffer == NULL.
+  EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
+    .WillOnce (Return (EFI_NOT_FOUND));
+
+  VOID   *Buffer = (VOID *)(UINTN)0xDEADBEEF;  // pre-set: must be cleared
+  UINTN  Size    = 0xAA;
+
+  EXPECT_EQ (
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (Buffer, (VOID *)NULL);
+  EXPECT_EQ (Size, 0u);
+}
+
+TEST_F (LoadSignatureDatabaseTest, VariablePresent_BufferAndSizePopulated) {
+  static const UINT8  kPayload[] = { 0xAA, 0xBB, 0xCC, 0xDD };
+
+  EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN CONST CHAR16    *Name,
+             IN CONST EFI_GUID  *Guid,
+             OUT      VOID      **Value,
+             OUT      UINTN     *Size
+         ) -> EFI_STATUS {
+    (VOID)Name;
+    (VOID)Guid;
+    *Value = AllocateCopyPool (sizeof (kPayload), kPayload);
+    *Size  = sizeof (kPayload);
+    return EFI_SUCCESS;
+  }
+         )
+       );
+
+  VOID   *Buffer = NULL;
+  UINTN  Size    = 0;
+
+  EXPECT_EQ (
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
+    EFI_SUCCESS
+    );
+  ASSERT_NE (Buffer, (VOID *)NULL);
+  EXPECT_EQ (Size, sizeof (kPayload));
+  EXPECT_EQ (CompareMem (Buffer, kPayload, sizeof (kPayload)), 0);
+
+  FreePool (Buffer);
+}
+
+TEST_F (LoadSignatureDatabaseTest, GetVariableUnexpectedError_PropagatedVerbatim) {
+  // Errors other than EFI_NOT_FOUND must be reported unchanged.
+  EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
+
+  VOID   *Buffer = NULL;
+  UINTN  Size    = 0;
+
+  EXPECT_EQ (
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
     EFI_DEVICE_ERROR
     );
 }
