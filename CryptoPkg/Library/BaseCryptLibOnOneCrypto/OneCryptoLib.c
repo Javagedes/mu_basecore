@@ -2500,6 +2500,189 @@ AuthenticodeVerify (
 }
 
 /**
+  Compute the PE/COFF Authenticode-style image hash of a loaded image,
+  as described in the "Windows Authenticode Portable Executable
+  Signature Format" specification.
+
+  The caller selects the digest algorithm by HashType (e.g.
+  gEfiCertSha256Guid, gEfiCertSha384Guid). The digest is written to
+  Digest, which must be large enough to hold the largest supported
+  digest (at least SHA512_DIGEST_SIZE bytes).
+
+  @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]   FileSize    Size of FileBuffer in bytes.
+  @param[in]   HashType    Signature-type GUID identifying the hash
+                           algorithm to use.
+  @param[out]  Digest      Caller-provided buffer that receives the
+                           computed digest. Must be at least
+                           SHA512_DIGEST_SIZE bytes.
+  @param[out]  DigestSize  On success, receives the digest length in
+                           bytes.
+
+  @retval EFI_SUCCESS            Digest was computed successfully.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL or
+                                 FileSize is 0.
+  @retval EFI_UNSUPPORTED        HashType is not a recognized image
+                                 hash algorithm, or this interface is
+                                 not supported by the underlying
+                                 library instance.
+
+  @since 1.1
+  @ingroup PKCS
+**/
+EFI_STATUS
+EFIAPI
+GetAuthenticodeHash (
+  IN  VOID            *FileBuffer,
+  IN  UINTN           FileSize,
+  IN  CONST EFI_GUID  *HashType,
+  OUT UINT8           *Digest,
+  OUT UINTN           *DigestSize
+  )
+{
+  CALL_CRYPTO_SERVICE (GetAuthenticodeHash, (FileBuffer, FileSize, HashType, Digest, DigestSize), EFI_UNSUPPORTED, 1, 1);
+}
+
+/**
+  Determine the image-hash algorithm used by an Authenticode signature.
+
+  @param[in]   AuthData      Pointer to the PKCS#7 SignedData blob.
+  @param[in]   AuthDataSize  Size of AuthData in bytes.
+  @param[out]  HashType      On success, receives the signature-type
+                             GUID identifying the digest algorithm.
+
+  @retval EFI_SUCCESS            The hash algorithm was identified.
+  @retval EFI_INVALID_PARAMETER  Bad parameter or malformed AuthData.
+  @retval EFI_UNSUPPORTED        Unrecognized digest algorithm, or
+                                 interface not supported.
+
+  @since 1.1
+  @ingroup PKCS
+**/
+EFI_STATUS
+EFIAPI
+GetAuthenticodeHashAlgorithm (
+  IN  CONST UINT8  *AuthData,
+  IN  UINTN        AuthDataSize,
+  OUT EFI_GUID     *HashType
+  )
+{
+  CALL_CRYPTO_SERVICE (GetAuthenticodeHashAlgorithm, (AuthData, AuthDataSize, HashType), EFI_UNSUPPORTED, 1, 1);
+}
+
+/**
+  Compute the digest of the TBSCertificate of an X.509 certificate.
+
+  @param[in]   Cert        Pointer to the DER-encoded X.509 certificate.
+  @param[in]   CertSize    Size of Cert in bytes.
+  @param[in]   HashType    Signature-type GUID identifying the hash
+                           algorithm to use.
+  @param[out]  Digest      Caller-provided buffer that receives the
+                           computed TBSCertificate digest.
+  @param[out]  DigestSize  On success, receives the digest length in
+                           bytes.
+
+  @retval EFI_SUCCESS            Digest was computed successfully.
+  @retval EFI_INVALID_PARAMETER  Bad parameter or malformed certificate.
+  @retval EFI_UNSUPPORTED        Unrecognized hash algorithm, or
+                                 interface not supported.
+
+  @since 1.1
+  @ingroup PKCS
+**/
+EFI_STATUS
+EFIAPI
+X509GetTbsCertHash (
+  IN  VOID            *Cert,
+  IN  UINTN           CertSize,
+  IN  CONST EFI_GUID  *HashType,
+  OUT UINT8           *Digest,
+  OUT UINTN           *DigestSize
+  )
+{
+  CALL_CRYPTO_SERVICE (X509GetTbsCertHash, (Cert, CertSize, HashType, Digest, DigestSize), EFI_UNSUPPORTED, 1, 1);
+}
+
+/**
+  Locate, in a PKCS#7 SignedData blob, the X.509 certificate whose
+  TBSCertificate digest matches a caller-supplied hash.
+
+  @param[in,out] CacheHandle        Optional cache handle pointer.
+  @param[in]     TbsCertHash        Pointer to the target TBSCertificate
+                                    digest bytes.
+  @param[in]     TbsCertHashSize    Length of TbsCertHash in bytes
+                                    (selects the algorithm).
+  @param[in]     AuthData           Pointer to the PKCS#7 SignedData
+                                    blob.
+  @param[in]     AuthDataSize       Size of AuthData in bytes.
+  @param[out]    TrustAnchorX509    Receives a newly allocated buffer
+                                    holding the matching X.509 cert in
+                                    DER form.
+  @param[out]    TrustAnchorX509Size Receives the certificate length.
+
+  @retval EFI_SUCCESS            Match found.
+  @retval EFI_NOT_FOUND          No certificate matched.
+  @retval EFI_INVALID_PARAMETER  Bad parameter or malformed AuthData.
+  @retval EFI_OUT_OF_RESOURCES   Memory allocation failed.
+  @retval EFI_UNSUPPORTED        Interface not supported.
+
+  @since 1.1
+  @ingroup PKCS
+**/
+EFI_STATUS
+EFIAPI
+GetTrustAnchorX509FromAuthData (
+  IN OUT VOID      **CacheHandle  OPTIONAL,
+  IN  CONST UINT8  *TbsCertHash,
+  IN  UINTN        TbsCertHashSize,
+  IN  CONST UINT8  *AuthData,
+  IN  UINTN        AuthDataSize,
+  OUT UINT8        **TrustAnchorX509,
+  OUT UINTN        *TrustAnchorX509Size
+  )
+{
+  CALL_CRYPTO_SERVICE (GetTrustAnchorX509FromAuthData, (CacheHandle, TbsCertHash, TbsCertHashSize, AuthData, AuthDataSize, TrustAnchorX509, TrustAnchorX509Size), EFI_UNSUPPORTED, 1, 1);
+}
+
+/**
+  Release a trust-anchor cache previously allocated by
+  GetTrustAnchorX509FromAuthData().
+
+  @param[in]  CacheHandle  Cache handle, or NULL.
+
+  @since 1.1
+  @ingroup PKCS
+**/
+VOID
+EFIAPI
+FreeTrustAnchorX509Cache (
+  IN  VOID  *CacheHandle  OPTIONAL
+  )
+{
+  CALL_VOID_CRYPTO_SERVICE (FreeTrustAnchorX509Cache, (CacheHandle), 1, 1);
+}
+
+/**
+  Verify a PE/COFF Authenticode signature and optionally return the
+  verified signer chain. See BaseCryptLib.h AuthenticodeVerifyEx().
+**/
+EFI_STATUS
+EFIAPI
+AuthenticodeVerifyEx (
+  IN  CONST UINT8  *AuthData,
+  IN  UINTN        DataSize,
+  IN  CONST UINT8  *TrustedCert,
+  IN  UINTN        CertSize,
+  IN  CONST UINT8  *ImageHash,
+  IN  UINTN        HashSize,
+  OUT UINT8        **CertChain      OPTIONAL,
+  OUT UINTN        *CertChainSize   OPTIONAL
+  )
+{
+  CALL_CRYPTO_SERVICE (AuthenticodeVerifyEx, (AuthData, DataSize, TrustedCert, CertSize, ImageHash, HashSize, CertChain, CertChainSize), EFI_UNSUPPORTED, 1, 1);
+}
+
+/**
   Encrypts a blob using PKCS1v2 (RSAES-OAEP) schema. On success, will return the
   encrypted message in a newly allocated buffer.
 

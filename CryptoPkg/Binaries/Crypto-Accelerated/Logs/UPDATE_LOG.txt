@@ -1,0 +1,231 @@
+INFO - Log Started: Wednesday, July 22, 2026 09:54PM
+INFO - Cmd to run is: stuart_update 
+SECTION - Init Self Describing Environment
+DEBUG - --- self_describing_environment.__init__()
+DEBUG - Skipped directories specified = ()
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - --- self_describing_environment.load_workspace()
+DEBUG - Loading workspace: /__w/mu_crypto_release/mu_crypto_release
+DEBUG -   Including scopes: OneCrypto, edk2-build, global-nix, global
+DEBUG - --- self_describing_environment._gather_env_files()
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/edk2_core_path_env.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/basetools_calling_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/basetools_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/BinWrappers/PosixLike/posix_path_env.yaml to the environment with scope global-nix
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Scripts/basetools_scripts_bin_path_env.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Source/Python/basetool_tiano_python_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/nasm_ext_dep.yaml to the environment with scope edk2-build
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/basetoolsbin_ext_dep.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/OneCrypto_ext_dep.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/BaseCryptoDriver_ext_dep.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/SeaPkg/Tools/GenSeaArtifacts/GenSeaArtifacts_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/SupervisorPolicyTools/SupervisorPolicyMaker_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FdSizeReport/FdSizeReportGenerator_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BuildToolsReport/BuildToolsReportGenerator_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/LinuxGccToolChain/LinuxGccToolChain_plug_in.yaml to the environment with scope global-nix
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/Edk2ToolHelper/Edk2ToolHelper_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/DebugMacroCheck/BuildPlugin/DebugMacroCheck_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/ClangPdbToolChain/ClangPdbToolChain_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/OverrideValidation/OverrideValidation_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/WindowsCapsuleSupportHelper/WindowsCapsuleSupportHelper_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FlattenPdbs/FlattenPdbs_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BmpCheck/BmpCheck_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/ImageValidation/ImageValidation_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/RustPackageHelper/RustPackageHelper_plug_in.yaml to the environment with scope global
+DEBUG - --- self_describing_environment.update_simple_paths()
+DEBUG - --- self_describing_environment.update_extdep_paths()
+DEBUG - Verify 'Mu-Basetools' returning 'False'.
+DEBUG - Verify 'mu_nasm' returning 'False'.
+DEBUG - --- self_describing_environment.report_extdep_version()
+DEBUG - Setting up version aggregator
+DEBUG - Verify 'Mu-Basetools' returning 'False'.
+DEBUG - Verify 'mu_nasm' returning 'False'.
+SECTION - Loading Plugins
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/SeaPkg/Tools/GenSeaArtifacts/GenSeaArtifacts.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/SupervisorPolicyTools/SupervisorPolicyMaker.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FdSizeReport/FdSizeReportGenerator.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BuildToolsReport/BuildToolsReportGenerator.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/LinuxGccToolChain/LinuxGccToolChain.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/Edk2ToolHelper/Edk2ToolHelper.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/DebugMacroCheck/BuildPlugin/DebugMacroCheckBuildPlugin.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/ClangPdbToolChain/ClangPdbToolChain.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/OverrideValidation/OverrideValidation.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/WindowsCapsuleSupportHelper/WindowsCapsuleSupportHelper.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FlattenPdbs/FlattenPdbs.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BmpCheck/BmpCheckPlugin.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/ImageValidation/ImageValidation.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/RustPackageHelper/RustPackageHelper.py
+INFO - PLUGIN DESCRIPTOR:Sea Core Artifact File Generator
+DEBUG - Helper Plugin Register: Sea Core Artifact File Generator
+INFO - PLUGIN DESCRIPTOR:Supervisor Policy Maker
+DEBUG - Helper Plugin Register: Supervisor Policy Maker
+INFO - PLUGIN DESCRIPTOR:SBOM PECOFF section Inserter
+DEBUG - Helper Plugin Register: SBOM PECOFF section Inserter
+INFO - PLUGIN DESCRIPTOR:OneCrypto Binary Release Bundler
+DEBUG - Helper Plugin Register: OneCrypto Binary Release Bundler
+INFO - PLUGIN DESCRIPTOR:Edk2Tool Helper Functions
+DEBUG - Helper Plugin Register: Edk2Tool Helper Functions
+INFO - PLUGIN DESCRIPTOR:Windows Capsule Support Helper Functions
+DEBUG - Helper Plugin Register: Windows Capsule Support Helper Functions
+INFO - PLUGIN DESCRIPTOR:Rust Package Helper
+DEBUG - Helper Plugin Register: Rust Package Helper
+SECTION - Start Invocable Tool
+SECTION - Initial update of environment
+DEBUG - --- self_describing_environment.update_extdeps()
+DEBUG - Verify 'Mu-Basetools' returning 'False'.
+DEBUG - Verify 'mu_nasm' returning 'False'.
+DEBUG - Creating 4 threads for the SDE update
+DEBUG - Verify 'edk2-basecrypto-driver-bin' returning 'False'.
+DEBUG - Cleaning dependency directory for 'edk2-basecrypto-driver-bin'...
+DEBUG - Verify 'Mu-Basetools' returning 'False'.
+DEBUG - Cleaning dependency directory for 'Mu-Basetools'...
+DEBUG - Verify 'onecrypto-bin' returning 'False'.
+DEBUG - Verify 'mu_nasm' returning 'False'.
+DEBUG - Cleaning dependency directory for 'onecrypto-bin'...
+DEBUG - Cleaning dependency directory for 'mu_nasm'...
+INFO - Cmd to run is: mono /opt/venv/lib/python3.12/site-packages/edk2toolext/bin/NuGet.exe locals global-packages -list
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Starting---------------
+INFO - ------------------------------------------------
+INFO - /tmp/tmpftk4lj66/onecrypto-bin_1.0.1 is a zip file, trying to unpack it.
+INFO - /tmp/tmp7mkahmkl/Mu-Basetools_v2025110001.0.11 is a tar file, trying to unpack it.
+INFO - Copying directory from /tmp/tmpftk4lj66/ to /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/onecrypto-bin_extdep
+INFO - global-packages: /github/home/.nuget/packages/
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Finished---------------
+INFO - --------- Running Time (mm:ss): 00:00 ----------
+INFO - ----------- Return Code: 0x00000000 ------------
+INFO - ------------------------------------------------
+INFO - Could not determine Nuget global packages cache location.
+INFO - Cmd to run is: mono /opt/venv/lib/python3.12/site-packages/edk2toolext/bin/NuGet.exe install mu_nasm -Source https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json -ExcludeVersion -NonInteractive -Version 20016.1.1 -Verbosity detailed -OutputDirectory "/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp"
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Starting---------------
+INFO - ------------------------------------------------
+INFO - /tmp/tmpy8m_h6o2/edk2-basecrypto-driver-bin_1.1.3 is a zip file, trying to unpack it.
+INFO - NuGet Version: 6.4.0.123
+INFO - Feeds used:
+INFO -   https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json
+INFO - 
+INFO - 
+INFO - 
+INFO - Attempting to gather dependency information for package 'mu_nasm.20016.1.1' with respect to project '/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp', targeting 'Any,Version=v0.0'
+INFO -   GET https://pkgs.dev.azure.com/projectmu/622a787f-4403-4c43-b89f-e6634fa4b4a3/_packaging/d63724fd-115e-4847-b165-b57320974fce/nuget/v3/registrations2-semver2/mu_nasm/index.json
+INFO -   OK https://pkgs.dev.azure.com/projectmu/622a787f-4403-4c43-b89f-e6634fa4b4a3/_packaging/d63724fd-115e-4847-b165-b57320974fce/nuget/v3/registrations2-semver2/mu_nasm/index.json 37ms
+INFO - Total number of results gathered : 1
+INFO - Gathering dependency information took 383 ms
+INFO - Summary of time taken to gather dependencies per source :
+INFO - https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json	-	74 ms
+INFO - Attempting to resolve dependencies for package 'mu_nasm.20016.1.1' with DependencyBehavior 'Lowest'
+INFO - Resolving dependency information took 0 ms
+INFO - Resolving actions to install package 'mu_nasm.20016.1.1'
+INFO - Resolved actions to install package 'mu_nasm.20016.1.1'
+INFO - Retrieving package 'mu_nasm 20016.1.1' from 'https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json'.
+INFO -   GET https://pkgs.dev.azure.com/projectmu/622a787f-4403-4c43-b89f-e6634fa4b4a3/_packaging/d63724fd-115e-4847-b165-b57320974fce/nuget/v3/flat2/mu_nasm/20016.1.1/mu_nasm.20016.1.1.nupkg
+INFO -   OK https://pkgs.dev.azure.com/projectmu/622a787f-4403-4c43-b89f-e6634fa4b4a3/_packaging/d63724fd-115e-4847-b165-b57320974fce/nuget/v3/flat2/mu_nasm/20016.1.1/mu_nasm.20016.1.1.nupkg 112ms
+INFO - Acquiring lock for the installation of mu_nasm 20016.1.1
+INFO - Acquired lock for the installation of mu_nasm 20016.1.1
+INFO - Copying directory from /tmp/tmp7mkahmkl/basetools to /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep
+DEBUG - Cleaning up /tmp/tmp7mkahmkl
+DEBUG - Verify 'Mu-Basetools' returning 'True'.
+INFO - Computing path for Mu-Basetools located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep on Host(os='Linux', arch='x86', bit='64')
+DEBUG - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86-64 does not exist
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86 was found!
+INFO - Installed mu_nasm 20016.1.1 from https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json with content hash *******oX5MEqlHyLZtgFnRi5JYMQrRHav9X1PI+UZYIpFw==.
+INFO - Adding package 'mu_nasm.20016.1.1' to folder '/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp'
+INFO - Added package 'mu_nasm.20016.1.1' to folder '/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp'
+INFO - Added package 'mu_nasm.20016.1.1' to folder '/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp' from source 'https://pkgs.dev.azure.com/projectmu/mu/_packaging/Basetools-Binary/nuget/v3/index.json'
+INFO - Successfully installed 'mu_nasm 20016.1.1' to /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep_temp
+INFO - Executing nuget actions took 550 ms
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Finished---------------
+INFO - --------- Running Time (mm:ss): 00:01 ----------
+INFO - ----------- Return Code: 0x00000000 ------------
+INFO - ------------------------------------------------
+DEBUG - Verify 'mu_nasm' returning 'True'.
+INFO - Computing path for mu_nasm located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep on Host(os='Linux', arch='x86', bit='64')
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep/Linux-x86-64 was found!
+INFO - Copying directory from /tmp/tmpy8m_h6o2/ to /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/edk2-basecrypto-driver-bin_extdep
+SECTION - 	Updated/Verified 4 dependencies
+SECTION - Second pass update of environment
+DEBUG - --- self_describing_environment.__init__()
+DEBUG - Skipped directories specified = ()
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - --- self_describing_environment.load_workspace()
+DEBUG - Loading workspace: /__w/mu_crypto_release/mu_crypto_release
+DEBUG -   Including scopes: OneCrypto, edk2-build, global-nix, global
+DEBUG - --- self_describing_environment._gather_env_files()
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/edk2_core_path_env.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/basetools_calling_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/basetools_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/BinWrappers/PosixLike/posix_path_env.yaml to the environment with scope global-nix
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Scripts/basetools_scripts_bin_path_env.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Source/Python/basetool_tiano_python_path_env.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/nasm_ext_dep.yaml to the environment with scope edk2-build
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/basetoolsbin_ext_dep.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/OneCrypto_ext_dep.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Binaries/BaseCryptoDriver_ext_dep.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/SeaPkg/Tools/GenSeaArtifacts/GenSeaArtifacts_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/SupervisorPolicyTools/SupervisorPolicyMaker_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FdSizeReport/FdSizeReportGenerator_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BuildToolsReport/BuildToolsReportGenerator_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/LinuxGccToolChain/LinuxGccToolChain_plug_in.yaml to the environment with scope global-nix
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/Edk2ToolHelper/Edk2ToolHelper_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/DebugMacroCheck/BuildPlugin/DebugMacroCheck_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/ClangPdbToolChain/ClangPdbToolChain_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/OverrideValidation/OverrideValidation_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/WindowsCapsuleSupportHelper/WindowsCapsuleSupportHelper_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/FlattenPdbs/FlattenPdbs_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Plugin/BmpCheck/BmpCheck_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/ImageValidation/ImageValidation_plug_in.yaml to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/.pytool/Plugin/RustPackageHelper/RustPackageHelper_plug_in.yaml to the environment with scope global
+DEBUG - --- self_describing_environment.update_simple_paths()
+DEBUG - --- self_describing_environment.update_extdep_paths()
+DEBUG - Verify 'Mu-Basetools' returning 'True'.
+INFO - Computing path for Mu-Basetools located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep on Host(os='Linux', arch='x86', bit='64')
+DEBUG - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86-64 does not exist
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86 was found!
+DEBUG - Verify 'mu_nasm' returning 'True'.
+INFO - Computing path for mu_nasm located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep on Host(os='Linux', arch='x86', bit='64')
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep/Linux-x86-64 was found!
+DEBUG - --- self_describing_environment.report_extdep_version()
+DEBUG - Verify 'Mu-Basetools' returning 'True'.
+INFO - Computing path for Mu-Basetools located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep on Host(os='Linux', arch='x86', bit='64')
+DEBUG - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86-64 does not exist
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86 was found!
+DEBUG - Verify 'mu_nasm' returning 'True'.
+INFO - Computing path for mu_nasm located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep on Host(os='Linux', arch='x86', bit='64')
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep/Linux-x86-64 was found!
+DEBUG - --- self_describing_environment.update_extdeps()
+DEBUG - Verify 'Mu-Basetools' returning 'True'.
+INFO - Computing path for Mu-Basetools located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep on Host(os='Linux', arch='x86', bit='64')
+DEBUG - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86-64 does not exist
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/Mu-Basetools_extdep/Linux-x86 was found!
+DEBUG - Verify 'mu_nasm' returning 'True'.
+INFO - Computing path for mu_nasm located at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep on Host(os='Linux', arch='x86', bit='64')
+INFO - /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/BaseTools/Bin/mu_nasm_extdep/Linux-x86-64 was found!
+DEBUG - Creating 4 threads for the SDE update
+DEBUG - Verify 'edk2-basecrypto-driver-bin' returning 'True'.
+DEBUG - Verify 'mu_nasm' returning 'True'.
+DEBUG - Verify 'Mu-Basetools' returning 'True'.
+DEBUG - Verify 'onecrypto-bin' returning 'True'.
+SECTION - 	Updated/Verified 4 dependencies
+SECTION - Summary
+PROGRESS - Success

@@ -1,0 +1,13 @@
+## @file
+# Set shell variable EDK_TOOL_PATH to this folder
+#
+# Copyright (c) Microsoft Corporation.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+{
+  "scope": "global",
+  "id": "onecrypto-bin-override",
+  "override_id": "onecrypto-bin",
+  "flags": ["set_shell_var", "set_build_var"],
+  "var_name": "BLD_*_ONE_CRYPTO_PATH"
+}

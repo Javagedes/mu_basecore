@@ -1,0 +1,1095 @@
+Platform Summary
+Platform Name:        OneCryptoPkg
+Platform DSC Path:    /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/OneCryptoPkg.dsc
+Architectures:        X64 AARCH64
+Tool Chain:           CLANGPDB
+Target:               DEBUG
+SKUID:                DEFAULT
+DefaultStore:         STANDARD
+Output Path:          /__w/mu_crypto_release/mu_crypto_release/Build/OneCryptoPkg
+Build Environment:    Linux-6.17.0-1020-azure-x86_64-with-glibc2.39
+Build Duration:       00:02:12
+AutoGen Duration:     00:00:03
+Make Duration:        00:02:08
+Report Content:       PCD, DEPEX, FLASH, BUILD_FLAGS, LIBRARY, FIXED_ADDRESS, HASH
+>======================================================================================================================<
+Conditional Directives used by the build system
+  *B  - PCD override in the build option
+  *P  - Platform scoped PCD override in DSC file
+  *F  - Platform scoped PCD override in FDF file
+========================================================================================================================
+
+gEfiCryptoPkgTokenSpaceGuid
+ *P PcdOpensslLibAssemblySourceStyleNasm        :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+ *P PcdOpensslLibAssemblySourceStylePe          :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+<======================================================================================================================>
+
+>======================================================================================================================<
+PCDs not used by modules or in conditional directives
+  *B  - PCD override in the build option
+  *P  - Platform scoped PCD override in DSC file
+  *F  - Platform scoped PCD override in FDF file
+========================================================================================================================
+
+gEfiCryptoPkgTokenSpaceGuid
+    PcdCryptoServiceFamilyEnable                :  FIXED (PCD_CRYPTO_SERVICE_FAMILY_ENABLE) = {0x00}
+<======================================================================================================================>
+
+>======================================================================================================================<
+Platform Configuration Database Report
+  *B  - PCD override in the build option
+  *P  - Platform scoped PCD override in DSC file
+  *F  - Platform scoped PCD override in FDF file
+  *M  - Module scoped PCD override
+========================================================================================================================
+
+gAdvLoggerPkgTokenSpaceGuid
+    PcdAdvancedLoggerHdwPortDebugPrintErrorLevel   :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+
+gEfiCryptoPkgTokenSpaceGuid
+ *P PcdOpensslLibAssemblySourceStyleNasm        :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+ *P PcdOpensslLibAssemblySourceStylePe          :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+
+gEfiMdePkgTokenSpaceGuid
+    PcdComponentName2Disable                    :   FLAG  (BOOLEAN) = 0
+    PcdComponentNameDisable                     :   FLAG  (BOOLEAN) = 0
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+ *P PcdDebugPrintErrorLevel                     :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0x80000000 (2147483648)
+ *P PcdDebugPropertyMask                        :  PATCH    (UINT8) = 0x17 (23)
+                                                        DEC DEFAULT = 0x0 (0)
+    PcdDriverDiagnostics2Disable                :   FLAG  (BOOLEAN) = 0
+    PcdDriverDiagnosticsDisable                 :   FLAG  (BOOLEAN) = 0
+ *P PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0xFFFFFFFF (4294967295)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumDevicePathNodeCount               :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdUefiLibMaxPrintBufferSize                :  FIXED   (UINT32) = 0x140 (320)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+
+gOneCryptoPkgTokenSpaceGuid
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+    PcdDebugPropertyMask                        :  FIXED    (UINT8) = 0x06 (6)
+    PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoBinStandaloneMm
+Module Arch:          X64
+Module INF Path:      OneCryptoPkg/OneCryptoBin/OneCryptoBinStandaloneMm.inf
+File GUID:            76ABA88D-9D16-49A2-AA3A-DB6112FAC5CC
+Size:                 0x22B0C0 (2220.19K)
+SHA1 HASH:            65dca154967bfbc93cf4822cf7aaa2b7599a44d9 *OneCryptoBinStandaloneMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    18ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiCryptoPkgTokenSpaceGuid
+ *M PcdOpensslLibAssemblySourceStyleNasm        :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+gOneCryptoPkgTokenSpaceGuid
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+    PcdDebugPropertyMask                        :  FIXED    (UINT8) = 0x06 (6)
+    PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
+{RegisterFilterLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/DebugLibOnOneCrypto/DebugLibOnOneCrypto.inf
+{DebugLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/OneCryptoCrtLib/OneCryptoCrtLib.inf
+{OneCryptoCrtLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 19ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 106ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RngLibOnOneCrypto/RngLibOnOneCrypto.inf
+{RngLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/TimerLibOnOneCrypto/TimerLibOnOneCrypto.inf
+{TimerLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RealTimeClockLibOnOneCrypto
+/RealTimeClockLibOnOneCrypto.inf
+{RealTimeClockLib:  Time = 14ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/OpensslLib/OpensslLibFullAccel.inf
+{OpensslLib:  C = OpensslLibConstructor Time = 1455ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/MemoryAllocationLibOnOneCrypto
+/MemoryAllocationLibOnOneCrypto.inf
+{MemoryAllocationLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
+{IntrinsicLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/BaseCryptLib/BaseCryptLib.inf
+{BaseCryptLib:  Time = 53ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/StandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/TlsLib/TlsLib.inf
+{TlsLib:  Time = 9ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  TRUE
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(TRUE)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  TRUE
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+"-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -Oz -flto -target x86_64-pc-windows-msvc -gcodeview
+-funwind-tables -D DISABLE_NEW_DEPRECATED_INTERFACES -D ENABLE_MD5_DEPRECATED_INTERFACES
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /OPT:REF /OPT:ICF=10 /ALIGN:32 /DRIVER /FILEALIGN:32 /Machine:X64 /DLL
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /EXPORT:CryptoEntry /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoLoaderStandaloneMm
+Module Arch:          X64
+Module INF Path:      OneCryptoPkg/OneCryptoLoaders/OneCryptoLoaderStandaloneMm.inf
+File GUID:            56FDC6F4-8820-40F5-95C1-83E289C4A45C
+Size:                 0x6A0 (1.66K)
+SHA1 HASH:            75f1f17f43dfb9d29940401db8c78a818c2d7022 *OneCryptoLoaderStandaloneMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    23ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
+{RegisterFilterLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 106ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+{DebugLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 19ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StandaloneMmServicesTableLib
+/StandaloneMmServicesTableLib.inf
+{MmServicesTableLib:  C = StandaloneMmServicesTableLibConstructor Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffExtraActionLibNull
+/BasePeCoffExtraActionLibNull.inf
+{PeCoffExtraActionLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffGetEntryPointLib
+/BasePeCoffGetEntryPointLib.inf
+{PeCoffGetEntryPointLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmMemoryAllocationLib
+/StandaloneMmMemoryAllocationLib.inf
+{MemoryAllocationLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseCacheMaintenanceLib/BaseCacheMaintenanceLib.inf
+{CacheMaintenanceLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+{PeCoffLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmHobLib/StandaloneMmHobLib.inf
+{HobLib:  C = HobLibConstructor Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseRngLibNull/BaseRngLibNull.inf
+{RngLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/FvLib/FvLib.inf
+{FvLib:  Time = 8ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gOneCryptoPrivateProtocolGuid
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(gOneCryptoPrivateProtocolGuid)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  gOneCryptoPrivateProtocolGuid
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+"-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -Oz -flto -target x86_64-pc-windows-msvc -gcodeview
+-funwind-tables -D DISABLE_NEW_DEPRECATED_INTERFACES -D ENABLE_MD5_DEPRECATED_INTERFACES
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /OPT:REF /OPT:ICF=10 /ALIGN:32 /DRIVER /FILEALIGN:32 /Machine:X64 /DLL
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoBinSupvMm
+Module Arch:          X64
+Module INF Path:      OneCryptoPkg/OneCryptoBin/OneCryptoBinSupvMm.inf
+File GUID:            76ABA88D-9D16-49A2-AA3A-DB6112FAC5CC
+Size:                 0x22B0E0 (2220.22K)
+SHA1 HASH:            a319bfc9778259ebe9bd30431e0c8834795e9372 *OneCryptoBinSupvMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    19ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiCryptoPkgTokenSpaceGuid
+ *M PcdOpensslLibAssemblySourceStyleNasm        :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+gOneCryptoPkgTokenSpaceGuid
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+    PcdDebugPropertyMask                        :  FIXED    (UINT8) = 0x06 (6)
+    PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
+{RegisterFilterLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/DebugLibOnOneCrypto/DebugLibOnOneCrypto.inf
+{DebugLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/OneCryptoCrtLib/OneCryptoCrtLib.inf
+{OneCryptoCrtLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 19ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 106ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RngLibOnOneCrypto/RngLibOnOneCrypto.inf
+{RngLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/TimerLibOnOneCrypto/TimerLibOnOneCrypto.inf
+{TimerLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RealTimeClockLibOnOneCrypto
+/RealTimeClockLibOnOneCrypto.inf
+{RealTimeClockLib:  Time = 14ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/OpensslLib/OpensslLibFullAccel.inf
+{OpensslLib:  C = OpensslLibConstructor Time = 1455ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/MemoryAllocationLibOnOneCrypto
+/MemoryAllocationLibOnOneCrypto.inf
+{MemoryAllocationLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
+{IntrinsicLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/BaseCryptLib/BaseCryptLib.inf
+{BaseCryptLib:  Time = 53ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/SupvStandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Depex = gMmRing3HandlerReadyProtocol  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/TlsLib/TlsLib.inf
+{TlsLib:  Time = 9ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gMmRing3HandlerReadyProtocol
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(gMmRing3HandlerReadyProtocol) AND (gMmRing3HandlerReadyProtocol)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  gMmRing3HandlerReadyProtocol
+From Library INF: (gMmRing3HandlerReadyProtocol)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+"-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -Oz -flto -target x86_64-pc-windows-msvc -gcodeview
+-funwind-tables -D DISABLE_NEW_DEPRECATED_INTERFACES -D ENABLE_MD5_DEPRECATED_INTERFACES
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /OPT:REF /OPT:ICF=10 /ALIGN:32 /DRIVER /FILEALIGN:32 /Machine:X64 /DLL
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /EXPORT:CryptoEntry /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoLoaderDxe
+Module Arch:          X64
+Module INF Path:      OneCryptoPkg/OneCryptoLoaders/OneCryptoLoaderDxe.inf
+File GUID:            4F25834D-11D0-4A8F-9860-72B303B9F242
+Size:                 0x41C0 (16.44K)
+SHA1 HASH:            24e7291b185fbc897606bed8b5962e1c42109d0b *OneCryptoLoaderDxe.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    27ms
+Driver Type:          0x7 (DRIVER)
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gAdvLoggerPkgTokenSpaceGuid
+    PcdAdvancedLoggerHdwPortDebugPrintErrorLevel   :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+gEfiMdePkgTokenSpaceGuid
+    PcdComponentName2Disable                    :   FLAG  (BOOLEAN) = 0
+    PcdComponentNameDisable                     :   FLAG  (BOOLEAN) = 0
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+ *M PcdDebugPrintErrorLevel                     :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0x80000000 (2147483648)
+ *M PcdDebugPropertyMask                        :  PATCH    (UINT8) = 0x17 (23)
+                                                        DEC DEFAULT = 0x0 (0)
+    PcdDriverDiagnostics2Disable                :   FLAG  (BOOLEAN) = 0
+    PcdDriverDiagnosticsDisable                 :   FLAG  (BOOLEAN) = 0
+ *M PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0xFFFFFFFF (4294967295)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumDevicePathNodeCount               :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdUefiLibMaxPrintBufferSize                :  FIXED   (UINT32) = 0x140 (320)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseDebugPrintErrorLevelLib
+/BaseDebugPrintErrorLevelLib.inf
+{DebugPrintErrorLevelLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/AssertLib/AssertLib.inf
+{AssertLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/AdvancedLoggerLib/Dxe/AdvancedLoggerLib.inf
+{AdvancedLoggerLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
+{RegisterFilterLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 106ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 19ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/BaseDebugLibAdvancedLogger
+/BaseDebugLibAdvancedLogger.inf
+{DebugLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiBootServicesTableLib
+/UefiBootServicesTableLib.inf
+{UefiBootServicesTableLib:  C = UefiBootServicesTableLibConstructor Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
+{MemoryAllocationLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiRuntimeServicesTableLib
+/UefiRuntimeServicesTableLib.inf
+{UefiRuntimeServicesTableLib:  C = UefiRuntimeServicesTableLibConstructor Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiDevicePathLibDevicePathProtocol
+/UefiDevicePathLibDevicePathProtocol.inf
+{DevicePathLib:  C = DevicePathLibConstructor Depex = gEfiDevicePathUtilitiesProtocolGuid  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiLib/UefiLib.inf
+{UefiLib:  C = UefiLibConstructor Time = 15ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffExtraActionLibNull
+/BasePeCoffExtraActionLibNull.inf
+{PeCoffExtraActionLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/DxeHobLib/DxeHobLib.inf
+{HobLib:  C = HobLibConstructor Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+{PeCoffLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffGetEntryPointLib
+/BasePeCoffGetEntryPointLib.inf
+{PeCoffGetEntryPointLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+{UefiDriverEntryPoint:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/DxeServicesLib/DxeServicesLib.inf
+{DxeServicesLib:  Time = 10ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/PeCoffExtendedLib/PeCoffExtendedLib.inf
+{PeCoffExtendedLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseCacheMaintenanceLib/BaseCacheMaintenanceLib.inf
+{CacheMaintenanceLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseRngLibNull/BaseRngLibNull.inf
+{RngLib:  Time = 7ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gEfiDevicePathUtilitiesProtocolGuid
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(TRUE) AND (gEfiDevicePathUtilitiesProtocolGuid)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  TRUE
+From Library INF: (gEfiDevicePathUtilitiesProtocolGuid)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+"-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -Oz -flto -target x86_64-pc-windows-msvc -gcodeview
+-funwind-tables -D DISABLE_NEW_DEPRECATED_INTERFACES -D ENABLE_MD5_DEPRECATED_INTERFACES
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /OPT:REF /OPT:ICF=10 /ALIGN:32 /DRIVER /FILEALIGN:32 /Machine:X64 /DLL
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoLoaderSupvMm
+Module Arch:          X64
+Module INF Path:      OneCryptoPkg/OneCryptoLoaders/OneCryptoLoaderSupvMm.inf
+File GUID:            101024FF-877A-4D5B-A557-5ED44F12341E
+Size:                 0x6C0 (1.69K)
+SHA1 HASH:            50810fe5cb24681367d101f9bd648fcff868d32b *OneCryptoLoaderSupvMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    22ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
+{RegisterFilterLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/Library/SysCallLib/SysCallLib.inf
+{SysCallLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/Library/BaseLibSysCall/BaseLib.inf
+{BaseLib:  Time = 74ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+{DebugLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 19ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/Library/StandaloneMmServicesTableLib
+/StandaloneMmServicesTableLib.inf
+{MmServicesTableLib:  C = StandaloneMmServicesTableLibConstructor Depex = gMmRing3HandlerReadyProtocol  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffExtraActionLibNull
+/BasePeCoffExtraActionLibNull.inf
+{PeCoffExtraActionLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV/MmSupervisorPkg/Library/StandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Time = 10ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffGetEntryPointLib
+/BasePeCoffGetEntryPointLib.inf
+{PeCoffGetEntryPointLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmMemoryAllocationLib
+/StandaloneMmMemoryAllocationLib.inf
+{MemoryAllocationLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseCacheMaintenanceLib/BaseCacheMaintenanceLib.inf
+{CacheMaintenanceLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+{PeCoffLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmHobLib/StandaloneMmHobLib.inf
+{HobLib:  C = HobLibConstructor Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseRngLibNull/BaseRngLibNull.inf
+{RngLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/FvLib/FvLib.inf
+{FvLib:  Time = 8ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gOneCryptoPrivateProtocolGuid
+  PUSH gMmRing3HandlerReadyProtocol
+  AND
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(gOneCryptoPrivateProtocolGuid) AND (gMmRing3HandlerReadyProtocol)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  gOneCryptoPrivateProtocolGuid
+From Library INF: (gMmRing3HandlerReadyProtocol)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+"-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -Oz -flto -target x86_64-pc-windows-msvc -gcodeview
+-funwind-tables -D DISABLE_NEW_DEPRECATED_INTERFACES -D ENABLE_MD5_DEPRECATED_INTERFACES
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /OPT:REF /OPT:ICF=10 /ALIGN:32 /DRIVER /FILEALIGN:32 /Machine:X64 /DLL
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoBinStandaloneMm
+Module Arch:          AARCH64
+Module INF Path:      OneCryptoPkg/OneCryptoBin/OneCryptoBinStandaloneMm.inf
+File GUID:            76ABA88D-9D16-49A2-AA3A-DB6112FAC5CC
+Size:                 0x179A00 (1510.50K)
+SHA1 HASH:            d7303f7f045b45e2574bcfd9bc718ca296bcfbd7 *OneCryptoBinStandaloneMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    27ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiCryptoPkgTokenSpaceGuid
+ *M PcdOpensslLibAssemblySourceStylePe          :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+gOneCryptoPkgTokenSpaceGuid
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+    PcdDebugPropertyMask                        :  FIXED    (UINT8) = 0x06 (6)
+    PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 5ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/DebugLibOnOneCrypto/DebugLibOnOneCrypto.inf
+{DebugLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/OneCryptoCrtLib/OneCryptoCrtLib.inf
+{OneCryptoCrtLib:  Time = 11ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 26ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 52ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RngLibOnOneCrypto/RngLibOnOneCrypto.inf
+{RngLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/TimerLibOnOneCrypto/TimerLibOnOneCrypto.inf
+{TimerLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RealTimeClockLibOnOneCrypto
+/RealTimeClockLibOnOneCrypto.inf
+{RealTimeClockLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/OpensslLib/OpensslLibFullAccel.inf
+{OpensslLib:  C = OpensslLibConstructor Time = 1316ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/MemoryAllocationLibOnOneCrypto
+/MemoryAllocationLibOnOneCrypto.inf
+{MemoryAllocationLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
+{IntrinsicLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/BaseCryptLib/BaseCryptLib.inf
+{BaseCryptLib:  Time = 45ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/StandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/TlsLib/TlsLib.inf
+{TlsLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
+{CompilerIntrinsicsLib:  Time = 8ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  TRUE
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(TRUE)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  TRUE
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+-mcmodel=small -Oz -flto -target aarch64-unknown-windows-msvc -gcodeview  -funwind-tables -Wno-unused-but-set-variable
+-Wno-deprecated-non-prototype -Wno-constant-conversion -Werror -D DISABLE_NEW_DEPRECATED_INTERFACES -D
+ENABLE_MD5_DEPRECATED_INTERFACES -mbranch-protection=standard
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /WX /OPT:REF /OPT:ICF=10 /ALIGN:4096 /Machine:ARM64 /DLL /DRIVER
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /EXPORT:CryptoEntry /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoLoaderStandaloneMm
+Module Arch:          AARCH64
+Module INF Path:      OneCryptoPkg/OneCryptoLoaders/OneCryptoLoaderStandaloneMm.inf
+File GUID:            56FDC6F4-8820-40F5-95C1-83E289C4A45C
+Size:                 0x1000 (4.00K)
+SHA1 HASH:            5efbf51d0bdab2d7d96971c29824a7e2c35a8f8d *OneCryptoLoaderStandaloneMm.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    25ms
+Driver Type:          0xE (MM_STANDALONE)
+PI Spec Version:      0x00010032
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 5ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 52ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+{DebugLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 26ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StandaloneMmServicesTableLib
+/StandaloneMmServicesTableLib.inf
+{MmServicesTableLib:  C = StandaloneMmServicesTableLibConstructor Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffExtraActionLibNull
+/BasePeCoffExtraActionLibNull.inf
+{PeCoffExtraActionLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StandaloneMmDriverEntryPoint
+/StandaloneMmDriverEntryPoint.inf
+{StandaloneMmDriverEntryPoint:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffGetEntryPointLib
+/BasePeCoffGetEntryPointLib.inf
+{PeCoffGetEntryPointLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmMemoryAllocationLib
+/StandaloneMmMemoryAllocationLib.inf
+{MemoryAllocationLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseCacheMaintenanceLib/BaseCacheMaintenanceLib.inf
+{CacheMaintenanceLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+{PeCoffLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/StandaloneMmHobLib/StandaloneMmHobLib.inf
+{HobLib:  C = HobLibConstructor Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseRngLibNull/BaseRngLibNull.inf
+{RngLib:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/StandaloneMmPkg/Library/FvLib/FvLib.inf
+{FvLib:  Time = 8ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gOneCryptoPrivateProtocolGuid
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(gOneCryptoPrivateProtocolGuid)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  gOneCryptoPrivateProtocolGuid
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+-mcmodel=small -Oz -flto -target aarch64-unknown-windows-msvc -gcodeview  -funwind-tables -Wno-unused-but-set-variable
+-Wno-deprecated-non-prototype -Wno-constant-conversion -Werror -D DISABLE_NEW_DEPRECATED_INTERFACES -D
+ENABLE_MD5_DEPRECATED_INTERFACES -mbranch-protection=standard
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /WX /OPT:REF /OPT:ICF=10 /ALIGN:4096 /Machine:ARM64 /DLL /DRIVER
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoBinDxe
+Module Arch:          AARCH64
+Module INF Path:      OneCryptoPkg/OneCryptoBin/OneCryptoBinDxe.inf
+File GUID:            A7D8A8E6-2B1C-4D5F-9E3A-1C8F6B2D4E5A
+Size:                 0x179C00 (1511.00K)
+SHA1 HASH:            b65d0b0e4134362d81706020551c0724e4148ea5 *OneCryptoBinDxe.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    28ms
+Driver Type:          0x7 (DRIVER)
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gEfiCryptoPkgTokenSpaceGuid
+ *M PcdOpensslLibAssemblySourceStylePe          :   FLAG  (BOOLEAN) = 1
+                                                        DEC DEFAULT = 0
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+gOneCryptoPkgTokenSpaceGuid
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+    PcdDebugPropertyMask                        :  FIXED    (UINT8) = 0x06 (6)
+    PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 5ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/DebugLibOnOneCrypto/DebugLibOnOneCrypto.inf
+{DebugLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/OneCryptoCrtLib/OneCryptoCrtLib.inf
+{OneCryptoCrtLib:  Time = 11ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 26ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 52ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RngLibOnOneCrypto/RngLibOnOneCrypto.inf
+{RngLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/TimerLibOnOneCrypto/TimerLibOnOneCrypto.inf
+{TimerLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/RealTimeClockLibOnOneCrypto
+/RealTimeClockLibOnOneCrypto.inf
+{RealTimeClockLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/OpensslLib/OpensslLibFullAccel.inf
+{OpensslLib:  C = OpensslLibConstructor Time = 1316ms}
+/__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Library/MemoryAllocationLibOnOneCrypto
+/MemoryAllocationLibOnOneCrypto.inf
+{MemoryAllocationLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
+{IntrinsicLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiBootServicesTableLib
+/UefiBootServicesTableLib.inf
+{UefiBootServicesTableLib:  C = UefiBootServicesTableLibConstructor Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
+{SafeIntLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/BaseCryptLib/BaseCryptLib.inf
+{BaseCryptLib:  Time = 45ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+{UefiDriverEntryPoint:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/OpensslPkg/Library/TlsLib/TlsLib.inf
+{TlsLib:  Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
+{CompilerIntrinsicsLib:  Time = 8ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  TRUE
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(TRUE)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  TRUE
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+-mcmodel=small -Oz -flto -target aarch64-unknown-windows-msvc -gcodeview  -funwind-tables -Wno-unused-but-set-variable
+-Wno-deprecated-non-prototype -Wno-constant-conversion -Werror -D DISABLE_NEW_DEPRECATED_INTERFACES -D
+ENABLE_MD5_DEPRECATED_INTERFACES -mbranch-protection=standard
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /WX /OPT:REF /OPT:ICF=10 /ALIGN:4096 /Machine:ARM64 /DLL /DRIVER
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /EXPORT:CryptoEntry /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+
+>======================================================================================================================<
+Module Summary
+Module Name:          OneCryptoLoaderDxe
+Module Arch:          AARCH64
+Module INF Path:      OneCryptoPkg/OneCryptoLoaders/OneCryptoLoaderDxeByProtocol.inf
+File GUID:            7A3E8B2C-5F91-4D6A-B823-1C4F9E0D5A72
+Size:                 0x2E00 (11.50K)
+SHA1 HASH:            992f850d086b5491018602e956b8eab09e0a2b0e *OneCryptoLoaderDxe.efi
+Build Time Stamp:     1970-01-01 00:00:00
+Module Build Time:    19ms
+Driver Type:          0x7 (DRIVER)
+========================================================================================================================
+>----------------------------------------------------------------------------------------------------------------------<
+PCD
+------------------------------------------------------------------------------------------------------------------------
+gAdvLoggerPkgTokenSpaceGuid
+    PcdAdvancedLoggerHdwPortDebugPrintErrorLevel   :  FIXED   (UINT32) = 0xFFFFFFFF (4294967295)
+gEfiMdePkgTokenSpaceGuid
+    PcdControlFlowEnforcementPropertyMask       :  FIXED   (UINT32) = 0x0 (0)
+    PcdDebugClearMemoryValue                    :  FIXED    (UINT8) = 0xAF (175)
+ *M PcdDebugPrintErrorLevel                     :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0x80000000 (2147483648)
+ *M PcdDebugPropertyMask                        :  PATCH    (UINT8) = 0x17 (23)
+                                                        DEC DEFAULT = 0x0 (0)
+ *M PcdFixedDebugPrintErrorLevel                :  FIXED   (UINT32) = 0x8000004F (2147483727)
+                                                        DEC DEFAULT = 0xFFFFFFFF (4294967295)
+    PcdMaximumAsciiStringLength                 :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumLinkedListLength                  :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdMaximumUnicodeStringLength               :  FIXED   (UINT32) = 0xF4240 (1000000)
+    PcdSpeculationBarrierType                   :  FIXED    (UINT8) = 0x01 (1)
+    PcdStackCookieExceptionVector               :  FIXED    (UINT8) = 0x42 (66)
+    PcdVerifyNodeInList                         :   FLAG  (BOOLEAN) = 0
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Library
+------------------------------------------------------------------------------------------------------------------------
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseDebugPrintErrorLevelLib
+/BaseDebugPrintErrorLevelLib.inf
+{DebugPrintErrorLevelLib:  Time = 5ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePrintLib/BasePrintLib.inf
+{PrintLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/AssertLib/AssertLib.inf
+{AssertLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/AdvancedLoggerLib/Dxe/AdvancedLoggerLib.inf
+{AdvancedLoggerLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+{PcdLib:  Time = 5ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseLib/BaseLib.inf
+{BaseLib:  Time = 52ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+{BaseMemoryLib:  Time = 26ms}
+/__w/mu_crypto_release/mu_crypto_release/Common/MU/AdvLoggerPkg/Library/BaseDebugLibAdvancedLogger
+/BaseDebugLibAdvancedLogger.inf
+{DebugLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiBootServicesTableLib
+/UefiBootServicesTableLib.inf
+{UefiBootServicesTableLib:  C = UefiBootServicesTableLibConstructor Time = 9ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckFailureHookLibNull
+/StackCheckFailureHookLibNull.inf
+{StackCheckFailureHookLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/StackCheckLib/StackCheckLib.inf
+{StackCheckLib:  Time = 7ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+{UefiDriverEntryPoint:  Time = 8ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
+{MemoryAllocationLib:  Time = 6ms}
+/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE/MdePkg/Library/UefiRuntimeServicesTableLib
+/UefiRuntimeServicesTableLib.inf
+{UefiRuntimeServicesTableLib:  C = UefiRuntimeServicesTableLibConstructor Time = 6ms}
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Final Dependency Expression (DEPEX) Instructions
+  PUSH gOneCryptoPrivateProtocolGuid
+  END
+------------------------------------------------------------------------------------------------------------------------
+Dependency Expression (DEPEX) from INF
+(gOneCryptoPrivateProtocolGuid)
+------------------------------------------------------------------------------------------------------------------------
+From Module INF:  gOneCryptoPrivateProtocolGuid
+From Library INF: (None)
+<---------------------------------------------------------------------------------------------------------------------->
+>----------------------------------------------------------------------------------------------------------------------<
+Build Flags
+Tool Chain Tag: CLANGPDB
+------------------------------------------------------------------------------------------------------------------------
+CC_FLAGS =  -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h
+-fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=$(BASE_NAME)Strings -Wno-
+parentheses-equality -Wno-tautological-compare -Wno-tautological-constant-out-of-range-compare -Wno-empty-body -Wno-
+unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable
+-Wno-unaligned-access -Wno-microsoft-enum-forward-reference -fno-stack-protector -funsigned-char -ftrap-
+function=undefined_behavior_has_been_optimized_away_by_clang -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas
+-Wno-incompatible-library-redeclaration -Wno-null-dereference -mno-implicit-float -mms-bitfields -mno-stack-arg-probe
+-fno-omit-frame-pointer -U _MSC_VER -D __GNUC__=4 -D __GNUC_MINOR__=2 -D __GNUC_PATCHLEVEL__=1 -D __MINGW32__=1 -m64
+-mcmodel=small -Oz -flto -target aarch64-unknown-windows-msvc -gcodeview  -funwind-tables -Wno-unused-but-set-variable
+-Wno-deprecated-non-prototype -Wno-constant-conversion -Werror -D DISABLE_NEW_DEPRECATED_INTERFACES -D
+ENABLE_MD5_DEPRECATED_INTERFACES -mbranch-protection=standard
+------------------------------------------------------------------------------------------------------------------------
+SLINK_FLAGS =
+------------------------------------------------------------------------------------------------------------------------
+DLINK_FLAGS =  /NOLOGO /NODEFAULTLIB /IGNORE:4001 /WX /OPT:REF /OPT:ICF=10 /ALIGN:4096 /Machine:ARM64 /DLL /DRIVER
+/ENTRY:$(IMAGE_ENTRY_POINT) /SUBSYSTEM:EFI_BOOT_SERVICE_DRIVER /SAFESEH:NO /BASE:0 /DEBUG:GHASH /MLLVM:-exception-
+model=wineh /lldmap /ALIGN:4096
+<---------------------------------------------------------------------------------------------------------------------->
+<======================================================================================================================>
+

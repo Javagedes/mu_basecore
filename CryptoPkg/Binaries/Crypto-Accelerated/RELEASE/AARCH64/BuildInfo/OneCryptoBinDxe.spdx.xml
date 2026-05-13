@@ -1,0 +1,37 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "urn:uuid:860e78c3-f367-4778-9de0-7fdb93b79132",
+  "name": "NOASSERTION",
+  "files": [],
+  "creationInfo": {
+    "creators": [
+      "Tool: uSWID",
+      "Organization: Microsoft Corporation"
+    ],
+    "created": "2026-07-22T21:58:42Z"
+  },
+  "documentDescribes": [
+    "SPDXRef-a7d8a8e6-2b1c-4d5f-9e3a-1c8f6b2d4e5a",
+    "SPDXRef-e2aeed23-3824-45ad-9043-a5237e1131c2"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-a7d8a8e6-2b1c-4d5f-9e3a-1c8f6b2d4e5a",
+      "downloadLocation": "NOASSERTION",
+      "name": "OneCrypto",
+      "versionInfo": "0.0.0",
+      "originator": "Organization: Microsoft Corporation",
+      "licenseDeclared": "BSD-2-Clause-Patent"
+    },
+    {
+      "SPDXID": "SPDXRef-e2aeed23-3824-45ad-9043-a5237e1131c2",
+      "downloadLocation": "NOASSERTION",
+      "name": "OpenSSL",
+      "versionInfo": "3.5.5",
+      "originator": "Organization: The OpenSSL Project",
+      "licenseDeclared": "Apache-2.0"
+    }
+  ]
+}

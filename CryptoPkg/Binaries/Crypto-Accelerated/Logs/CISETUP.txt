@@ -1,0 +1,106 @@
+INFO - Log Started: Wednesday, July 22, 2026 09:51PM
+INFO - Cmd to run is: stuart_ci_setup 
+SECTION - Init Self Describing Environment
+DEBUG - --- self_describing_environment.__init__()
+DEBUG - Skipped directories specified = ()
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - --- self_describing_environment.load_workspace()
+DEBUG - Loading workspace: /__w/mu_crypto_release/mu_crypto_release
+DEBUG -   Including scopes: OneCrypto, edk2-build, global-nix, global
+DEBUG - --- self_describing_environment._gather_env_files()
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler_plug_in.json to the environment with scope global
+DEBUG - --- self_describing_environment.update_simple_paths()
+DEBUG - --- self_describing_environment.update_extdep_paths()
+DEBUG - --- self_describing_environment.report_extdep_version()
+SECTION - Loading Plugins
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler.py
+INFO - PLUGIN DESCRIPTOR:SBOM PECOFF section Inserter
+DEBUG - Helper Plugin Register: SBOM PECOFF section Inserter
+INFO - PLUGIN DESCRIPTOR:OneCrypto Binary Release Bundler
+DEBUG - Helper Plugin Register: OneCrypto Binary Release Bundler
+SECTION - Start Invocable Tool
+DEBUG - Dependencies list [{'Path': 'MU_BASECORE', 'Url': 'https://github.com/flickdm/mu_basecore.git', 'Commit': '66f056dd1bd13ab8c38dd88601a35e10a71e6b65', 'Recurse': True}, {'Path': 'Features/MM_SUPV', 'Url': 'https://github.com/microsoft/mu_feature_mm_supv.git', 'Commit': '4f686975e6a3e76c2d64e097415abdb773b8e56b', 'Recurse': True}, {'Path': 'Common/MU', 'Url': 'https://github.com/microsoft/mu_plus.git', 'Commit': '31f2b85ddb606cf6e4b4019ec2db1349d97b162b', 'Recurse': True}]
+PROGRESS - Syncing MU_BASECORE
+INFO - Checking for dependency MU_BASECORE
+INFO - Resolving at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+INFO - Cloning at /__w/mu_crypto_release/mu_crypto_release/MU_BASECORE
+INFO - Cloning repo: https://github.com/flickdm/mu_basecore.git
+DEBUG - Popen(['git', 'clone', '-v', '--recurse-submodules', '--', 'https://github.com/flickdm/mu_basecore.git', '/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=True)
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'fetch'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'checkout', '66f056dd1bd13ab8c38dd88601a35e10a71e6b65'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+PROGRESS - Syncing Features/MM_SUPV
+INFO - Checking for dependency Features/MM_SUPV
+INFO - Resolving at /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+INFO - Cloning at /__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV
+INFO - Cloning repo: https://github.com/microsoft/mu_feature_mm_supv.git
+DEBUG - Popen(['git', 'clone', '-v', '--recurse-submodules', '--', 'https://github.com/microsoft/mu_feature_mm_supv.git', '/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=True)
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'fetch'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'checkout', '4f686975e6a3e76c2d64e097415abdb773b8e56b'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+PROGRESS - Syncing Common/MU
+INFO - Checking for dependency Common/MU
+INFO - Resolving at /__w/mu_crypto_release/mu_crypto_release/Common/MU
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+INFO - Cloning at /__w/mu_crypto_release/mu_crypto_release/Common/MU
+INFO - Cloning repo: https://github.com/microsoft/mu_plus.git
+DEBUG - Popen(['git', 'clone', '-v', '--recurse-submodules', '--', 'https://github.com/microsoft/mu_plus.git', '/__w/mu_crypto_release/mu_crypto_release/Common/MU'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=True)
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'fetch'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'checkout', '31f2b85ddb606cf6e4b4019ec2db1349d97b162b'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'submodule', 'update', '--init', '--recursive'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE, stdin=<valid stream>, shell=False, universal_newlines=False)
+INFO - MU_BASECORE = Git Details: Url: https://github.com/flickdm/mu_basecore.git Branch HEAD Commit 66f056dd1bd13ab8c38dd88601a35e10a71e6b65
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV, stdin=<valid stream>, shell=False, universal_newlines=False)
+INFO - Features/MM_SUPV = Git Details: Url: https://github.com/microsoft/mu_feature_mm_supv.git Branch HEAD Commit 4f686975e6a3e76c2d64e097415abdb773b8e56b
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release/Common/MU, stdin=None, shell=False, universal_newlines=False)
+INFO - Common/MU = Git Details: Url: https://github.com/microsoft/mu_plus.git Branch HEAD Commit 31f2b85ddb606cf6e4b4019ec2db1349d97b162b
+INFO - Repo resolver resolved ['/__w/mu_crypto_release/mu_crypto_release/MU_BASECORE', '/__w/mu_crypto_release/mu_crypto_release/Features/MM_SUPV', '/__w/mu_crypto_release/mu_crypto_release/Common/MU']
+SECTION - Summary
+PROGRESS - Success

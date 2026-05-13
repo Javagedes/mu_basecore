@@ -1,0 +1,68 @@
+INFO - Log Started: Wednesday, July 22, 2026 09:49PM
+INFO - Cmd to run is: stuart_setup 
+SECTION - Init Self Describing Environment
+DEBUG - --- self_describing_environment.__init__()
+DEBUG - Skipped directories specified = ()
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - --- self_describing_environment.load_workspace()
+DEBUG - Loading workspace: /__w/mu_crypto_release/mu_crypto_release
+DEBUG -   Including scopes: OneCrypto, edk2-build, global-nix, global
+DEBUG - --- self_describing_environment._gather_env_files()
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter_plug_in.json to the environment with scope global
+DEBUG - Adding descriptor /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler_plug_in.json to the environment with scope global
+DEBUG - --- self_describing_environment.update_simple_paths()
+DEBUG - --- self_describing_environment.update_extdep_paths()
+DEBUG - --- self_describing_environment.report_extdep_version()
+SECTION - Loading Plugins
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/SbomInserter/SbomInserter.py
+DEBUG - Loading Plugin from /__w/mu_crypto_release/mu_crypto_release/OneCryptoPkg/Plugin/OneCryptoBundler/OneCryptoBundler.py
+INFO - PLUGIN DESCRIPTOR:SBOM PECOFF section Inserter
+DEBUG - Helper Plugin Register: SBOM PECOFF section Inserter
+INFO - PLUGIN DESCRIPTOR:OneCrypto Binary Release Bundler
+DEBUG - Helper Plugin Register: OneCrypto Binary Release Bundler
+SECTION - Start Invocable Tool
+INFO - Cmd to run is: git config --file .gitmodules --get-regexp path
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Starting---------------
+INFO - ------------------------------------------------
+INFO - submodule.OpensslPkg/Library/OpensslLib/openssl.path OpensslPkg/Library/OpensslLib/openssl
+INFO - submodule.MbedTlsPkg/Library/MbedTlsLib/mbedtls.path MbedTlsPkg/Library/MbedTlsLib/mbedtls
+INFO - ------------------------------------------------
+INFO - --------------Cmd Output Finished---------------
+INFO - --------- Running Time (mm:ss): 00:00 ----------
+INFO - ----------- Return Code: 0x00000000 ------------
+INFO - ------------------------------------------------
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'worktree', 'list', '--porcelain'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch-check'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--cached', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'diff', '--abbrev=40', '--full-index', '--raw'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'status', '--porcelain', '--untracked-files'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Popen(['git', 'cat-file', '--batch'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=<valid stream>, shell=False, universal_newlines=False)
+DEBUG - Setting up version aggregator
+PROGRESS - ## Resolving Git Submodule: OpensslPkg/Library/OpensslLib/openssl
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Syncing OpensslPkg/Library/OpensslLib/openssl
+DEBUG - Popen(['git', 'submodule', 'sync', '--', 'OpensslPkg/Library/OpensslLib/openssl'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Updating OpensslPkg/Library/OpensslLib/openssl ['update', '--init', '--recursive', 'OpensslPkg/Library/OpensslLib/openssl']
+DEBUG - Popen(['git', 'submodule', 'update', '--init', '--recursive', 'OpensslPkg/Library/OpensslLib/openssl'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - OpensslPkg/Library/OpensslLib/openssl is valid and resolved.
+PROGRESS - ## Done.
+
+PROGRESS - ## Resolving Git Submodule: MbedTlsPkg/Library/MbedTlsLib/mbedtls
+DEBUG - Popen(['git', 'version'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Syncing MbedTlsPkg/Library/MbedTlsLib/mbedtls
+DEBUG - Popen(['git', 'submodule', 'sync', '--', 'MbedTlsPkg/Library/MbedTlsLib/mbedtls'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - Updating MbedTlsPkg/Library/MbedTlsLib/mbedtls ['update', '--init', '--recursive', 'MbedTlsPkg/Library/MbedTlsLib/mbedtls']
+DEBUG - Popen(['git', 'submodule', 'update', '--init', '--recursive', 'MbedTlsPkg/Library/MbedTlsLib/mbedtls'], cwd=/__w/mu_crypto_release/mu_crypto_release, stdin=None, shell=False, universal_newlines=False)
+DEBUG - MbedTlsPkg/Library/MbedTlsLib/mbedtls is valid and resolved.
+PROGRESS - ## Done.
+
+SECTION - Summary
+PROGRESS - Success
