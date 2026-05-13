@@ -13,6 +13,7 @@
 
 #include "DxeImageVerificationLib.h"
 #include "Database.h"
+#include "ExecutionInfo.h"
 #include "Image.h"
 #include "Policy.h"
 
@@ -74,9 +75,12 @@ DxeImageVerificationHandler (
   IN  BOOLEAN                         BootPolicy
   )
 {
-  EFI_STATUS                Status;
-  UINT32                    Policy;
-  EFI_IMAGE_DATA_DIRECTORY  SecDataDir;
+  EFI_STATUS                  Status;
+  UINT32                      Policy;
+  EFI_IMAGE_DATA_DIRECTORY    SecDataDir;
+  EFI_IMAGE_EXECUTION_ACTION  Action;
+
+  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   //
   // Sanity check.
@@ -117,7 +121,7 @@ DxeImageVerificationHandler (
   //
   Status = GetImageSecurityDataDirectory (FileBuffer, FileSize, &SecDataDir);
   if (EFI_ERROR (Status)) {
-    return EFI_ACCESS_DENIED;
+    goto Exit;
   }
 
   //
@@ -125,10 +129,17 @@ DxeImageVerificationHandler (
   // image carries an embedded signature.
   //
   if (SecDataDir.Size == 0) {
-    return ValidateUnsignedImage (FileBuffer, FileSize);
+    Status = ValidateUnsignedImage (FileBuffer, FileSize);
+  } else {
+    Status = ValidateSignedImage (FileBuffer, FileSize, &SecDataDir, &Action);
   }
 
-  return ValidateSignedImage (FileBuffer, FileSize, &SecDataDir);
+Exit:
+  if (EFI_ERROR (Status)) {
+    RecordImageExecutionInfo (Action, File);
+  }
+
+  return Status;
 }
 
 /**
@@ -148,6 +159,17 @@ DxeImageVerificationLibConstructor (
   IN  EFI_SYSTEM_TABLE  *SystemTable
   )
 {
+  EFI_STATUS  Status;
+
+  //
+  // Install an empty execution-info table so the OS sees a well-formed
+  // (possibly empty) table even when no images are denied this boot.
+  //
+  Status = InstallImageExecutionInfoTable ();
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: InstallImageExecutionInfoTable failed - %r\n", Status));
+  }
+
   return RegisterSecurity2Handler (
            DxeImageVerificationHandler,
            EFI_AUTH_OPERATION_VERIFY_IMAGE | EFI_AUTH_OPERATION_IMAGE_REQUIRED
@@ -301,10 +323,12 @@ Exit:
   Secure Boot is enabled and the dispatched image declares a non-empty
   security data directory.
 
-  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]  FileSize    Size of FileBuffer in bytes.
-  @param[in]  SecDataDir  Security data directory describing the
-                          embedded WIN_CERTIFICATE table.
+  @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
+  @param[in]   FileSize    Size of FileBuffer in bytes.
+  @param[in]   SecDataDir  Security data directory describing the
+                           embedded WIN_CERTIFICATE table.
+  @param[out]  Action      Set to the EFI_IMAGE_EXECUTION_ACTION value
+                           that best describes the outcome.
 
   @retval EFI_UNSUPPORTED  The signed-image verification path is not yet
                            implemented.
@@ -313,11 +337,13 @@ EFI_STATUS
 ValidateSignedImage (
   IN  VOID                            *FileBuffer,
   IN  UINTN                           FileSize,
-  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
+  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir,
+  OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
   //
   // TODO: implement Authenticode/UEFI signature verification.
   //
+  *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED;
   return EFI_UNSUPPORTED;
 }
