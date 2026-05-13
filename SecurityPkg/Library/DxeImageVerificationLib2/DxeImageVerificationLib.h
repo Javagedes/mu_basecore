@@ -18,11 +18,25 @@
 #include <IndustryStandard/PeImage.h>
 #include <Library/SecureBootVariableLib.h>
 #include <Library/BaseLib.h>
+#include <Library/BaseCryptLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
 #include <Library/SecurityManagementLib.h>
 #include <Protocol/DevicePath.h>
+
+#define MAX_DIGEST_SIZE  SHA512_DIGEST_SIZE
+
+//
+// Supported image hash algorithms defined via their GUID.
+//
+STATIC CONST EFI_GUID  *CONST  mKnownImageHashGuids[] = {
+  &gEfiCertSha1Guid,
+  &gEfiCertSha256Guid,
+  &gEfiCertSha384Guid,
+  &gEfiCertSha512Guid
+};
 
 /**
   Provide verification service for signed images, which include both signature validation
@@ -95,10 +109,10 @@ DxeImageVerificationLibConstructor (
   Validate an unsigned PE/COFF image against the platform signature
   databases.
 
-  For each image-hash algorithm enrolled in db or dbx, computes the
-  image's Authenticode digest and checks the dbx then db for the hash.
-  A dbx hit denies the image. The image is authorized only if it is
-  found in db and never in dbx.
+  This is a two step process:
+
+  1) Walk the dbx first. A hit in the dbx immediately denies the image.
+  2) Walk the db next. A hit in the db authorizes the image, while a miss denies it.
 
   @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]  FileSize    Size of FileBuffer in bytes.

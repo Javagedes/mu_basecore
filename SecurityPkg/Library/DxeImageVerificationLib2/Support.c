@@ -7,6 +7,70 @@
 
 #include "Support.h"
 
+/**
+  Determines if the given GUID is a supported image hash signature type.
+
+  @param[in]  Guid  Pointer to an EFI_SIGNATURE_LIST::SignatureType
+                    value, or any candidate signature-type GUID.
+
+  @retval TRUE   The image hash signature type is supported.
+  @retval FALSE  The image hash signature type is not supported.
+**/
+BOOLEAN
+IsKnownImageHashGuid (
+  IN CONST EFI_GUID  *Guid
+  )
+{
+  UINTN  Index;
+
+  if (Guid == NULL) {
+    return FALSE;
+  }
+
+  for (Index = 0; Index < ARRAY_SIZE (mKnownImageHashGuids); Index++) {
+    if (CompareGuid (Guid, mKnownImageHashGuids[Index])) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
+  Look up the position of a known image hash signature-type GUID in
+  mKnownImageHashGuids (see DxeImageVerificationLib.h).
+
+  @param[in]   Guid   Candidate signature-type GUID.
+  @param[out]  Index  On TRUE return, receives Guid's position in
+                      mKnownImageHashGuids. Not modified on FALSE.
+
+  @retval TRUE   Guid matched a known image hash algorithm and *Index
+                 holds its position.
+  @retval FALSE  Guid is NULL, Index is NULL, or Guid is not in
+                 mKnownImageHashGuids.
+**/
+BOOLEAN
+GetKnownImageHashGuidIndex (
+  IN  CONST EFI_GUID  *Guid,
+  OUT UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == NULL) || (Index == NULL)) {
+    return FALSE;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mKnownImageHashGuids); I++) {
+    if (CompareGuid (Guid, mKnownImageHashGuids[I])) {
+      *Index = I;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
 //
 // Caller-owned state passed through PeCoffLoaderGetImageInfo() to
 // SecurityDirectoryCallback() and back.
@@ -163,5 +227,74 @@ GetImageSecurityDataDirectory (
   }
 
   *SecDataDir = CallbackCtx.SecDataDir;
+  return EFI_SUCCESS;
+}
+
+/**
+  Get or compute the Authenticode digest of a PE/COFF image for a specific hashing
+  algorithm. The algorithm must be supported, which is determined by mKnownImageHashGuids.
+
+  If the digest for a given HashType is already present in Cache, it is returned without
+  recomputation. Otherwise, the digest is computed via GetAuthenticodeHash, stored in Cache, and
+  then returned.
+
+  @param[in]      HashType     Signature-type GUID identifying the
+                               hash algorithm to use (for example
+                               gEfiCertSha256Guid).
+  @param[in,out]  Cache        Caller-owned digest cache bound to one
+                               image via Cache->FileBuffer /
+                               Cache->FileSize.
+  @param[out]     Digest       On success, receives a pointer to the
+                               cached digest bytes. The pointer is
+                               valid for the lifetime of Cache.
+  @param[out]     DigestSize   On success, receives the digest length
+                               in bytes.
+
+  @retval EFI_SUCCESS            Digest / DigestSize describe a valid
+                                 cached digest.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval EFI_UNSUPPORTED        HashType is not one of the supported
+                                 image hash algorithms enumerated by
+                                 mKnownImageHashGuids.
+  @retval other                  Forwarded from GetAuthenticodeHash.
+**/
+EFI_STATUS
+GetOrComputeAuthenticodeHash (
+  IN     CONST EFI_GUID      *HashType,
+  IN OUT IMAGE_DIGEST_CACHE  *Cache,
+  OUT    CONST UINT8         **Digest,
+  OUT    UINTN               *DigestSize
+  )
+{
+  EFI_STATUS                Status;
+  UINTN                     SlotIndex;
+  IMAGE_DIGEST_CACHE_ENTRY  *Slot;
+
+  if ((HashType == NULL) || (Cache == NULL) ||
+      (Cache->FileBuffer == NULL) ||
+      (Digest == NULL) || (DigestSize == NULL))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (!GetKnownImageHashGuidIndex (HashType, &SlotIndex)) {
+    return EFI_UNSUPPORTED;
+  }
+
+  Slot = &Cache->Entries[SlotIndex];
+  if (Slot->Size != 0) {
+    *Digest     = Slot->Bytes;
+    *DigestSize = Slot->Size;
+    return EFI_SUCCESS;
+  }
+
+  Status = GetAuthenticodeHash ((VOID *)Cache->FileBuffer, Cache->FileSize, HashType, Slot->Bytes, &Slot->Size);
+  if (EFI_ERROR (Status)) {
+    Slot->Size = 0;
+    return Status;
+  }
+
+  *Digest     = Slot->Bytes;
+  *DigestSize = Slot->Size;
   return EFI_SUCCESS;
 }
