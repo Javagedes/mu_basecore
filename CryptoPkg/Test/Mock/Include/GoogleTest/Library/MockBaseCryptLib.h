@@ -953,6 +953,16 @@ struct MockBaseCryptLib {
     );
 
   MOCK_FUNCTION_DECLARATION (
+    EFI_STATUS,
+    GetAuthenticodeHashAlgorithm,
+    (
+     IN  CONST UINT8  *AuthData,
+     IN  UINTN        AuthDataSize,
+     OUT EFI_GUID     *HashType
+    )
+    );
+
+  MOCK_FUNCTION_DECLARATION (
     BOOLEAN,
     ImageTimestampVerify,
     (
