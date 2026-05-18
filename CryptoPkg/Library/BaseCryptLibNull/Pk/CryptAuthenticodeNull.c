@@ -87,3 +87,42 @@ GetAuthenticodeHash (
   ASSERT (FALSE);
   return EFI_UNSUPPORTED;
 }
+
+/**
+  Determine the image-hash algorithm declared by a PE/COFF Authenticode
+  signature.
+
+  The signature's PKCS#7 SignedData header carries the digest algorithm
+  used to hash the image. This function parses that header and returns
+  the matching signature-type GUID (for example gEfiCertSha256Guid).
+  The returned GUID can be passed directly to GetAuthenticodeHash to
+  compute the corresponding image hash.
+
+  @param[in]   AuthData      Pointer to the Authenticode signature retrieved
+                             from a signed PE/COFF image.
+  @param[in]   AuthDataSize  Size of AuthData in bytes.
+  @param[out]  HashType      On success, receives the signature-type GUID
+                             identifying the digest algorithm declared by
+                             the signature.
+
+  @retval EFI_SUCCESS            HashType has been populated.
+  @retval EFI_INVALID_PARAMETER  AuthData or HashType is NULL, or
+                                 AuthDataSize is zero.
+  @retval EFI_BAD_BUFFER_SIZE    AuthData is too small or not encoded in a
+                                 supported ASN.1 form.
+  @retval EFI_UNSUPPORTED        The signature's digest algorithm is not a
+                                 recognized image hash algorithm, or this
+                                 interface is not supported by the
+                                 underlying library instance.
+**/
+EFI_STATUS
+EFIAPI
+GetAuthenticodeHashAlgorithm (
+  IN  CONST UINT8  *AuthData,
+  IN  UINTN        AuthDataSize,
+  OUT EFI_GUID     *HashType
+  )
+{
+  ASSERT (FALSE);
+  return EFI_UNSUPPORTED;
+}
