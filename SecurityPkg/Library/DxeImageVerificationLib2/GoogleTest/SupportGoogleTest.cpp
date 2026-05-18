@@ -1,14 +1,22 @@
 /** @file
-  Unit tests for GetImageSecurityDataDirectory in the
-  DxeImageVerificationLib.
-  These tests construct minimal-but-valid PE/COFF images in memory and
-  exercise the real PeCoffLib through GetImageSecurityDataDirectory so
-  that the data-directory callback path is covered end-to-end.
+  Unit tests for helpers in DxeImageVerificationLib's Support.{c,h}.
+
+  GetImageSecurityDataDirectory: constructs minimal-but-valid PE/COFF
+  images in memory and exercises the real PeCoffLib so that the
+  data-directory callback path is covered end-to-end.
+
+  GetOrComputeAuthenticodeHash: exercises the slot-indexed digest
+  cache plumbing. Hit-path tests pre-seed cache slots directly so the
+  test does not depend on GetAuthenticodeHash succeeding for a
+  particular byte sequence; miss-path tests use MockBaseCryptLib to
+  drive GetAuthenticodeHash to a chosen status / output.
+
   Copyright (C) Microsoft Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include <Library/GoogleTestLib.h>
+#include <GoogleTest/Library/MockBaseCryptLib.h>
 
 #include <vector>
 #include <cstring>
@@ -17,8 +25,13 @@ extern "C" {
   #include <Uefi.h>
   #include <IndustryStandard/PeImage.h>
   #include <Library/BaseMemoryLib.h>
+  #include <Library/BaseCryptLib.h>
   #include "../Support.h"
 }
+
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::Return;
 
 //
 // Layout constants for the synthetic PE32+ image.
@@ -268,4 +281,355 @@ TEST_F (GetImageSecurityDataDirectoryTest, OtherDataDirectoriesDoNotLeak) {
     );
   EXPECT_EQ (SecDataDir.VirtualAddress, kSecDirVa);
   EXPECT_EQ (SecDataDir.Size, kSecDirSize);
+}
+
+// ===========================================================================
+// GetOrComputeAuthenticodeHash
+// ===========================================================================
+
+class GetOrComputeAuthenticodeHashTest : public ::testing::Test {
+protected:
+  MockBaseCryptLib BaseCryptLibMock;
+  IMAGE_DIGEST_CACHE Cache{ };
+  std::vector<UINT8> FileBytes{ 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x11, 0x22, 0x33 };
+
+  void
+  SetUp (
+    ) override
+  {
+    ZeroMem (&Cache, sizeof (Cache));
+  }
+
+  //
+  // Verify every slot in Cache currently looks empty (Size == 0 and
+  // Bytes all-zero). Used to assert early returns do not scribble.
+  //
+  void
+  ExpectCacheUntouched (
+    )
+  {
+    for (UINTN I = 0; I < (sizeof (Cache.Entries) / sizeof (Cache.Entries[0])); I++) {
+      EXPECT_EQ (Cache.Entries[I].Size, (UINTN)0);
+      for (UINTN J = 0; J < sizeof (Cache.Entries[I].Bytes); J++) {
+        EXPECT_EQ (Cache.Entries[I].Bytes[J], (UINT8)0);
+      }
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Argument validation
+// ---------------------------------------------------------------------------
+
+TEST_F (GetOrComputeAuthenticodeHashTest, NullFileBuffer_ReturnsInvalidParameter) {
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (NULL, FileBytes.size (), &gEfiCertSha256Guid, &Cache, &Digest, &DigestSize),
+    EFI_INVALID_PARAMETER
+    );
+  ExpectCacheUntouched ();
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, NullHashType_ReturnsInvalidParameter) {
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), NULL, &Cache, &Digest, &DigestSize),
+    EFI_INVALID_PARAMETER
+    );
+  ExpectCacheUntouched ();
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, NullCache_ReturnsInvalidParameter) {
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha256Guid, NULL, &Digest, &DigestSize),
+    EFI_INVALID_PARAMETER
+    );
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, NullDigest_ReturnsInvalidParameter) {
+  UINTN  DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha256Guid, &Cache, NULL, &DigestSize),
+    EFI_INVALID_PARAMETER
+    );
+  ExpectCacheUntouched ();
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, NullDigestSize_ReturnsInvalidParameter) {
+  CONST UINT8  *Digest = NULL;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha256Guid, &Cache, &Digest, NULL),
+    EFI_INVALID_PARAMETER
+    );
+  ExpectCacheUntouched ();
+}
+
+// ---------------------------------------------------------------------------
+// Algorithm validation
+// ---------------------------------------------------------------------------
+
+TEST_F (GetOrComputeAuthenticodeHashTest, X509Sha256Guid_ReturnsUnsupported) {
+  //
+  // X509-with-hash GUIDs are valid signature-type GUIDs but are not
+  // image hash algorithms and have no cache slot.
+  //
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertX509Sha256Guid, &Cache, &Digest, &DigestSize),
+    EFI_UNSUPPORTED
+    );
+  ExpectCacheUntouched ();
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, ArbitraryGuid_ReturnsUnsupported) {
+  EFI_GUID     Junk = { 0x12345678, 0x1234, 0x5678,
+                        { 0x9a,     0xbc,   0xde,  0xf0,0x12, 0x34, 0x56, 0x78 }
+  };
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &Junk, &Cache, &Digest, &DigestSize),
+    EFI_UNSUPPORTED
+    );
+  ExpectCacheUntouched ();
+}
+
+// ---------------------------------------------------------------------------
+// Hit path (cache pre-seeded so GetAuthenticodeHash is bypassed)
+// ---------------------------------------------------------------------------
+
+TEST_F (GetOrComputeAuthenticodeHashTest, PreSeededSha256Slot_ReturnsPointerIntoCache) {
+  UINTN  Index = 0;
+
+  ASSERT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha256Guid, &Index));
+
+  //
+  // Seed the slot with a recognizable byte pattern so we can prove
+  // the returned pointer aliases the cache storage and the returned
+  // size matches what we stored.
+  //
+  for (UINTN I = 0; I < SHA256_DIGEST_SIZE; I++) {
+    Cache.Entries[Index].Bytes[I] = (UINT8)(0x40 + I);
+  }
+
+  Cache.Entries[Index].Size = SHA256_DIGEST_SIZE;
+
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  //
+  // A hit must not delegate to GetAuthenticodeHash, so the contents
+  // of FileBuffer are irrelevant on this path. No EXPECT_CALL is set
+  // up; an accidental invocation would be reported by gmock.
+  //
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha256Guid, &Cache, &Digest, &DigestSize),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (DigestSize, (UINTN)SHA256_DIGEST_SIZE);
+  EXPECT_EQ (Digest, Cache.Entries[Index].Bytes);
+  for (UINTN I = 0; I < SHA256_DIGEST_SIZE; I++) {
+    EXPECT_EQ (Digest[I], (UINT8)(0x40 + I));
+  }
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, EachKnownAlgorithm_HitsItsOwnSlot) {
+  //
+  // Seed every known-algorithm slot with a distinct one-byte digest
+  // and verify each lookup returns its own slot's bytes, proving the
+  // GUID-to-index mapping is consistent between the cache layout and
+  // GetOrComputeAuthenticodeHash.
+  //
+  CONST EFI_GUID  *KnownGuids[] = {
+    &gEfiCertSha1Guid,
+    &gEfiCertSha256Guid,
+    &gEfiCertSha384Guid,
+    &gEfiCertSha512Guid
+  };
+
+  for (UINTN K = 0; K < sizeof (KnownGuids) / sizeof (KnownGuids[0]); K++) {
+    UINTN  Index = 0;
+    ASSERT_TRUE (GetKnownImageHashGuidIndex (KnownGuids[K], &Index));
+
+    Cache.Entries[Index].Bytes[0] = (UINT8)(0xA0 + K);
+    Cache.Entries[Index].Size     = 1;
+  }
+
+  for (UINTN K = 0; K < sizeof (KnownGuids) / sizeof (KnownGuids[0]); K++) {
+    CONST UINT8  *Digest    = NULL;
+    UINTN        DigestSize = 0;
+
+    EXPECT_EQ (
+      GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), KnownGuids[K], &Cache, &Digest, &DigestSize),
+      EFI_SUCCESS
+      );
+    EXPECT_EQ (DigestSize, (UINTN)1);
+    ASSERT_NE (Digest, (CONST UINT8 *)NULL);
+    EXPECT_EQ (Digest[0], (UINT8)(0xA0 + K));
+  }
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, RepeatedHits_ReturnSamePointer) {
+  UINTN  Index = 0;
+
+  ASSERT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha1Guid, &Index));
+  Cache.Entries[Index].Bytes[0] = 0x5A;
+  Cache.Entries[Index].Size     = 1;
+
+  CONST UINT8  *FirstDigest  = NULL;
+  UINTN        FirstSize     = 0;
+  CONST UINT8  *SecondDigest = NULL;
+  UINTN        SecondSize    = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha1Guid, &Cache, &FirstDigest, &FirstSize),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (FileBytes.data (), FileBytes.size (), &gEfiCertSha1Guid, &Cache, &SecondDigest, &SecondSize),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (FirstDigest, SecondDigest);
+  EXPECT_EQ (FirstSize, SecondSize);
+}
+
+// ---------------------------------------------------------------------------
+// Miss path (GetAuthenticodeHash driven by MockBaseCryptLib)
+// ---------------------------------------------------------------------------
+
+TEST_F (GetOrComputeAuthenticodeHashTest, GetAuthenticodeHashFails_PropagatesErrorAndPreservesEmptySlot) {
+  //
+  // When the underlying GetAuthenticodeHash returns an error, the
+  // status must propagate verbatim and the slot must remain empty
+  // (Size == 0) so a later call retries the computation rather than
+  // returning stale bytes.
+  //
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
+
+  CONST UINT8  *Digest    = NULL;
+  UINTN        DigestSize = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (
+      FileBytes.data (),
+      FileBytes.size (),
+      &gEfiCertSha256Guid,
+      &Cache,
+      &Digest,
+      &DigestSize
+      ),
+    EFI_DEVICE_ERROR
+    );
+
+  UINTN  Index = 0;
+
+  ASSERT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha256Guid, &Index));
+  EXPECT_EQ (Cache.Entries[Index].Size, (UINTN)0);
+
+  //
+  // Other slots must also be untouched: an unrelated algorithm should
+  // not be affected by another algorithm's miss-failure.
+  //
+  for (UINTN I = 0; I < (sizeof (Cache.Entries) / sizeof (Cache.Entries[0])); I++) {
+    if (I != Index) {
+      EXPECT_EQ (Cache.Entries[I].Size, (UINTN)0);
+    }
+  }
+}
+
+TEST_F (GetOrComputeAuthenticodeHashTest, MissSucceeds_PopulatesCacheAndSecondCallSkipsRecomputation) {
+  //
+  // Drive GetAuthenticodeHash to a successful return with a known
+  // digest pattern, then call GetOrComputeAuthenticodeHash twice for
+  // the same algorithm. The .Times (1) constraint asserts the second
+  // call must NOT delegate to GetAuthenticodeHash again -- it must be
+  // served from the cache.
+  //
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
+    .Times (1)
+    .WillOnce (
+       Invoke (
+         [] (
+             IN VOID            *FileBuffer,
+             IN UINTN           FileSize,
+             IN CONST EFI_GUID  *HashType,
+             OUT UINT8          *Digest,
+             OUT UINTN          *DigestSize
+         ) -> EFI_STATUS {
+    (VOID)FileBuffer;
+    (VOID)FileSize;
+    (VOID)HashType;
+    for (UINTN I = 0; I < SHA256_DIGEST_SIZE; I++) {
+      Digest[I] = (UINT8)(0x80 + I);
+    }
+
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+
+  CONST UINT8  *DigestPtr1 = NULL;
+  UINTN        DigestSize1 = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (
+      FileBytes.data (),
+      FileBytes.size (),
+      &gEfiCertSha256Guid,
+      &Cache,
+      &DigestPtr1,
+      &DigestSize1
+      ),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (DigestSize1, (UINTN)SHA256_DIGEST_SIZE);
+  ASSERT_NE (DigestPtr1, (CONST UINT8 *)NULL);
+  for (UINTN I = 0; I < SHA256_DIGEST_SIZE; I++) {
+    EXPECT_EQ (DigestPtr1[I], (UINT8)(0x80 + I));
+  }
+
+  //
+  // The slot must now look populated.
+  //
+  UINTN  Index = 0;
+
+  ASSERT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha256Guid, &Index));
+  EXPECT_EQ (Cache.Entries[Index].Size, (UINTN)SHA256_DIGEST_SIZE);
+  EXPECT_EQ (DigestPtr1, Cache.Entries[Index].Bytes);
+
+  //
+  // Second call -- expected to be served from the cache. The
+  // EXPECT_CALL above limits GetAuthenticodeHash invocations to 1;
+  // a second invocation would fail this test.
+  //
+  CONST UINT8  *DigestPtr2 = NULL;
+  UINTN        DigestSize2 = 0;
+
+  EXPECT_EQ (
+    GetOrComputeAuthenticodeHash (
+      FileBytes.data (),
+      FileBytes.size (),
+      &gEfiCertSha256Guid,
+      &Cache,
+      &DigestPtr2,
+      &DigestSize2
+      ),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (DigestPtr1, DigestPtr2);
+  EXPECT_EQ (DigestSize1, DigestSize2);
 }

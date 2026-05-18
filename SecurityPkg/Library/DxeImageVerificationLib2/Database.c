@@ -108,6 +108,45 @@ IsKnownImageHashGuid (
 }
 
 /**
+  Look up the position of a known image hash signature-type GUID in
+  mKnownImageHashGuids.
+
+  The returned index matches the GUID's position in mKnownImageHashGuids
+  and is suitable for indexing companion arrays sized to that list (for
+  example, the slot table of an IMAGE_DIGEST_CACHE).
+
+  @param[in]   Guid   Candidate signature-type GUID.
+  @param[out]  Index  On TRUE return, receives Guid's position in
+                      mKnownImageHashGuids. Not modified on FALSE.
+
+  @retval TRUE   Guid matched a known image hash algorithm and *Index
+                 holds its position.
+  @retval FALSE  Guid is NULL, Index is NULL, or Guid is not in
+                 mKnownImageHashGuids.
+**/
+BOOLEAN
+GetKnownImageHashGuidIndex (
+  IN  CONST EFI_GUID  *Guid,
+  OUT UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == NULL) || (Index == NULL)) {
+    return FALSE;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mKnownImageHashGuids); I++) {
+    if (CompareGuid (Guid, mKnownImageHashGuids[I])) {
+      *Index = I;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
   Walk a signature-database buffer, invoking Callback for every
   well-formed EFI_SIGNATURE_LIST it contains.
 

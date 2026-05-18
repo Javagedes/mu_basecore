@@ -165,3 +165,90 @@ GetImageSecurityDataDirectory (
   *SecDataDir = CallbackCtx.SecDataDir;
   return EFI_SUCCESS;
 }
+
+/**
+  Look up the Authenticode digest of a PE/COFF image for a specific
+  hash algorithm in the supplied cache, computing it via
+  GetAuthenticodeHash on a miss.
+
+  The cache is caller-owned; zero-initialize it before the first call.
+  On a hit, Digest / DigestSize describe the stored digest without
+  recomputation. On a miss, the digest is computed, stored in a free
+  cache slot, and then returned.
+
+  @param[in]      FileBuffer   Pointer to the in-memory PE/COFF image.
+  @param[in]      FileSize     Size of FileBuffer in bytes.
+  @param[in]      HashType     Signature-type GUID identifying the
+                               hash algorithm to use (for example
+                               gEfiCertSha256Guid).
+  @param[in,out]  Cache        Caller-owned digest cache.
+  @param[out]     Digest       On success, receives a pointer to the
+                               cached digest bytes. The pointer is
+                               valid for the lifetime of Cache.
+  @param[out]     DigestSize   On success, receives the digest length
+                               in bytes.
+
+  @retval EFI_SUCCESS            Digest / DigestSize describe a valid
+                                 cached digest.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval EFI_UNSUPPORTED        HashType is not one of the supported
+                                 image hash algorithms enumerated by
+                                 mKnownImageHashGuids.
+  @retval other                  Forwarded from GetAuthenticodeHash.
+**/
+EFI_STATUS
+GetOrComputeAuthenticodeHash (
+  IN     VOID                *FileBuffer,
+  IN     UINTN               FileSize,
+  IN     CONST EFI_GUID      *HashType,
+  IN OUT IMAGE_DIGEST_CACHE  *Cache,
+  OUT    CONST UINT8         **Digest,
+  OUT    UINTN               *DigestSize
+  )
+{
+  EFI_STATUS                Status;
+  UINTN                     Index;
+  IMAGE_DIGEST_CACHE_ENTRY  *Entry;
+
+  if ((FileBuffer == NULL) || (HashType == NULL) || (Cache == NULL) ||
+      (Digest == NULL) || (DigestSize == NULL))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  //
+  // Map HashType to its fixed slot in the cache. Algorithms outside
+  // mKnownImageHashGuids have no slot and are rejected up front.
+  //
+  if (!GetKnownImageHashGuidIndex (HashType, &Index)) {
+    return EFI_UNSUPPORTED;
+  }
+
+  Entry = &Cache->Entries[Index];
+
+  //
+  // Size == 0 marks an empty slot. Any non-zero Size identifies a
+  // previously computed digest that may be returned without recomputation.
+  //
+  if (Entry->Size != 0) {
+    *Digest     = Entry->Bytes;
+    *DigestSize = Entry->Size;
+    return EFI_SUCCESS;
+  }
+
+  //
+  // Miss: compute the digest into the slot, then return the cached
+  // bytes. On failure, restore the empty-slot invariant so a later
+  // call retries the computation instead of returning stale bytes.
+  //
+  Entry->Size = sizeof (Entry->Bytes);
+  Status      = GetAuthenticodeHash (FileBuffer, FileSize, HashType, Entry->Bytes, &Entry->Size);
+  if (EFI_ERROR (Status)) {
+    Entry->Size = 0;
+    return Status;
+  }
+
+  *Digest     = Entry->Bytes;
+  *DigestSize = Entry->Size;
+  return EFI_SUCCESS;
+}

@@ -30,6 +30,8 @@
 #
 
 [Sources]
+  Certificate.c
+  Certificate.h
   Database.c
   Database.h
   DxeImageVerificationLib.c

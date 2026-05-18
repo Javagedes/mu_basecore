@@ -1,9 +1,9 @@
 /** @file
   Unit tests for the signature-database helpers in
   DxeImageVerificationLib (Database.c): IsKnownImageHashGuid,
-  WalkSignatureDatabase, GetDatabaseHashAlgorithms,
-  IsSignatureFoundInDatabase, LoadSignatureDatabase, and
-  LoadSignatureDatabases.
+  GetKnownImageHashGuidIndex, WalkSignatureDatabase,
+  GetDatabaseHashAlgorithms, IsSignatureFoundInDatabase,
+  LoadSignatureDatabase, and LoadSignatureDatabases.
   WalkSignatureDatabase, GetDatabaseHashAlgorithms, and
   IsSignatureFoundInDatabase are exercised against synthetic in-memory
   EFI_SIGNATURE_LIST buffers built by helpers in this file.
@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <cstring>
+#include <set>
 
 extern "C" {
   #include <Uefi.h>
@@ -127,6 +128,87 @@ TEST (IsKnownImageHashGuidTest, ArbitraryGuid_ReturnsFalse) {
   };
 
   EXPECT_FALSE (IsKnownImageHashGuid (&Junk));
+}
+
+// ---------------------------------------------------------------------------
+// GetKnownImageHashGuidIndex
+// ---------------------------------------------------------------------------
+
+TEST (GetKnownImageHashGuidIndexTest, NullGuid_ReturnsFalseAndLeavesIndexUntouched) {
+  UINTN  Index = 0xDEADBEEF;
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (NULL, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
+}
+
+TEST (GetKnownImageHashGuidIndexTest, NullIndex_ReturnsFalse) {
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&gEfiCertSha256Guid, NULL));
+}
+
+TEST (GetKnownImageHashGuidIndexTest, NullGuidAndIndex_ReturnsFalse) {
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (NULL, NULL));
+}
+
+TEST (GetKnownImageHashGuidIndexTest, KnownGuids_ReturnDistinctInRangeIndices) {
+  UINTN  IndexSha1   = 0;
+  UINTN  IndexSha256 = 0;
+  UINTN  IndexSha384 = 0;
+  UINTN  IndexSha512 = 0;
+
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha1Guid, &IndexSha1));
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha256Guid, &IndexSha256));
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha384Guid, &IndexSha384));
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha512Guid, &IndexSha512));
+
+  //
+  // Each known hash GUID must map to a distinct slot in the canonical
+  // list, and every slot index must be within bounds.
+  //
+  std::set<UINTN>  Indices = { IndexSha1, IndexSha256, IndexSha384, IndexSha512 };
+
+  EXPECT_EQ (Indices.size (), (size_t)4);
+  for (UINTN I : Indices) {
+    EXPECT_LT (I, (UINTN)4);
+  }
+}
+
+TEST (GetKnownImageHashGuidIndexTest, RepeatedLookups_AreStable) {
+  //
+  // The index returned for a given GUID must not change across calls;
+  // callers rely on this for fixed-slot cache addressing.
+  //
+  UINTN  First  = 0;
+  UINTN  Second = 0xDEADBEEF;
+
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha384Guid, &First));
+  EXPECT_TRUE (GetKnownImageHashGuidIndex (&gEfiCertSha384Guid, &Second));
+  EXPECT_EQ (First, Second);
+}
+
+TEST (GetKnownImageHashGuidIndexTest, X509Guids_ReturnFalseAndLeaveIndexUntouched) {
+  UINTN  Index = 0xDEADBEEF;
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&gEfiCertX509Guid, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&gEfiCertX509Sha256Guid, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&gEfiCertX509Sha384Guid, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&gEfiCertX509Sha512Guid, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
+}
+
+TEST (GetKnownImageHashGuidIndexTest, ArbitraryGuid_ReturnsFalseAndLeavesIndexUntouched) {
+  EFI_GUID  Junk = { 0x12345678, 0x1234, 0x5678,
+                     { 0x9a,     0xbc,   0xde,  0xf0,0x12, 0x34, 0x56, 0x78 }
+  };
+  UINTN     Index = 0xDEADBEEF;
+
+  EXPECT_FALSE (GetKnownImageHashGuidIndex (&Junk, &Index));
+  EXPECT_EQ (Index, (UINTN)0xDEADBEEF);
 }
 
 // ---------------------------------------------------------------------------

@@ -12,7 +12,11 @@
 #include <Library/UefiLib.h>
 
 //
-// Supported image hash algorithms defined via their GUID.
+// Supported image hash algorithms identified via their UEFI
+// signature-type GUID. This is the canonical list consumed by the
+// HASH_ALGORITHM_SET / IMAGE_DIGEST_SET / IMAGE_DIGEST_CACHE types
+// across the library to size their fixed arrays, and probed by
+// IsKnownImageHashGuid / GetKnownImageHashGuidIndex.
 //
 STATIC CONST EFI_GUID  *CONST  mKnownImageHashGuids[] = {
   &gEfiCertSha1Guid,
@@ -29,6 +33,30 @@ typedef struct {
   EFI_GUID    Guids[ARRAY_SIZE (mKnownImageHashGuids)];
 } HASH_ALGORITHM_SET;
 
+//
+// A single image-hash digest. Bytes holds the raw hash output (up to
+// SHA512_DIGEST_SIZE) and Size records how many of those bytes are
+// valid for the algorithm that produced it.
+//
+// TODO: Use a union of appropriately sized byte arrays instead of a single
+// buffer and a size field.
+//
+typedef struct {
+  UINT8    Bytes[SHA512_DIGEST_SIZE];
+  UINTN    Size;
+} IMAGE_DIGEST;
+
+//
+// Per-image digests indexed in parallel with HASH_ALGORITHM_SET::Guids.
+// For an instance populated by computing GetAuthenticodeHash over each
+// enrolled algorithm, Digests[i] corresponds to HashAlgorithms.Guids[i]
+// and Count must equal HashAlgorithms.Count.
+//
+typedef struct {
+  UINTN           Count;
+  IMAGE_DIGEST    Digests[ARRAY_SIZE (mKnownImageHashGuids)];
+} IMAGE_DIGEST_SET;
+
 /**
   Determines if the given GUID is a supported image hash signature type.
 
@@ -41,6 +69,29 @@ typedef struct {
 BOOLEAN
 IsKnownImageHashGuid (
   IN CONST EFI_GUID  *Guid
+  );
+
+/**
+  Look up the position of a known image hash signature-type GUID in
+  mKnownImageHashGuids.
+
+  The returned index matches the GUID's position in mKnownImageHashGuids
+  and is suitable for indexing companion arrays sized to that list (for
+  example, the slot table of an IMAGE_DIGEST_CACHE).
+
+  @param[in]   Guid   Candidate signature-type GUID.
+  @param[out]  Index  On TRUE return, receives Guid's position in
+                      mKnownImageHashGuids. Not modified on FALSE.
+
+  @retval TRUE   Guid matched a known image hash algorithm and *Index
+                 holds its position.
+  @retval FALSE  Guid is NULL, Index is NULL, or Guid is not in
+                 mKnownImageHashGuids.
+**/
+BOOLEAN
+GetKnownImageHashGuidIndex (
+  IN  CONST EFI_GUID  *Guid,
+  OUT UINTN           *Index
   );
 
 /**

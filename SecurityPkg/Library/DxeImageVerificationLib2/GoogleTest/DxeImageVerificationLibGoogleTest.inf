@@ -19,6 +19,7 @@
 #
 
 [Sources]
+  CertificateGoogleTest.cpp
   DatabaseGoogleTest.cpp
   DxeImageVerificationLibGoogleTest.cpp
   PolicyGoogleTest.cpp
