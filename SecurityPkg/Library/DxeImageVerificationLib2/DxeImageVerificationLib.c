@@ -23,6 +23,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include "Database.h"
 #include "Support.h"
 #include "Policy.h"
+#include "Certificate.h"
 
 /**
   Provide verification service for signed images, which include both signature validation
@@ -263,6 +264,18 @@ Exit:
   Validate a signed PE/COFF image's embedded Authenticode/UEFI signatures
   against the platform signature databases.
 
+  This is a two step process:
+
+  1) Confirm the image is authorized by `db`. If it is not, the image
+     is denied.
+  2) Confirm the image is not revoked by `dbx`. If it is revoked, the
+     image is denied.
+
+  The IMAGE_DIGEST_CACHE is created here and shared across both checks
+  so Authenticode digests are computed at most once per algorithm. The
+  Action output is forwarded to both helpers, which update it to
+  reflect the outcome.
+
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]   FileSize    Size of FileBuffer in bytes.
   @param[in]   SecDataDir  Security data directory describing the
@@ -270,8 +283,11 @@ Exit:
   @param[out]  Action      Set to the EFI_IMAGE_EXECUTION_ACTION value
                            that best describes the outcome.
 
-  @retval EFI_UNSUPPORTED  The signed-image verification path is not yet
-                           implemented.
+  @retval EFI_SUCCESS        The image is authorized by `db` and is not
+                             revoked by `dbx`.
+  @retval EFI_ACCESS_DENIED  The image is not authorized by `db`, is
+                             revoked by `dbx`, or a database lookup
+                             failed.
 **/
 EFI_STATUS
 ValidateSignedImage (
@@ -281,6 +297,68 @@ ValidateSignedImage (
   OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
+  EFI_STATUS          Status;
+  IMAGE_DIGEST_CACHE  Cache;
+  VOID                *Db;
+  UINTN               DbSize;
+  VOID                *Dbx;
+  UINTN               DbxSize;
+
+  Db  = NULL;
+  Dbx = NULL;
+
   *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED;
-  return EFI_UNSUPPORTED;
+
+  //
+  // Setup digest cache for the image. This prevents redundant authenticode hash computations
+  // across both authorization and revocation checks.
+  //
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.FileBuffer = FileBuffer;
+  Cache.FileSize   = FileSize;
+
+  //
+  // Load db / dbx. Any failure here is treated as a verification
+  // failure.
+  //
+  Status = LoadSignatureDatabases (&Db, &DbSize, &Dbx, &DbxSize);
+  if (EFI_ERROR (Status)) {
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Authorization check first. An unauthorized image is denied
+  // immediately; the revocation check is only meaningful for an
+  // otherwise-authorized image.
+  //
+  if (!IsSignedImageAuthorized (SecDataDir, Db, DbSize, Dbx, DbxSize, &Cache, Action)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Signed image is not authorized by DB.\n"));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Revocation check. A hit in dbx denies the image even if db
+  // authorized it.
+  //
+  if (IsSignedImageRevoked (SecDataDir, Dbx, DbxSize, &Cache, Action)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Signed image is forbidden by DBX.\n"));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
+  Status  = EFI_SUCCESS;
+
+Exit:
+  if (Db != NULL) {
+    FreePool (Db);
+  }
+
+  if (Dbx != NULL) {
+    FreePool (Dbx);
+  }
+
+  return Status;
 }

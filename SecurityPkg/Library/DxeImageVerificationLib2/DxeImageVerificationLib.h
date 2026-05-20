@@ -135,6 +135,18 @@ ValidateUnsignedImage (
 Validate a signed PE/COFF image's embedded Authenticode/UEFI signatures
 against the platform signature databases.
 
+This is a two step process:
+
+1) Confirm the image is authorized by `db`. If it is not, the image
+   is denied.
+2) Confirm the image is not revoked by `dbx`. If it is revoked, the
+   image is denied.
+
+The IMAGE_DIGEST_CACHE is created here and shared across both checks
+so Authenticode digests are computed at most once per algorithm. The
+Action output is forwarded to both helpers, which update it to
+reflect the outcome.
+
 @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
 @param[in]   FileSize    Size of FileBuffer in bytes.
 @param[in]   SecDataDir  Security data directory describing the
@@ -142,8 +154,11 @@ against the platform signature databases.
 @param[out]  Action      Set to the EFI_IMAGE_EXECUTION_ACTION value
                          that best describes the outcome.
 
-@retval EFI_UNSUPPORTED  The signed-image verification path is not yet
-                         implemented.
+@retval EFI_SUCCESS        The image is authorized by `db` and is not
+                           revoked by `dbx`.
+@retval EFI_ACCESS_DENIED  The image is not authorized by `db`, is
+                           revoked by `dbx`, or a database lookup
+                           failed.
 **/
 EFI_STATUS
 ValidateSignedImage (

@@ -34,6 +34,8 @@
   Database.h
   DxeImageVerificationLib.c
   DxeImageVerificationLib.h
+  Certificate.c
+  Certificate.h
   Policy.c
   Policy.h
   Support.c
