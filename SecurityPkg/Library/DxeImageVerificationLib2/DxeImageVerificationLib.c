@@ -330,7 +330,7 @@ ValidateSignedImage (
   //
   // Authorization check first. An unauthorized image is denied
   // immediately; the revocation check is only meaningful for an
-  // otherwise-authorized image.
+  // authorized image.
   //
   if (!IsSignedImageAuthorized (SecDataDir, Db, DbSize, Dbx, DbxSize, &Cache, Action)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Signed image is not authorized by DB.\n"));

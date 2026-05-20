@@ -23,6 +23,7 @@
   DxeImageVerificationLibGoogleTest.cpp
   PolicyGoogleTest.cpp
   SupportGoogleTest.cpp
+  CertificateGoogleTest.cpp
 
 [Packages]
   MdePkg/MdePkg.dec
