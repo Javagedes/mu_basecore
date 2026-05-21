@@ -1,13 +1,11 @@
 /** @file
   Unit tests for the signature-database helpers in
   DxeImageVerificationLib (Database.c): IsKnownImageHashGuid,
-  WalkSignatureDatabase, IsSignatureFoundInDatabase,
-  LoadSignatureDatabase, and LoadSignatureDatabases.
-  WalkSignatureDatabase and IsSignatureFoundInDatabase are exercised
-  against synthetic in-memory
-  EFI_SIGNATURE_LIST buffers built by helpers in this file.
-  LoadSignatureDatabase and LoadSignatureDatabases are exercised against
-  a mocked GetVariable2.
+  IsImageDigestFoundInDatabase, LoadSignatureDatabase, and
+  LoadSignatureDatabases. IsImageDigestFoundInDatabase is exercised
+  against synthetic in-memory EFI_SIGNATURE_LIST buffers built by
+  helpers in this file. LoadSignatureDatabase and LoadSignatureDatabases
+  are exercised against a mocked GetVariable2.
   Copyright (C) Microsoft Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
@@ -70,31 +68,6 @@ AppendSignatureList (
 // Walk callback that simply counts invocations and records the
 // per-list SignatureType GUIDs in visit order.
 //
-struct CallbackRecorder {
-  UINTN                    Count;
-  std::vector<EFI_GUID>    SeenTypes;
-  RETURN_STATUS            ReturnAt;     // RETURN_SUCCESS to keep going
-  UINTN                    AbortAfter;   // applies when ReturnAt != SUCCESS
-};
-
-extern "C" EFI_STATUS EFIAPI
-RecorderCallback (
-  IN CONST EFI_SIGNATURE_LIST  *List,
-  IN VOID                      *Context  OPTIONAL
-  )
-{
-  CallbackRecorder  *Rec = (CallbackRecorder *)Context;
-
-  Rec->Count++;
-  Rec->SeenTypes.push_back (List->SignatureType);
-
-  if ((Rec->ReturnAt != EFI_SUCCESS) && (Rec->Count >= Rec->AbortAfter)) {
-    return Rec->ReturnAt;
-  }
-
-  return EFI_SUCCESS;
-}
-
 // SHA-256 entry size: 16-byte owner GUID + 32-byte digest.
 static constexpr UINT32  kSha256EntrySize = sizeof (EFI_GUID) + 32;
 static constexpr UINT32  kSha384EntrySize = sizeof (EFI_GUID) + 48;
@@ -128,187 +101,6 @@ TEST (IsKnownImageHashGuidTest, ArbitraryGuid_ReturnsFalse) {
   };
 
   EXPECT_FALSE (IsKnownImageHashGuid (&Junk));
-}
-
-// ---------------------------------------------------------------------------
-// WalkSignatureDatabase
-// ---------------------------------------------------------------------------
-
-class WalkSignatureDatabaseTest : public ::testing::Test {
-protected:
-  CallbackRecorder Rec{ };
-
-  void
-  SetUp (
-    ) override
-  {
-    Rec.Count      = 0;
-    Rec.ReturnAt   = EFI_SUCCESS;
-    Rec.AbortAfter = 0;
-    Rec.SeenTypes.clear ();
-  }
-};
-
-TEST_F (WalkSignatureDatabaseTest, NullBuffer_ReturnsInvalidParameter) {
-  EXPECT_EQ (
-    WalkSignatureDatabase (NULL, 0, RecorderCallback, &Rec),
-    EFI_INVALID_PARAMETER
-    );
-  EXPECT_EQ (Rec.Count, 0u);
-}
-
-TEST_F (WalkSignatureDatabaseTest, NullCallback_ReturnsInvalidParameter) {
-  UINT8  Dummy = 0;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (&Dummy, 1, NULL, &Rec),
-    EFI_INVALID_PARAMETER
-    );
-}
-
-TEST_F (WalkSignatureDatabaseTest, EmptyBuffer_ReturnsSuccessNoInvocations) {
-  UINT8  Dummy = 0;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (&Dummy, 0, RecorderCallback, &Rec),
-    EFI_SUCCESS
-    );
-  EXPECT_EQ (Rec.Count, 0u);
-}
-
-TEST_F (WalkSignatureDatabaseTest, SingleList_InvokesCallbackOnce) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 2);
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_SUCCESS
-    );
-  EXPECT_EQ (Rec.Count, 1u);
-  ASSERT_EQ (Rec.SeenTypes.size (), 1u);
-  EXPECT_EQ (CompareGuid (&Rec.SeenTypes[0], &gEfiCertSha256Guid), TRUE);
-}
-
-TEST_F (WalkSignatureDatabaseTest, MultipleLists_InvokedInOrder) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  AppendSignatureList (Buf, gEfiCertSha384Guid, 0, kSha384EntrySize, 3);
-  AppendSignatureList (Buf, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 8, 1);
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_SUCCESS
-    );
-  ASSERT_EQ (Rec.SeenTypes.size (), 3u);
-  EXPECT_EQ (CompareGuid (&Rec.SeenTypes[0], &gEfiCertSha256Guid), TRUE);
-  EXPECT_EQ (CompareGuid (&Rec.SeenTypes[1], &gEfiCertSha384Guid), TRUE);
-  EXPECT_EQ (CompareGuid (&Rec.SeenTypes[2], &gEfiCertX509Guid), TRUE);
-}
-
-TEST_F (WalkSignatureDatabaseTest, ListSizeBelowHeader_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf (sizeof (EFI_SIGNATURE_LIST), 0);
-  EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Buf.data ();
-
-  CopyGuid (&List->SignatureType, &gEfiCertSha256Guid);
-  List->SignatureListSize   = sizeof (EFI_SIGNATURE_LIST) - 1;  // bad
-  List->SignatureHeaderSize = 0;
-  List->SignatureSize       = kSha256EntrySize;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-  EXPECT_EQ (Rec.Count, 0u);
-}
-
-TEST_F (WalkSignatureDatabaseTest, ListSizeExceedsBuffer_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-
-  // Inflate the declared size past Buf.size().
-  ((EFI_SIGNATURE_LIST *)Buf.data ())->SignatureListSize = (UINT32)(Buf.size () + 1);
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-  EXPECT_EQ (Rec.Count, 0u);
-}
-
-TEST_F (WalkSignatureDatabaseTest, SignatureSizeBelowGuidSize_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-
-  ((EFI_SIGNATURE_LIST *)Buf.data ())->SignatureSize = sizeof (EFI_GUID) - 1;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-}
-
-TEST_F (WalkSignatureDatabaseTest, HeaderSizeOverflowsList_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-
-  // SignatureHeaderSize larger than the per-list payload region.
-  ((EFI_SIGNATURE_LIST *)Buf.data ())->SignatureHeaderSize =
-    ((EFI_SIGNATURE_LIST *)Buf.data ())->SignatureListSize;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-}
-
-TEST_F (WalkSignatureDatabaseTest, PayloadNotMultipleOfEntry_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 2);
-
-  // Bump the entry size so payload no longer divides evenly.
-  ((EFI_SIGNATURE_LIST *)Buf.data ())->SignatureSize = kSha256EntrySize + 1;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-}
-
-TEST_F (WalkSignatureDatabaseTest, TrailingBytes_ReturnsCorrupted) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  // Append a partial header that's smaller than EFI_SIGNATURE_LIST.
-  Buf.push_back (0xAA);
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_VOLUME_CORRUPTED
-    );
-  EXPECT_EQ (Rec.Count, 1u);  // first list was visited before trailing-byte check
-}
-
-TEST_F (WalkSignatureDatabaseTest, CallbackAborts_PropagatesStatus) {
-  std::vector<UINT8>  Buf;
-
-  AppendSignatureList (Buf, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  AppendSignatureList (Buf, gEfiCertSha384Guid, 0, kSha384EntrySize, 1);
-  AppendSignatureList (Buf, gEfiCertSha512Guid, 0, sizeof (EFI_GUID) + 64, 1);
-
-  Rec.ReturnAt   = EFI_ABORTED;
-  Rec.AbortAfter = 2;
-
-  EXPECT_EQ (
-    WalkSignatureDatabase (Buf.data (), Buf.size (), RecorderCallback, &Rec),
-    EFI_ABORTED
-    );
-  EXPECT_EQ (Rec.Count, 2u);  // third list never visited
 }
 
 // ---------------------------------------------------------------------------

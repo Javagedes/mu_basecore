@@ -12,36 +12,9 @@
 
 #include "Certificate.h"
 #include "Database.h"
+#include "Iterator.h"
 
 #include <Guid/WinCertificate.h>
-
-/**
-  A callback that is executed by WalkImageSignatures once per supported
-  WIN_CERTIFICATE entry in a PE/COFF image's attribute certificate
-  table. The walker has already extracted the DER-encoded PKCS#7
-  SignedData payload from the certificate.
-
-  Returning EFI_SUCCESS continues iteration. Returning any other status
-  stops the walk and the error is propagated to the caller.
-
-  @param[in]  AuthData      Pointer to the PKCS#7 payload inside the
-                            image's attribute certificate table.
-                            Borrowed pointer; the callback must not
-                            free it and must not retain it past return.
-  @param[in]  AuthDataSize  Length of AuthData in bytes.
-  @param[in]  Context       Caller-owned opaque pointer passed
-                            unmodified through WalkImageSignatures.
-
-  @retval EFI_SUCCESS  The signature was processed successfully.
-  @retval other        Callback-specific error.
-**/
-typedef
-EFI_STATUS
-(EFIAPI *IMAGE_SIGNATURE_CALLBACK)(
-  IN CONST UINT8  *AuthData,
-  IN UINTN        AuthDataSize,
-  IN VOID         *Context  OPTIONAL
-  );
 
 //
 // Forward declarations of internal helpers. Definitions follow below;
@@ -58,194 +31,144 @@ IsCertHashFoundInDbx (
   );
 
 EFI_STATUS
-WalkImageSignatures (
-  IN  CONST VOID                      *FileBuffer,
-  IN  UINTN                           FileSize,
-  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir,
-  IN  IMAGE_SIGNATURE_CALLBACK        Callback,
-  IN  VOID                            *Context  OPTIONAL
-  );
-
-EFI_STATUS
 GetWinCertificateAuthData (
   IN  CONST WIN_CERTIFICATE  *Cert,
   OUT CONST UINT8            **AuthData,
   OUT UINTN                  *AuthDataSize
   );
 
-EFI_STATUS
-EFIAPI
-VerifyImageSignatureCallback (
-  IN CONST UINT8  *AuthData,
-  IN UINTN        AuthDataSize,
-  IN VOID         *Context  OPTIONAL
-  );
-
-//
-// Context passed to VerifyAuthDataAgainstX509ListCallback while
-// walking the db. The callback only inspects EFI_SIGNATURE_LISTs whose
-// SignatureType is gEfiCertX509Guid; for each X509 entry it invokes
-// AuthenticodeVerify and, when verification succeeds, additionally
-// checks that the trusted cert's hash is not present in dbx before
-// accepting the signature.
-//
-typedef struct {
-  CONST UINT8    *AuthData;
-  UINTN          AuthDataSize;
-  CONST UINT8    *ImageHash;
-  UINTN          ImageHashSize;
-  CONST VOID     *Dbx;
-  UINTN          DbxSize;
-  BOOLEAN        Verified;
-} VERIFY_X509_CTX;
-
 /**
-  WalkSignatureDatabase callback to check if a X509 certificate in the `db` is a trust anchor for
-  the PKCS#7 signature provided by the callback context.
+  Determine whether any X.509 certificate in a single EFI_SIGNATURE_LIST
+  is a trust anchor for the given PKCS#7 signature and is not revoked
+  by dbx.
 
-  A successful verification is when AuthenticodeVerify returns TRUE for the cert in the `db` and
-  the hash of that cert's TBSCertificate is not found in the `dbx`.
+  Lists whose SignatureType is not gEfiCertX509Guid are ignored.
 
-  Records a successful verification by setting Search->Verified to TRUE and returning EFI_ABORTED
-  to short circuit the walk. Otherwise this always returns EFI_SUCCESS so the walk continues until
-  all EFI_SIGNATURE_LIST entries of SignatureType gEfiCertX509Guid have been checked.
+  @param[in]  List           Candidate list of X.509 certificates (an
+                             EFI_SIGNATURE_LIST).
+  @param[in]  AuthData       DER-encoded PKCS#7 SignedData.
+  @param[in]  AuthDataSize   Size of AuthData in bytes.
+  @param[in]  ImageHash      Authenticode digest of the image.
+  @param[in]  ImageHashSize  Size of ImageHash in bytes.
+  @param[in]  Dbx            Raw dbx contents, or NULL.
+  @param[in]  DbxSize        Size of Dbx in bytes; 0 when Dbx is NULL.
+
+  @retval TRUE   At least one entry verifies AuthData and is not revoked.
+  @retval FALSE  No entry verifies AuthData (or all that do are revoked).
 **/
-EFI_STATUS
-EFIAPI
-VerifyAuthDataAgainstX509ListCallback (
-  IN CONST EFI_SIGNATURE_LIST  *List,
-  IN VOID                      *Context  OPTIONAL
+STATIC
+BOOLEAN
+IsPkcs7SignatureVerifiedByX509 (
+  IN  CONST EFI_SIGNATURE_LIST  *List,
+  IN  CONST UINT8               *AuthData,
+  IN  UINTN                     AuthDataSize,
+  IN  CONST UINT8               *ImageHash,
+  IN  UINTN                     ImageHashSize,
+  IN  CONST VOID                *Dbx,
+  IN  UINTN                     DbxSize
   )
 {
-  VERIFY_X509_CTX           *Search;
-  UINTN                     EntryCount;
-  CONST UINT8               *EntryCursor;
+  SIG_LIST_ITER             Iter;
   CONST EFI_SIGNATURE_DATA  *Entry;
   CONST UINT8               *TrustedCert;
   UINTN                     CertSize;
-  UINTN                     Index;
-
-  if (Context == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
 
   //
   // We only care about X.509 certificate EFI_SIGNATURE_LISTs.
   //
   if (!CompareGuid (&List->SignatureType, &gEfiCertX509Guid)) {
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  Search = (VERIFY_X509_CTX *)Context;
-
   //
-  // If the signature size is less then an EFI_GUID, it is malformed and should be skipped.
+  // If the signature size is less than or equal to an EFI_GUID there
+  // is no cert payload to inspect.
   //
   if (List->SignatureSize <= sizeof (EFI_GUID)) {
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  //
-  // Iterate through each X.509 certificate in the EFI_SIGNATURE_LIST
-  //
-  EntryCount = (List->SignatureListSize
-                - sizeof (EFI_SIGNATURE_LIST)
-                - List->SignatureHeaderSize) / List->SignatureSize;
-  EntryCursor = (CONST UINT8 *)List
-                + sizeof (EFI_SIGNATURE_LIST)
-                + List->SignatureHeaderSize;
+  if (EFI_ERROR (SigListIterInit (&Iter, List))) {
+    return FALSE;
+  }
 
-  for (Index = 0; Index < EntryCount; Index++) {
-    Entry       = (CONST EFI_SIGNATURE_DATA *)EntryCursor;
+  CertSize = List->SignatureSize - sizeof (EFI_GUID);
+
+  while ((Entry = SigListIterNext (&Iter)) != NULL) {
     TrustedCert = Entry->SignatureData;
-    CertSize    = List->SignatureSize - sizeof (EFI_GUID);
 
-    //
-    // Check if this X.509 certificate is a trust anchor for the PKCS#7 signature provided by the
-    // callback context.
-    //
-    if (AuthenticodeVerify (
-          Search->AuthData,
-          Search->AuthDataSize,
-          TrustedCert,
-          CertSize,
-          Search->ImageHash,
-          Search->ImageHashSize
-          ))
+    if (!AuthenticodeVerify (
+           AuthData,
+           AuthDataSize,
+           TrustedCert,
+           CertSize,
+           ImageHash,
+           ImageHashSize
+           ))
     {
-      //
-      // The certificate is a valid trust anchor, make sure the TBS certificate is not revoked.
-      //
-      if (!IsCertHashFoundInDbx (TrustedCert, CertSize, Search->Dbx, Search->DbxSize)) {
-        //
-        // Match found and cert is not revoked; set verified and short circuit the walk.
-        //
-        Search->Verified = TRUE;
-        return EFI_ABORTED;
-      }
-
-      DEBUG ((DEBUG_INFO, "DxeImageVerificationLib: signing cert hash present in dbx; rejected.\n"));
+      continue;
     }
 
-    EntryCursor += List->SignatureSize;
+    //
+    // The certificate is a valid trust anchor; make sure its TBS
+    // certificate is not revoked.
+    //
+    if (IsCertHashFoundInDbx (TrustedCert, CertSize, Dbx, DbxSize)) {
+      DEBUG ((DEBUG_INFO, "DxeImageVerificationLib: signing cert hash present in dbx; rejected.\n"));
+      continue;
+    }
+
+    return TRUE;
   }
 
-  return EFI_SUCCESS;
+  return FALSE;
 }
 
-//
-// Context passed to VerifyImageSignatureCallback while walking the
-// image's attribute certificate table. The callback uses Db to
-// authenticate each AuthData; on the first verification success whose
-// signing certificate is not revoked by Dbx it flips Authorized and
-// aborts the walk.
-//
-typedef struct {
-  CONST VOID            *Db;
-  UINTN                 DbSize;
-  CONST VOID            *Dbx;
-  UINTN                 DbxSize;
-  IMAGE_DIGEST_CACHE    *Cache;
-  BOOLEAN               Authorized;
-} AUTHORIZE_SIG_CTX;
-
 /**
-  WalkImageSignatures callback that checks if any X509 certificates in the `db` are a trust anchor
-  for the current PKCS#7 signature (AuthData/AuthDataSize).
+  Determine whether a single PKCS#7 image signature is authorized by db
+  and not revoked by dbx.
 
-  If a trust anchor is found, check the dbx to ensure the certificate is not revoked. The image is
-  only authorized if a certificate in the `db` is both a trust anchor for the current signature and
-  not revoked.
+  Computes the Authenticode digest matching the signature's hash
+  algorithm using Cache, then walks db looking for an X.509 trust
+  anchor that verifies the signature whose TBS hash is not present in
+  dbx.
 
-  Records a successful verification by setting Ctx->Authorized to TRUE and returning EFI_ABORTED to
-  short circuit the walk. Otherwise this always returns EFI_SUCCESS so the walk continues so that
-  all signatures are checked.
+  @param[in]      AuthData      DER-encoded PKCS#7 SignedData.
+  @param[in]      AuthDataSize  Size of AuthData in bytes.
+  @param[in]      Db            Raw db contents, or NULL.
+  @param[in]      DbSize        Size of Db in bytes; 0 when Db is NULL.
+  @param[in]      Dbx           Raw dbx contents, or NULL.
+  @param[in]      DbxSize       Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in,out]  Cache         Caller-owned digest cache bound to the
+                                image being validated.
+
+  @retval TRUE   The signature is authorized.
+  @retval FALSE  The signature is not authorized, or the image digest
+                 could not be computed.
 **/
-EFI_STATUS
-EFIAPI
-VerifyImageSignatureCallback (
-  IN CONST UINT8  *AuthData,
-  IN UINTN        AuthDataSize,
-  IN VOID         *Context  OPTIONAL
+STATIC
+BOOLEAN
+IsPkcs7SignatureAuthorizedByDb (
+  IN     CONST UINT8         *AuthData,
+  IN     UINTN               AuthDataSize,
+  IN     CONST VOID          *Db,
+  IN     UINTN               DbSize,
+  IN     CONST VOID          *Dbx,
+  IN     UINTN               DbxSize,
+  IN OUT IMAGE_DIGEST_CACHE  *Cache
   )
 {
-  EFI_STATUS         Status;
-  AUTHORIZE_SIG_CTX  *Ctx;
-  EFI_GUID           HashType;
-  CONST UINT8        *ImageHash;
-  UINTN              ImageHashSize;
-  VERIFY_X509_CTX    Search;
-
-  if (Context == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Ctx = (AUTHORIZE_SIG_CTX *)Context;
+  EFI_STATUS                Status;
+  EFI_GUID                  HashType;
+  CONST UINT8               *ImageHash;
+  UINTN                     ImageHashSize;
+  SIG_DATABASE_ITER         Iter;
+  CONST EFI_SIGNATURE_LIST  *List;
 
   //
-  // Get the hash algorithm this signature uses and compute the image digest if we haven't already.
-  // Failure to do either step is logged and treated as a non-verifying signatures. We will
-  // continue to walk the rest of the signatures.
+  // Get the hash algorithm this signature uses and compute the image
+  // digest if we haven't already. Failure to do either step is treated
+  // as a non-verifying signature.
   //
   Status = GetAuthenticodeHashAlgorithm (AuthData, AuthDataSize, &HashType);
   if (EFI_ERROR (Status)) {
@@ -254,151 +177,104 @@ VerifyImageSignatureCallback (
       "DxeImageVerificationLib: skipping signature; GetAuthenticodeHashAlgorithm failed (%r).\n",
       Status
       ));
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  Status = GetOrComputeAuthenticodeHash (&HashType, Ctx->Cache, &ImageHash, &ImageHashSize);
+  Status = GetOrComputeAuthenticodeHash (&HashType, Cache, &ImageHash, &ImageHashSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((
       DEBUG_WARN,
       "DxeImageVerificationLib: skipping signature; GetOrComputeAuthenticodeHash failed (%r).\n",
       Status
       ));
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  Search = (VERIFY_X509_CTX) {
-    .AuthData      = AuthData,
-    .AuthDataSize  = AuthDataSize,
-    .ImageHash     = ImageHash,
-    .ImageHashSize = ImageHashSize,
-    .Dbx           = Ctx->Dbx,
-    .DbxSize       = Ctx->DbxSize,
-    .Verified      = FALSE
-  };
-
-  //
-  // Walk db looking for an X509 certificate that is a trust anchor for this signature.
-  //
-  Status = WalkSignatureDatabase (
-             Ctx->Db,
-             Ctx->DbSize,
-             VerifyAuthDataAgainstX509ListCallback,
-             &Search
-             );
-  //
-  // EFI_ABORTED is a short circuit, not an error; translate it back to success and continue.
-  //
-  if (Status == EFI_ABORTED) {
-    Status = EFI_SUCCESS;
+  if (EFI_ERROR (DatabaseIterInit (&Iter, Db, DbSize))) {
+    return FALSE;
   }
 
-  if (EFI_ERROR (Status)) {
-    return Status;
+  while ((List = DatabaseIterNext (&Iter)) != NULL) {
+    if (IsPkcs7SignatureVerifiedByX509 (
+          List,
+          AuthData,
+          AuthDataSize,
+          ImageHash,
+          ImageHashSize,
+          Dbx,
+          DbxSize
+          ))
+    {
+      return TRUE;
+    }
   }
 
-  //
-  // This funciton is a callback for every signature in the image. Short circuit on the first
-  // verifying signature since that's sufficient to authorize the image.
-  //
-  if (Search.Verified) {
-    Ctx->Authorized = TRUE;
-    return EFI_ABORTED;
-  }
-
-  return EFI_SUCCESS;
+  return FALSE;
 }
 
-//
-// Context passed to CertHashSearchCallback while walking dbx. The
-// callback compares the SHA-256/384/512 digest of TBSCert against
-// every gEfiCertX509Sha{256,384,512}Guid entry it encounters and
-// records the first match.
-//
-typedef struct {
-  CONST UINT8    *TBSCert;
-  UINTN          TBSCertSize;
-  BOOLEAN        Found;
-} CERT_HASH_SEARCH_CTX;
-
 /**
-  WalkSignatureDatabase callback that searches the dbx for a hash of a
-  candidate X.509 certificate's TBSCertificate.
+  Hash a TBSCertificate buffer with the algorithm associated with the
+  signature list type, then look for the digest in the list's entries.
 
   Lists whose SignatureType is not one of gEfiCertX509Sha256Guid /
-  gEfiCertX509Sha384Guid / gEfiCertX509Sha512Guid are ignored. For
-  matching lists the TBSCert is hashed with the corresponding
-  algorithm and compared against the leading digest bytes of every
-  entry. The first match flips Search->Found and returns EFI_ABORTED
-  so the database walk terminates immediately.
+  gEfiCertX509Sha384Guid / gEfiCertX509Sha512Guid are skipped. Each
+  entry is laid out as `EFI_GUID owner | digest | EFI_TIME`; only the
+  digest portion is compared.
+
+  @param[in]  List         The signature list to inspect.
+  @param[in]  TBSCert      DER-encoded TBSCertificate to hash.
+  @param[in]  TBSCertSize  Size of TBSCert in bytes.
+
+  @retval TRUE   Digest found in this list.
+  @retval FALSE  Digest not found, list type unsupported, or hash failed.
 **/
-EFI_STATUS
-EFIAPI
-CertHashSearchCallback (
-  IN CONST EFI_SIGNATURE_LIST  *List,
-  IN VOID                      *Context  OPTIONAL
+STATIC
+BOOLEAN
+IsTbsCertHashInList (
+  IN  CONST EFI_SIGNATURE_LIST  *List,
+  IN  CONST UINT8               *TBSCert,
+  IN  UINTN                     TBSCertSize
   )
 {
-  CERT_HASH_SEARCH_CTX      *Search;
   UINTN                     DigestSize;
   UINT8                     CertDigest[SHA512_DIGEST_SIZE];
   BOOLEAN                   HashOk;
-  UINTN                     EntryCount;
-  CONST UINT8               *EntryCursor;
+  SIG_LIST_ITER             Iter;
   CONST EFI_SIGNATURE_DATA  *Entry;
-  UINTN                     Index;
-
-  if (Context == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Search = (CERT_HASH_SEARCH_CTX *)Context;
 
   if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha256Guid)) {
     DigestSize = SHA256_DIGEST_SIZE;
-    HashOk     = Sha256HashAll (Search->TBSCert, Search->TBSCertSize, CertDigest);
+    HashOk     = Sha256HashAll (TBSCert, TBSCertSize, CertDigest);
   } else if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha384Guid)) {
     DigestSize = SHA384_DIGEST_SIZE;
-    HashOk     = Sha384HashAll (Search->TBSCert, Search->TBSCertSize, CertDigest);
+    HashOk     = Sha384HashAll (TBSCert, TBSCertSize, CertDigest);
   } else if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha512Guid)) {
     DigestSize = SHA512_DIGEST_SIZE;
-    HashOk     = Sha512HashAll (Search->TBSCert, Search->TBSCertSize, CertDigest);
+    HashOk     = Sha512HashAll (TBSCert, TBSCertSize, CertDigest);
   } else {
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
   if (!HashOk) {
     DEBUG ((DEBUG_WARN, "DxeImageVerificationLib: TBS cert hash failed; skipping list.\n"));
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  //
-  // Each entry is laid out as `EFI_GUID owner | digest | EFI_TIME`. We
-  // only compare the digest portion; the EFI_TIME (revocation time)
-  // is intentionally ignored.
-  //
   if (List->SignatureSize < sizeof (EFI_GUID) + DigestSize) {
-    return EFI_SUCCESS;
+    return FALSE;
   }
 
-  EntryCount = (List->SignatureListSize
-                - sizeof (EFI_SIGNATURE_LIST)
-                - List->SignatureHeaderSize) / List->SignatureSize;
-  EntryCursor = (CONST UINT8 *)List
-                + sizeof (EFI_SIGNATURE_LIST)
-                + List->SignatureHeaderSize;
+  if (EFI_ERROR (SigListIterInit (&Iter, List))) {
+    return FALSE;
+  }
 
-  for (Index = 0; Index < EntryCount; Index++) {
-    Entry = (CONST EFI_SIGNATURE_DATA *)EntryCursor;
+  while ((Entry = SigListIterNext (&Iter)) != NULL) {
     if (CompareMem (Entry->SignatureData, CertDigest, DigestSize) == 0) {
-      Search->Found = TRUE;
-      return EFI_ABORTED;
+      return TRUE;
     }
-
-    EntryCursor += List->SignatureSize;
   }
 
-  return EFI_SUCCESS;
+  return FALSE;
 }
 
 /**
@@ -427,10 +303,10 @@ IsCertHashFoundInDbx (
   IN  UINTN        DbxSize
   )
 {
-  EFI_STATUS            Status;
-  CERT_HASH_SEARCH_CTX  Search;
-  UINT8                 *TBSCert;
-  UINTN                 TBSCertSize;
+  UINT8                     *TBSCert;
+  UINTN                     TBSCertSize;
+  SIG_DATABASE_ITER         Iter;
+  CONST EFI_SIGNATURE_LIST  *List;
 
   if ((Dbx == NULL) || (DbxSize == 0)) {
     return FALSE;
@@ -441,140 +317,18 @@ IsCertHashFoundInDbx (
     return TRUE;
   }
 
-  Search = (CERT_HASH_SEARCH_CTX) {
-    .TBSCert     = TBSCert,
-    .TBSCertSize = TBSCertSize,
-    .Found       = FALSE
-  };
-
-  Status = WalkSignatureDatabase (Dbx, DbxSize, CertHashSearchCallback, &Search);
-  //
-  // CertHashSearchCallback returns EFI_ABORTED to stop the walk on
-  // the first match; translate it back.
-  //
-  if (Status == EFI_ABORTED) {
-    Status = EFI_SUCCESS;
-  }
-
-  if (EFI_ERROR (Status)) {
-    DEBUG ((
-      DEBUG_WARN,
-      "DxeImageVerificationLib: dbx walk failed (%r); treating cert as revoked.\n",
-      Status
-      ));
+  if (EFI_ERROR (DatabaseIterInit (&Iter, Dbx, DbxSize))) {
+    DEBUG ((DEBUG_WARN, "DxeImageVerificationLib: dbx is malformed; treating cert as revoked.\n"));
     return TRUE;
   }
 
-  return Search.Found;
-}
-
-/**
-  Walk a PE/COFF image's security data directory and invoke a callback for each PKCS#7 signature.
-
-  @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]  FileSize    Size of FileBuffer in bytes.
-  @param[in]  SecDataDir  Security data directory describing the
-                          embedded WIN_CERTIFICATE table.
-  @param[in]  Callback    Invoked once per supported PKCS#7 signature.
-  @param[in]  Context     Opaque pointer passed unmodified to Callback.
-
-  @retval EFI_SUCCESS            The table was fully consumed and
-                                 Callback returned EFI_SUCCESS for
-                                 every invocation.
-  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
-  @retval EFI_VOLUME_CORRUPTED   The certificate table is structurally
-                                 invalid in a way that prevents safe
-                                 iteration.
-  @retval other                  First non-EFI_SUCCESS status returned
-                                 by Callback. Iteration stops
-                                 immediately.
-**/
-EFI_STATUS
-WalkImageSignatures (
-  IN  CONST VOID                      *FileBuffer,
-  IN  UINTN                           FileSize,
-  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir,
-  IN  IMAGE_SIGNATURE_CALLBACK        Callback,
-  IN  VOID                            *Context  OPTIONAL
-  )
-{
-  CONST UINT8            *Cursor;
-  UINTN                  Remaining;
-  CONST WIN_CERTIFICATE  *Cert;
-  UINTN                  EntrySize;
-  CONST UINT8            *AuthData;
-  UINTN                  AuthDataSize;
-  EFI_STATUS             Status;
-
-  if ((FileBuffer == NULL) || (SecDataDir == NULL) || (Callback == NULL)) {
-    return EFI_INVALID_PARAMETER;
+  while ((List = DatabaseIterNext (&Iter)) != NULL) {
+    if (IsTbsCertHashInList (List, TBSCert, TBSCertSize)) {
+      return TRUE;
+    }
   }
 
-  //
-  // The Security data directory must lie entirely within the file buffer provided by the caller.
-  //
-  if ((SecDataDir->VirtualAddress > FileSize) ||
-      (SecDataDir->Size > FileSize - SecDataDir->VirtualAddress))
-  {
-    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: provided security data directory is out of bounds of the file.\n"));
-    return EFI_VOLUME_CORRUPTED;
-  }
-
-  Cursor    = (CONST UINT8 *)FileBuffer + SecDataDir->VirtualAddress;
-  Remaining = SecDataDir->Size;
-
-  while (Remaining >= sizeof (WIN_CERTIFICATE)) {
-    Cert = (CONST WIN_CERTIFICATE *)(CONST VOID *)Cursor;
-
-    //
-    // dwLength is the total bytes of this entry including the WIN_CERTIFICATE header.
-    // Entries that don't cover their own header, or extend past the remaining table size
-    // indicate the data directory layout is corrupted. Abort the walk completely.
-    //
-    if ((Cert->dwLength < sizeof (WIN_CERTIFICATE)) ||
-        (Cert->dwLength > Remaining))
-    {
-      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: malformed WIN_CERTIFICATE dwLength.\n"));
-      return EFI_VOLUME_CORRUPTED;
-    }
-
-    Status = GetWinCertificateAuthData (Cert, &AuthData, &AuthDataSize);
-    if (Status == EFI_SUCCESS) {
-      Status = Callback (AuthData, AuthDataSize, Context);
-      if (EFI_ERROR (Status)) {
-        return Status;
-      }
-    } else {
-      //
-      // Skip unsupported certificate types and per-entry corruption
-      // (dwLength too small for the declared type header). Continuing
-      // here preserves legacy behavior and avoids masking later
-      // callback-reported failures behind a single bad entry.
-      //
-      DEBUG ((
-        DEBUG_WARN,
-        "DxeImageVerificationLib: skipping WIN_CERTIFICATE (type=0x%04x, status=%r).\n",
-        Cert->wCertificateType,
-        Status
-        ));
-    }
-
-    //
-    // Each entry is padded to an 8-byte boundary. The rounded-up size
-    // may exceed Remaining if the final entry uses up the rest of the
-    // table without padding; clamp to Remaining in that case so the
-    // walk terminates cleanly.
-    //
-    EntrySize = ALIGN_VALUE (Cert->dwLength, 8);
-    if (EntrySize > Remaining) {
-      EntrySize = Remaining;
-    }
-
-    Cursor    += EntrySize;
-    Remaining -= EntrySize;
-  }
-
-  return EFI_SUCCESS;
+  return FALSE;
 }
 
 /**
@@ -692,9 +446,12 @@ IsSignedImageAuthorized (
   IN OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
-  EFI_STATUS         Status;
-  BOOLEAN            IsFound;
-  AUTHORIZE_SIG_CTX  SigCtx;
+  EFI_STATUS             Status;
+  BOOLEAN                IsFound;
+  WIN_CERT_ITER          CertIter;
+  CONST WIN_CERTIFICATE  *Cert;
+  CONST UINT8            *AuthData;
+  UINTN                  AuthDataSize;
 
   if ((SecDataDir == NULL) || (Cache == NULL) || (Cache->FileBuffer == NULL) ||
       (Cache->FileSize == 0) || (Action == NULL))
@@ -708,39 +465,41 @@ IsSignedImageAuthorized (
   //
   Status = IsImageDigestFoundInDatabase (Db, DbSize, Cache, &IsFound);
   if (!EFI_ERROR (Status) && IsFound) {
+    *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
     return TRUE;
   }
 
   //
-  // Check if any X509 certificates in the `db` are a trust anchor for any of the image's
-  // signatures. If so, the image is marked as authorized.
+  // Walk the image's attribute certificate table. For each supported PKCS#7 signature, check
+  // whether any X509 certificate in `db` is a trust anchor and not revoked by `dbx`.
   //
-  SigCtx = (AUTHORIZE_SIG_CTX) {
-    .Db         = Db,
-    .DbSize     = DbSize,
-    .Dbx        = Dbx,
-    .DbxSize    = DbxSize,
-    .Cache      = Cache,
-    .Authorized = FALSE
-  };
-
-  Status = WalkImageSignatures (
+  Status = WinCertIterInit (
+             &CertIter,
              Cache->FileBuffer,
              Cache->FileSize,
-             SecDataDir,
-             VerifyImageSignatureCallback,
-             &SigCtx
+             SecDataDir
              );
-  //
-  // EFI_ABORTED is returned to short-circuit the walk once a trust anchor is found, so convert it
-  // to EFI_SUCCESS.
-  //
-  if (Status == EFI_ABORTED) {
-    Status = EFI_SUCCESS;
+  if (EFI_ERROR (Status)) {
+    *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND;
+    return FALSE;
   }
 
-  if (!EFI_ERROR (Status) && SigCtx.Authorized) {
-    return TRUE;
+  while ((Cert = WinCertIterNext (&CertIter)) != NULL) {
+    Status = GetWinCertificateAuthData (Cert, &AuthData, &AuthDataSize);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((
+        DEBUG_WARN,
+        "DxeImageVerificationLib: skipping WIN_CERTIFICATE (type=0x%04x, status=%r).\n",
+        Cert->wCertificateType,
+        Status
+        ));
+      continue;
+    }
+
+    if (IsPkcs7SignatureAuthorizedByDb (AuthData, AuthDataSize, Db, DbSize, Dbx, DbxSize, Cache)) {
+      *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
+      return TRUE;
+    }
   }
 
   *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND;

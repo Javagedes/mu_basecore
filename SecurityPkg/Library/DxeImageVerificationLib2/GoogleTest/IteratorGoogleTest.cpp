@@ -166,7 +166,7 @@ TEST (DatabaseIterNextTest, IteratesAllListsInOrder) {
   size_t              Off1, Off2, Off3;
 
   Off1 = AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
-  Off2 = AppendSignatureList (Buffer, gEfiCertX509Guid,   0, sizeof (EFI_GUID) + 8, 2);
+  Off2 = AppendSignatureList (Buffer, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 8, 2);
   Off3 = AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 3);
 
   ASSERT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_SUCCESS);
@@ -238,6 +238,7 @@ TEST (SigListIterInitTest, HeaderSizeExceedsList_ReturnsCorrupted) {
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Buffer.data ();
+
   List->SignatureHeaderSize = List->SignatureListSize;  // leaves no room
 
   EXPECT_EQ (SigListIterInit (&Iter, List), EFI_VOLUME_CORRUPTED);
@@ -300,7 +301,7 @@ TEST (SigListIterNextTest, IteratesEntriesWithCorrectStride) {
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, EntryCount);
 
-  EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Buffer.data ();
+  EFI_SIGNATURE_LIST  *List       = (EFI_SIGNATURE_LIST *)Buffer.data ();
   UINT8               *FirstEntry =
     (UINT8 *)List + sizeof (EFI_SIGNATURE_LIST) + List->SignatureHeaderSize;
 
@@ -324,9 +325,11 @@ TEST (SigListIterNextTest, RespectsSignatureHeaderSize) {
   AppendSignatureList (Buffer, gEfiCertSha256Guid, HeaderSize, kSha256EntrySize, 2);
 
   EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Buffer.data ();
+
   ASSERT_EQ (SigListIterInit (&Iter, List), EFI_SUCCESS);
 
   CONST EFI_SIGNATURE_DATA  *Entry = SigListIterNext (&Iter);
+
   ASSERT_NE (Entry, nullptr);
   EXPECT_EQ (
     (CONST UINT8 *)Entry,
@@ -360,8 +363,9 @@ AppendWinCert (
   UINT16              wCertificateType
   )
 {
-  const UINT32  Padded   = (UINT32)ALIGN_VALUE (dwLength, 8);
-  const size_t  Offset   = Dir.size ();
+  const UINT32  Padded = (UINT32)ALIGN_VALUE (dwLength, 8);
+  const size_t  Offset = Dir.size ();
+
   // Reserve the padded size so the next entry starts on an 8-byte boundary.
   Dir.resize (Offset + Padded, 0);
 
@@ -384,10 +388,10 @@ BuildImageWithDir (
   Img.Dir.VirtualAddress = (UINT32)Img.FileBuffer.size ();
   Img.Dir.Size           = (UINT32)DirContents.size ();
   Img.FileBuffer.insert (
-    Img.FileBuffer.end (),
-    DirContents.begin (),
-    DirContents.end ()
-    );
+                   Img.FileBuffer.end (),
+                   DirContents.begin (),
+                   DirContents.end ()
+                   );
 
   return Img;
 }
@@ -402,7 +406,7 @@ TEST (WinCertIterInitTest, NullParams_ReturnInvalidParameter) {
   EFI_IMAGE_DATA_DIRECTORY  Dir = { 0, 0 };
 
   EXPECT_EQ (WinCertIterInit (NULL, File.data (), File.size (), &Dir), EFI_INVALID_PARAMETER);
-  EXPECT_EQ (WinCertIterInit (&Iter, NULL,        File.size (), &Dir), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (WinCertIterInit (&Iter, NULL, File.size (), &Dir), EFI_INVALID_PARAMETER);
   EXPECT_EQ (WinCertIterInit (&Iter, File.data (), File.size (), NULL), EFI_INVALID_PARAMETER);
 }
 

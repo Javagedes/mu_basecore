@@ -14,27 +14,6 @@
 typedef struct _IMAGE_DIGEST_CACHE IMAGE_DIGEST_CACHE;
 
 /**
-  A callback that is executed by WalkSignatureDatabase once per
-  EFI_SIGNATURE_LIST in a signature database buffer.
-
-  Returning EFI_SUCCESS continues iteration. Returning any other status
-  stops the walk and the error is propagated to the caller.
-
-  @param[in]  List     The signature list currently being iterated.
-  @param[in]  Context  Caller-owned opaque pointer passed unmodified
-                       through WalkSignatureDatabase.
-
-  @retval EFI_SUCCESS            The list was processed successfully.
-  @retval other                  Callback-specific error.
-**/
-typedef
-EFI_STATUS
-(EFIAPI *SIGNATURE_LIST_CALLBACK)(
-  IN CONST EFI_SIGNATURE_LIST  *List,
-  IN VOID                      *Context  OPTIONAL
-  );
-
-/**
   Load a Secure Boot Signature Database into a pool-allocated buffer.
 
   The returned buffer is allocated using AllocatePool(). The caller is responsible for freeing
@@ -58,30 +37,6 @@ LoadSignatureDatabase (
   IN  CONST CHAR16  *DatabaseName,
   OUT VOID          **Buffer,
   OUT UINTN         *BufferSize
-  );
-
-/**
-  Walk a signature-database buffer, invoking Callback for every
-  well-formed EFI_SIGNATURE_LIST it contains.
-
-  @param[in]  Buffer      The raw database contents.
-  @param[in]  BufferSize  Size of Buffer in bytes.
-  @param[in]  Callback    Invoked once per EFI_SIGNATURE_LIST.
-  @param[in]  Context     Opaque pointer passed unmodified to Callback.
-
-  @retval EFI_SUCCESS            Buffer was fully consumed and Callback
-                                 returned EFI_SUCCESS for every list.
-  @retval EFI_INVALID_PARAMETER  Buffer or Callback is NULL.
-  @retval EFI_VOLUME_CORRUPTED   Buffer is structurally invalid.
-  @retval Other                  First non-EFI_SUCCESS status returned
-                                 by Callback. Iteration stops immediately.
-**/
-EFI_STATUS
-WalkSignatureDatabase (
-  IN  CONST VOID               *Buffer,
-  IN  UINTN                    BufferSize,
-  IN  SIGNATURE_LIST_CALLBACK  Callback,
-  IN  VOID                     *Context  OPTIONAL
   );
 
 /**

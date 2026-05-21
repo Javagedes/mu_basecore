@@ -194,8 +194,8 @@ SigListIterNext (
     return NULL;
   }
 
-  Entry          = (CONST EFI_SIGNATURE_DATA *)(CONST VOID *)Iter->Cursor;
-  Iter->Cursor  += Iter->Stride;
+  Entry         = (CONST EFI_SIGNATURE_DATA *)(CONST VOID *)Iter->Cursor;
+  Iter->Cursor += Iter->Stride;
   Iter->Remaining--;
   return Entry;
 }

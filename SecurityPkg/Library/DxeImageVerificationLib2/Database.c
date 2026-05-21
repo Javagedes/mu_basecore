@@ -6,6 +6,7 @@
 **/
 
 #include "Database.h"
+#include "Iterator.h"
 #include "Support.h"
 
 /**
@@ -52,179 +53,6 @@ LoadSignatureDatabase (
 }
 
 /**
-  Walk a signature-database buffer, invoking Callback for every
-  well-formed EFI_SIGNATURE_LIST it contains.
-
-  @param[in]  Buffer      The raw database contents.
-  @param[in]  BufferSize  Size of Buffer in bytes.
-  @param[in]  Callback    Invoked once per EFI_SIGNATURE_LIST.
-  @param[in]  Context     Opaque pointer passed unmodified to Callback.
-
-  @retval EFI_SUCCESS            Buffer was fully consumed and Callback
-                                 returned EFI_SUCCESS for every list.
-  @retval EFI_INVALID_PARAMETER  Buffer or Callback is NULL.
-  @retval EFI_VOLUME_CORRUPTED   Buffer is structurally invalid.
-  @retval Other                  First non-EFI_SUCCESS status returned
-                                 by Callback. Iteration stops immediately.
-**/
-EFI_STATUS
-WalkSignatureDatabase (
-  IN  CONST VOID               *Buffer,
-  IN  UINTN                    BufferSize,
-  IN  SIGNATURE_LIST_CALLBACK  Callback,
-  IN  VOID                     *Context  OPTIONAL
-  )
-{
-  CONST UINT8         *Cursor;
-  UINTN               Remaining;
-  EFI_SIGNATURE_LIST  *List;
-  UINTN               PayloadSize;
-  EFI_STATUS          CallbackStatus;
-
-  if ((Buffer == NULL) || (Callback == NULL)) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Cursor    = (CONST UINT8 *)Buffer;
-  Remaining = BufferSize;
-
-  while (Remaining >= sizeof (EFI_SIGNATURE_LIST)) {
-    List = (EFI_SIGNATURE_LIST *)(VOID *)Cursor;
-
-    //
-    // Outer header bounds: the list must declare at least the header
-    // size, and must fit inside what remains of the buffer.
-    //
-    if ((List->SignatureListSize < sizeof (EFI_SIGNATURE_LIST)) ||
-        (List->SignatureListSize > Remaining))
-    {
-      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: malformed signature list size.\n"));
-      return EFI_VOLUME_CORRUPTED;
-    }
-
-    //
-    // Header + per-list header must fit within the declared list size,
-    // and individual signatures must each be at least an EFI_GUID. The
-    // remaining payload must divide evenly into SignatureSize chunks.
-    //
-    if ((List->SignatureSize < sizeof (EFI_GUID)) ||
-        (List->SignatureHeaderSize > List->SignatureListSize - sizeof (EFI_SIGNATURE_LIST)))
-    {
-      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: malformed signature list fields.\n"));
-      return EFI_VOLUME_CORRUPTED;
-    }
-
-    PayloadSize = List->SignatureListSize
-                  - sizeof (EFI_SIGNATURE_LIST)
-                  - List->SignatureHeaderSize;
-    if ((PayloadSize % List->SignatureSize) != 0) {
-      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: signature payload not a multiple of SignatureSize.\n"));
-      return EFI_VOLUME_CORRUPTED;
-    }
-
-    CallbackStatus = Callback (List, Context);
-    if (EFI_ERROR (CallbackStatus)) {
-      return CallbackStatus;
-    }
-
-    Cursor    += List->SignatureListSize;
-    Remaining -= List->SignatureListSize;
-  }
-
-  if (Remaining != 0) {
-    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: trailing bytes in signature database.\n"));
-    return EFI_VOLUME_CORRUPTED;
-  }
-
-  return EFI_SUCCESS;
-}
-
-//
-// Per-walk context for IsImageDigestFoundInDatabase. The caller
-// provides Cache and clears Found; the walker callback updates Found
-// if a matching entry is encountered.
-//
-typedef struct {
-  IMAGE_DIGEST_CACHE    *Cache;
-  BOOLEAN               Found;
-} SIGNATURE_SEARCH_CTX;
-
-/**
-  Walker callback for IsImageDigestFoundInDatabase.
-
-  Records a match by setting Search->Found to TRUE and returning EFI_ABORTED
-  so the walk terminates early.
-**/
-STATIC
-EFI_STATUS
-EFIAPI
-ImageDigestSearchCallback (
-  IN CONST EFI_SIGNATURE_LIST  *List,
-  IN VOID                      *Context  OPTIONAL
-  )
-{
-  EFI_STATUS                Status;
-  SIGNATURE_SEARCH_CTX      *Search;
-  CONST UINT8               *Digest;
-  UINTN                     DigestSize;
-  UINTN                     EntryCount;
-  CONST UINT8               *EntryCursor;
-  CONST EFI_SIGNATURE_DATA  *Entry;
-  UINTN                     Index;
-
-  if (Context == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  Search = (SIGNATURE_SEARCH_CTX *)Context;
-
-  if (Search->Cache == NULL) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  //
-  // Ignore non-image-hash lists; they are not comparable against an
-  // Authenticode digest.
-  //
-  if (!IsKnownImageHashGuid (&List->SignatureType)) {
-    return EFI_SUCCESS;
-  }
-
-  Status = GetOrComputeAuthenticodeHash (
-             &List->SignatureType,
-             Search->Cache,
-             &Digest,
-             &DigestSize
-             );
-  if (EFI_ERROR (Status)) {
-    return Status;
-  }
-
-  if (List->SignatureSize != sizeof (EFI_GUID) + DigestSize) {
-    return EFI_SUCCESS;
-  }
-
-  EntryCount = (List->SignatureListSize
-                - sizeof (EFI_SIGNATURE_LIST)
-                - List->SignatureHeaderSize) / List->SignatureSize;
-  EntryCursor = (CONST UINT8 *)List
-                + sizeof (EFI_SIGNATURE_LIST)
-                + List->SignatureHeaderSize;
-
-  for (Index = 0; Index < EntryCount; Index++) {
-    Entry = (CONST EFI_SIGNATURE_DATA *)EntryCursor;
-    if (CompareMem (Entry->SignatureData, Digest, DigestSize) == 0) {
-      Search->Found = TRUE;
-      return EFI_ABORTED;
-    }
-
-    EntryCursor += List->SignatureSize;
-  }
-
-  return EFI_SUCCESS;
-}
-
-/**
   Search an image signature database buffer for a match against the
   image represented by Cache.
 
@@ -254,8 +82,13 @@ IsImageDigestFoundInDatabase (
   OUT BOOLEAN                *IsFound
   )
 {
-  EFI_STATUS            Status;
-  SIGNATURE_SEARCH_CTX  Search;
+  EFI_STATUS                Status;
+  SIG_DATABASE_ITER         DbIter;
+  SIG_LIST_ITER             ListIter;
+  CONST EFI_SIGNATURE_LIST  *List;
+  CONST EFI_SIGNATURE_DATA  *Entry;
+  CONST UINT8               *Digest;
+  UINTN                     DigestSize;
 
   if ((Cache == NULL) || (IsFound == NULL)) {
     return EFI_INVALID_PARAMETER;
@@ -271,30 +104,51 @@ IsImageDigestFoundInDatabase (
     return EFI_SUCCESS;
   }
 
-  Search = (SIGNATURE_SEARCH_CTX) {
-    .Cache = Cache,
-    .Found = FALSE
-  };
-
-  Status = WalkSignatureDatabase (
-             Database,
-             DatabaseSize,
-             ImageDigestSearchCallback,
-             &Search
-             );
-  //
-  // ImageDigestSearchCallback returns EFI_ABORTED to stop the walk
-  // once a match is recorded in Search.Found; translate it back here.
-  //
-  if (Status == EFI_ABORTED) {
-    Status = EFI_SUCCESS;
+  Status = DatabaseIterInit (&DbIter, Database, DatabaseSize);
+  if (EFI_ERROR (Status)) {
+    return Status;
   }
 
-  if (!EFI_ERROR (Status)) {
-    *IsFound = Search.Found;
+  while ((List = DatabaseIterNext (&DbIter)) != NULL) {
+    //
+    // Ignore non-image-hash lists; they are not comparable against an
+    // Authenticode digest.
+    //
+    if (!IsKnownImageHashGuid (&List->SignatureType)) {
+      continue;
+    }
+
+    Status = GetOrComputeAuthenticodeHash (
+               &List->SignatureType,
+               Cache,
+               &Digest,
+               &DigestSize
+               );
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    if (List->SignatureSize != sizeof (EFI_GUID) + DigestSize) {
+      continue;
+    }
+
+    //
+    // Skip lists whose internal layout is malformed; this is logged
+    // by SigListIterInit and does not abort the search.
+    //
+    if (EFI_ERROR (SigListIterInit (&ListIter, List))) {
+      continue;
+    }
+
+    while ((Entry = SigListIterNext (&ListIter)) != NULL) {
+      if (CompareMem (Entry->SignatureData, Digest, DigestSize) == 0) {
+        *IsFound = TRUE;
+        return EFI_SUCCESS;
+      }
+    }
   }
 
-  return Status;
+  return EFI_SUCCESS;
 }
 
 /**
