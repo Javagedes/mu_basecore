@@ -21,6 +21,7 @@
 [Sources]
   DatabaseGoogleTest.cpp
   DxeImageVerificationLibGoogleTest.cpp
+  IteratorGoogleTest.cpp
   PolicyGoogleTest.cpp
   SupportGoogleTest.cpp
   CertificateGoogleTest.cpp

@@ -36,6 +36,8 @@
   DxeImageVerificationLib.h
   Certificate.c
   Certificate.h
+  Iterator.c
+  Iterator.h
   Policy.c
   Policy.h
   Support.c
