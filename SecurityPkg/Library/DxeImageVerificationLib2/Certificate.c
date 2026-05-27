@@ -23,7 +23,7 @@
 // so that host-based unit tests can exercise them directly.
 //
 BOOLEAN
-IsCertHashFoundInDbx (
+IsX509HashInDbx (
   IN  CONST UINT8  *Cert,
   IN  UINTN        CertSize,
   IN  CONST VOID   *Dbx,
@@ -31,7 +31,7 @@ IsCertHashFoundInDbx (
   );
 
 EFI_STATUS
-GetWinCertificateAuthData (
+GetWinCertificatePkcs7AuthData (
   IN  CONST WIN_CERTIFICATE  *Cert,
   OUT CONST UINT8            **AuthData,
   OUT UINTN                  *AuthDataSize
@@ -47,18 +47,18 @@ GetWinCertificateAuthData (
   @param[in]  List           Candidate list of X.509 certificates (an
                              EFI_SIGNATURE_LIST).
   @param[in]  AuthData       DER-encoded PKCS#7 SignedData.
-  @param[in]  AuthDataSize   Size of AuthData in bytes.
+  @param[in]  AuthDataSize   BufferSize of AuthData in bytes.
   @param[in]  ImageHash      Authenticode digest of the image.
-  @param[in]  ImageHashSize  Size of ImageHash in bytes.
+  @param[in]  ImageHashSize  BufferSize of ImageHash in bytes.
   @param[in]  Dbx            Raw dbx contents, or NULL.
-  @param[in]  DbxSize        Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in]  DbxSize        BufferSize of Dbx in bytes; 0 when Dbx is NULL.
 
   @retval TRUE   At least one entry verifies AuthData and is not revoked.
   @retval FALSE  No entry verifies AuthData (or all that do are revoked).
 **/
 STATIC
 BOOLEAN
-IsPkcs7SignatureVerifiedByX509 (
+IsPkcs7AuthDataVerifiedByX509 (
   IN  CONST EFI_SIGNATURE_LIST  *List,
   IN  CONST UINT8               *AuthData,
   IN  UINTN                     AuthDataSize,
@@ -110,10 +110,9 @@ IsPkcs7SignatureVerifiedByX509 (
     }
 
     //
-    // The certificate is a valid trust anchor; make sure its TBS
-    // certificate is not revoked.
+    // The Authenticode signature is a valid trust anchor; make sure its not revoked
     //
-    if (IsCertHashFoundInDbx (TrustedCert, CertSize, Dbx, DbxSize)) {
+    if (IsX509HashInDbx (TrustedCert, CertSize, Dbx, DbxSize)) {
       DEBUG ((DEBUG_INFO, "DxeImageVerificationLib: signing cert hash present in dbx; rejected.\n"));
       continue;
     }
@@ -134,11 +133,11 @@ IsPkcs7SignatureVerifiedByX509 (
   dbx.
 
   @param[in]      AuthData      DER-encoded PKCS#7 SignedData.
-  @param[in]      AuthDataSize  Size of AuthData in bytes.
+  @param[in]      AuthDataSize  BufferSize of AuthData in bytes.
   @param[in]      Db            Raw db contents, or NULL.
-  @param[in]      DbSize        Size of Db in bytes; 0 when Db is NULL.
+  @param[in]      DbSize        BufferSize of Db in bytes; 0 when Db is NULL.
   @param[in]      Dbx           Raw dbx contents, or NULL.
-  @param[in]      DbxSize       Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in]      DbxSize       BufferSize of Dbx in bytes; 0 when Dbx is NULL.
   @param[in,out]  Cache         Caller-owned digest cache bound to the
                                 image being validated.
 
@@ -148,14 +147,14 @@ IsPkcs7SignatureVerifiedByX509 (
 **/
 STATIC
 BOOLEAN
-IsPkcs7SignatureAuthorizedByDb (
-  IN     CONST UINT8         *AuthData,
-  IN     UINTN               AuthDataSize,
-  IN     CONST VOID          *Db,
-  IN     UINTN               DbSize,
-  IN     CONST VOID          *Dbx,
-  IN     UINTN               DbxSize,
-  IN OUT IMAGE_DIGEST_CACHE  *Cache
+IsPkcs7AuthDataAuthorizedByDb (
+  IN     CONST UINT8   *AuthData,
+  IN     UINTN         AuthDataSize,
+  IN     CONST VOID    *Db,
+  IN     UINTN         DbSize,
+  IN     CONST VOID    *Dbx,
+  IN     UINTN         DbxSize,
+  IN OUT DIGEST_CACHE  *Cache
   )
 {
   EFI_STATUS                Status;
@@ -180,11 +179,11 @@ IsPkcs7SignatureAuthorizedByDb (
     return FALSE;
   }
 
-  Status = GetOrComputeAuthenticodeHash (&HashType, Cache, &ImageHash, &ImageHashSize);
+  Status = GetHash (&HashType, Cache, &ImageHash, &ImageHashSize);
   if (EFI_ERROR (Status)) {
     DEBUG ((
       DEBUG_WARN,
-      "DxeImageVerificationLib: skipping signature; GetOrComputeAuthenticodeHash failed (%r).\n",
+      "DxeImageVerificationLib: skipping signature; GetHash failed (%r).\n",
       Status
       ));
     return FALSE;
@@ -195,7 +194,7 @@ IsPkcs7SignatureAuthorizedByDb (
   }
 
   while ((List = DatabaseIterNext (&Iter)) != NULL) {
-    if (IsPkcs7SignatureVerifiedByX509 (
+    if (IsPkcs7AuthDataVerifiedByX509 (
           List,
           AuthData,
           AuthDataSize,
@@ -213,8 +212,9 @@ IsPkcs7SignatureAuthorizedByDb (
 }
 
 /**
-  Hash a TBSCertificate buffer with the algorithm associated with the
-  signature list type, then look for the digest in the list's entries.
+  Hash the cache-bound TBSCertificate buffer with the algorithm
+  associated with the signature list type, then look for the digest in
+  the list's entries.
 
   Lists whose SignatureType is not one of gEfiCertX509Sha256Guid /
   gEfiCertX509Sha384Guid / gEfiCertX509Sha512Guid are skipped. Each
@@ -222,41 +222,42 @@ IsPkcs7SignatureAuthorizedByDb (
   digest portion is compared.
 
   @param[in]  List         The signature list to inspect.
-  @param[in]  TBSCert      DER-encoded TBSCertificate to hash.
-  @param[in]  TBSCertSize  Size of TBSCert in bytes.
+  @param[in,out] HashCache Caller-owned digest cache bound to the
+                           certificate TBSCertificate buffer. Digest
+                           computation is performed at most once per
+                           supported hash algorithm.
 
   @retval TRUE   Digest found in this list.
   @retval FALSE  Digest not found, list type unsupported, or hash failed.
 **/
 STATIC
 BOOLEAN
-IsTbsCertHashInList (
+IsX509HashInList (
   IN  CONST EFI_SIGNATURE_LIST  *List,
-  IN  CONST UINT8               *TBSCert,
-  IN  UINTN                     TBSCertSize
+  IN OUT DIGEST_CACHE           *HashCache
   )
 {
+  EFI_STATUS                Status;
   UINTN                     DigestSize;
-  UINT8                     CertDigest[SHA512_DIGEST_SIZE];
-  BOOLEAN                   HashOk;
   SIG_LIST_ITER             Iter;
   CONST EFI_SIGNATURE_DATA  *Entry;
+  CONST UINT8               *CertDigest;
 
-  if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha256Guid)) {
-    DigestSize = SHA256_DIGEST_SIZE;
-    HashOk     = Sha256HashAll (TBSCert, TBSCertSize, CertDigest);
-  } else if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha384Guid)) {
-    DigestSize = SHA384_DIGEST_SIZE;
-    HashOk     = Sha384HashAll (TBSCert, TBSCertSize, CertDigest);
-  } else if (CompareGuid (&List->SignatureType, &gEfiCertX509Sha512Guid)) {
-    DigestSize = SHA512_DIGEST_SIZE;
-    HashOk     = Sha512HashAll (TBSCert, TBSCertSize, CertDigest);
-  } else {
+  if ((HashCache == NULL) ||
+      (HashCache->Type != DigestCacheTypeX509) ||
+      (HashCache->Buffer == NULL) ||
+      (HashCache->BufferSize == 0))
+  {
     return FALSE;
   }
 
-  if (!HashOk) {
-    DEBUG ((DEBUG_WARN, "DxeImageVerificationLib: TBS cert hash failed; skipping list.\n"));
+  Status = GetHash (&List->SignatureType, HashCache, &CertDigest, &DigestSize);
+  if (Status == EFI_UNSUPPORTED) {
+    return FALSE;
+  }
+
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_WARN, "DxeImageVerificationLib: X509 hash computation failed; skipping list (%r).\n", Status));
     return FALSE;
   }
 
@@ -284,19 +285,21 @@ IsTbsCertHashInList (
   When dbx is empty or absent the result is FALSE. Any failure that
   prevents a definitive answer (TBSCertificate cannot be extracted,
   dbx is malformed, etc.) is logged and reported as TRUE so callers
-  conservatively refuse to trust the certificate.
+  conservatively refuse to trust the certificate. Per call, X.509 digests
+  are cached by hash algorithm so repeated list types do not trigger
+  repeated hashing.
 
   @param[in]  Cert      DER-encoded X.509 certificate.
-  @param[in]  CertSize  Size of Cert in bytes.
+  @param[in]  CertSize  BufferSize of Cert in bytes.
   @param[in]  Dbx       Raw dbx contents, or NULL.
-  @param[in]  DbxSize   Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in]  DbxSize   BufferSize of Dbx in bytes; 0 when Dbx is NULL.
 
   @retval TRUE   The certificate hash was located in dbx, or an error
                  prevented a definitive answer.
   @retval FALSE  The certificate hash is not present in dbx.
 **/
 BOOLEAN
-IsCertHashFoundInDbx (
+IsX509HashInDbx (
   IN  CONST UINT8  *Cert,
   IN  UINTN        CertSize,
   IN  CONST VOID   *Dbx,
@@ -305,6 +308,7 @@ IsCertHashFoundInDbx (
 {
   UINT8                     *TBSCert;
   UINTN                     TBSCertSize;
+  DIGEST_CACHE              HashCache;
   SIG_DATABASE_ITER         Iter;
   CONST EFI_SIGNATURE_LIST  *List;
 
@@ -322,8 +326,13 @@ IsCertHashFoundInDbx (
     return TRUE;
   }
 
+  ZeroMem (&HashCache, sizeof (HashCache));
+  HashCache.Type   = DigestCacheTypeX509;
+  HashCache.Buffer = TBSCert;
+  HashCache.BufferSize   = TBSCertSize;
+
   while ((List = DatabaseIterNext (&Iter)) != NULL) {
-    if (IsTbsCertHashInList (List, TBSCert, TBSCertSize)) {
+    if (IsX509HashInList (List, &HashCache)) {
       return TRUE;
     }
   }
@@ -352,7 +361,7 @@ IsCertHashFoundInDbx (
                                  required header for the declared type.
 **/
 EFI_STATUS
-GetWinCertificateAuthData (
+GetWinCertificatePkcs7AuthData (
   IN  CONST WIN_CERTIFICATE  *Cert,
   OUT CONST UINT8            **AuthData,
   OUT UINTN                  *AuthDataSize
@@ -408,7 +417,7 @@ GetWinCertificateAuthData (
 
   Authorization succeeds when at least one of the image's embedded
   signatures (or one of its image hashes) is reflected in `db`. The
-  shared IMAGE_DIGEST_CACHE is used to avoid recomputing Authenticode
+  shared DIGEST_CACHE is used to avoid recomputing Authenticode
   digests across signature-list iterations. On a definitive outcome the
   function updates `*Action` with the corresponding
   EFI_IMAGE_EXECUTION_ACTION value.
@@ -417,13 +426,13 @@ GetWinCertificateAuthData (
                               embedded WIN_CERTIFICATE table.
   @param[in]      Db          Raw `db` signature database contents, or
                               NULL when the variable is absent.
-  @param[in]      DbSize      Size of Db in bytes; 0 when Db is NULL.
+  @param[in]      DbSize      BufferSize of Db in bytes; 0 when Db is NULL.
   @param[in]      Dbx         Raw `dbx` signature database contents, or
                               NULL when the variable is absent. Used to
                               reject signing certificates and image
                               hashes that have been revoked even when
                               they would otherwise authorize the image.
-  @param[in]      DbxSize     Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in]      DbxSize     BufferSize of Dbx in bytes; 0 when Dbx is NULL.
   @param[in,out]  Cache       Caller-owned digest cache bound to the
                               image being validated. The image buffer
                               and size are taken from the cache.
@@ -442,7 +451,7 @@ IsSignedImageAuthorized (
   IN     UINTN                           DbSize,
   IN     CONST VOID                      *Dbx,
   IN     UINTN                           DbxSize,
-  IN OUT IMAGE_DIGEST_CACHE              *Cache,
+  IN OUT DIGEST_CACHE                    *Cache,
   IN OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
@@ -453,8 +462,8 @@ IsSignedImageAuthorized (
   CONST UINT8            *AuthData;
   UINTN                  AuthDataSize;
 
-  if ((SecDataDir == NULL) || (Cache == NULL) || (Cache->FileBuffer == NULL) ||
-      (Cache->FileSize == 0) || (Action == NULL))
+  if ((SecDataDir == NULL) || (Cache == NULL) || (Cache->Buffer == NULL) ||
+      (Cache->BufferSize == 0) || (Action == NULL))
   {
     return FALSE;
   }
@@ -463,20 +472,16 @@ IsSignedImageAuthorized (
   // An image whose authenticode digest is found in db is authorized. No need to check the
   // security data directory and we can return early.
   //
-  Status = IsImageDigestFoundInDatabase (Db, DbSize, Cache, &IsFound);
+  Status = IsImageDigestInDatabase (Db, DbSize, Cache, &IsFound);
   if (!EFI_ERROR (Status) && IsFound) {
     *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
     return TRUE;
   }
 
-  //
-  // Walk the image's attribute certificate table. For each supported PKCS#7 signature, check
-  // whether any X509 certificate in `db` is a trust anchor and not revoked by `dbx`.
-  //
   Status = WinCertIterInit (
              &CertIter,
-             Cache->FileBuffer,
-             Cache->FileSize,
+             Cache->Buffer,
+             Cache->BufferSize,
              SecDataDir
              );
   if (EFI_ERROR (Status)) {
@@ -484,8 +489,13 @@ IsSignedImageAuthorized (
     return FALSE;
   }
 
+  //
+  // Walk the image's security data directory (N sized list of WIN_CERTIFICATEs). For each
+  // supported PKCS#7 signature, check whether any X509 certificate in `db` is a trust anchor and
+  // not revoked by `dbx`.
+  //
   while ((Cert = WinCertIterNext (&CertIter)) != NULL) {
-    Status = GetWinCertificateAuthData (Cert, &AuthData, &AuthDataSize);
+    Status = GetWinCertificatePkcs7AuthData (Cert, &AuthData, &AuthDataSize);
     if (EFI_ERROR (Status)) {
       DEBUG ((
         DEBUG_WARN,
@@ -496,7 +506,7 @@ IsSignedImageAuthorized (
       continue;
     }
 
-    if (IsPkcs7SignatureAuthorizedByDb (AuthData, AuthDataSize, Db, DbSize, Dbx, DbxSize, Cache)) {
+    if (IsPkcs7AuthDataAuthorizedByDb (AuthData, AuthDataSize, Db, DbSize, Dbx, DbxSize, Cache)) {
       *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
       return TRUE;
     }
@@ -512,7 +522,7 @@ IsSignedImageAuthorized (
 
   Revocation succeeds (returns TRUE) when any of the image's embedded
   signatures, signing certificates, or image hashes are reflected in
-  `dbx`. The shared IMAGE_DIGEST_CACHE is reused so that digests
+  `dbx`. The shared DIGEST_CACHE is reused so that digests
   computed during the authorization check are not recomputed here. On a
   definitive outcome the function updates `*Action` with the
   corresponding EFI_IMAGE_EXECUTION_ACTION value.
@@ -521,7 +531,7 @@ IsSignedImageAuthorized (
                               embedded WIN_CERTIFICATE table.
   @param[in]      Dbx         Raw `dbx` signature database contents, or
                               NULL when the variable is absent.
-  @param[in]      DbxSize     Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[in]      DbxSize     BufferSize of Dbx in bytes; 0 when Dbx is NULL.
   @param[in,out]  Cache       Caller-owned digest cache bound to the
                               image being validated. The image buffer
                               and size are taken from the cache.
@@ -537,12 +547,12 @@ IsSignedImageRevoked (
   IN     CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir,
   IN     CONST VOID                      *Dbx,
   IN     UINTN                           DbxSize,
-  IN OUT IMAGE_DIGEST_CACHE              *Cache,
+  IN OUT DIGEST_CACHE                    *Cache,
   IN OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
-  if ((SecDataDir == NULL) || (Cache == NULL) || (Cache->FileBuffer == NULL) ||
-      (Cache->FileSize == 0) || (Action == NULL))
+  if ((SecDataDir == NULL) || (Cache == NULL) || (Cache->Buffer == NULL) ||
+      (Cache->BufferSize == 0) || (Action == NULL))
   {
     return FALSE;
   }

@@ -29,13 +29,44 @@
 #define MAX_DIGEST_SIZE  SHA512_DIGEST_SIZE
 
 //
-// Supported image hash algorithms defined via their GUID.
+// Signature of BaseCryptLib's one-shot hash helpers (Sha256HashAll, etc.).
+// Used by HASH_ALGORITHM to drive both image-hash and X.509
+// TBSCertificate hashing from a single descriptor table.
 //
-STATIC CONST EFI_GUID  *CONST  mKnownImageHashGuids[] = {
-  &gEfiCertSha1Guid,
-  &gEfiCertSha256Guid,
-  &gEfiCertSha384Guid,
-  &gEfiCertSha512Guid
+typedef
+BOOLEAN
+(EFIAPI *HASH_ALL_FN)(
+  IN  CONST VOID  *Data,
+  IN  UINTN       DataSize,
+  OUT UINT8       *HashValue
+  );
+
+//
+// Descriptor for a supported image hash algorithm. ImageHashGuid is
+// the EFI_SIGNATURE_LIST::SignatureType used for raw image-hash
+// entries in db/dbx (e.g. gEfiCertSha256Guid). X509CertHashGuid is
+// the corresponding "X.509 cert hashed with this algorithm"
+// SignatureType used to revoke certificates by TBS hash in dbx
+// (e.g. gEfiCertX509Sha256Guid); NULL when no such SignatureType
+// is defined for this algorithm (SHA-1).
+//
+typedef struct {
+  CONST CHAR8       *Name;
+  CONST EFI_GUID    *ImageHashGuid;
+  CONST EFI_GUID    *X509CertHashGuid;
+  HASH_ALL_FN       HashAll;
+  UINTN             DigestSize;
+} HASH_ALGORITHM;
+
+//
+// Supported image hash algorithms. The order of this table defines
+// the slot order in DIGEST_CACHE::Entries.
+//
+STATIC CONST HASH_ALGORITHM  mHashAlgorithms[] = {
+  { "SHA1",   &gEfiCertSha1Guid,   NULL,                    Sha1HashAll,   SHA1_DIGEST_SIZE   },
+  { "SHA256", &gEfiCertSha256Guid, &gEfiCertX509Sha256Guid, Sha256HashAll, SHA256_DIGEST_SIZE },
+  { "SHA384", &gEfiCertSha384Guid, &gEfiCertX509Sha384Guid, Sha384HashAll, SHA384_DIGEST_SIZE },
+  { "SHA512", &gEfiCertSha512Guid, &gEfiCertX509Sha512Guid, Sha512HashAll, SHA512_DIGEST_SIZE }
 };
 
 /**
@@ -65,7 +96,7 @@ STATIC CONST EFI_GUID  *CONST  mKnownImageHashGuids[] = {
   @param[in]    File       This is a pointer to the device path of the file that is
                            being dispatched. This will optionally be used for logging.
   @param[in]    FileBuffer File buffer matches the input file device path.
-  @param[in]    FileSize   Size of File buffer matches the input file device path.
+  @param[in]    FileSize   BufferSize of File buffer matches the input file device path.
   @param[in]    BootPolicy A boot policy that was used to call LoadImage() UEFI service.
 
   @retval EFI_SUCCESS            The file specified by DevicePath and non-NULL
@@ -115,7 +146,7 @@ DxeImageVerificationLibConstructor (
   2) Walk the db next. A hit in the db authorizes the image, while a miss denies it.
 
   @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]  FileSize    Size of FileBuffer in bytes.
+  @param[in]  FileSize    BufferSize of FileBuffer in bytes.
 
   @retval EFI_SUCCESS        The image's hash was found in db (and not
                              in dbx) under at least one enrolled
@@ -142,13 +173,13 @@ This is a two step process:
 2) Confirm the image is not revoked by `dbx`. If it is revoked, the
    image is denied.
 
-The IMAGE_DIGEST_CACHE is created here and shared across both checks
+The DIGEST_CACHE is created here and shared across both checks
 so Authenticode digests are computed at most once per algorithm. The
 Action output is forwarded to both helpers, which update it to
 reflect the outcome.
 
 @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-@param[in]   FileSize    Size of FileBuffer in bytes.
+@param[in]   FileSize    BufferSize of FileBuffer in bytes.
 @param[in]   SecDataDir  Security data directory describing the
                          embedded WIN_CERTIFICATE table.
 @param[out]  Action      Set to the EFI_IMAGE_EXECUTION_ACTION value

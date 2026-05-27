@@ -1,8 +1,8 @@
 /** @file
   Unit tests for the signature-database helpers in
-  DxeImageVerificationLib (Database.c): IsKnownImageHashGuid,
-  IsImageDigestFoundInDatabase, LoadSignatureDatabase, and
-  LoadSignatureDatabases. IsImageDigestFoundInDatabase is exercised
+  DxeImageVerificationLib (Database.c): IsImageDigestInDatabase,
+  LoadSignatureDatabase, and
+  LoadSignatureDatabases. IsImageDigestInDatabase is exercised
   against synthetic in-memory EFI_SIGNATURE_LIST buffers built by
   helpers in this file. LoadSignatureDatabase and LoadSignatureDatabases
   are exercised against a mocked GetVariable2.
@@ -29,6 +29,28 @@ extern "C" {
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
+
+static bool
+GetImageHashIndexForTest (
+  const EFI_GUID  *Guid,
+  UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == nullptr) || (Index == nullptr)) {
+    return false;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
+    if (CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid)) {
+      *Index = I;
+      return true;
+    }
+  }
+
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers for constructing signature-list buffers.
@@ -73,38 +95,7 @@ static constexpr UINT32  kSha256EntrySize = sizeof (EFI_GUID) + 32;
 static constexpr UINT32  kSha384EntrySize = sizeof (EFI_GUID) + 48;
 
 // ---------------------------------------------------------------------------
-// IsKnownImageHashGuid
-// ---------------------------------------------------------------------------
-
-TEST (IsKnownImageHashGuidTest, NullGuid_ReturnsFalse) {
-  EXPECT_FALSE (IsKnownImageHashGuid (NULL));
-}
-
-TEST (IsKnownImageHashGuidTest, KnownHashGuids_ReturnTrue) {
-  EXPECT_TRUE (IsKnownImageHashGuid (&gEfiCertSha1Guid));
-  EXPECT_TRUE (IsKnownImageHashGuid (&gEfiCertSha256Guid));
-  EXPECT_TRUE (IsKnownImageHashGuid (&gEfiCertSha384Guid));
-  EXPECT_TRUE (IsKnownImageHashGuid (&gEfiCertSha512Guid));
-}
-
-TEST (IsKnownImageHashGuidTest, X509Guids_ReturnFalse) {
-  // X509-with-hash variants are intentionally excluded.
-  EXPECT_FALSE (IsKnownImageHashGuid (&gEfiCertX509Guid));
-  EXPECT_FALSE (IsKnownImageHashGuid (&gEfiCertX509Sha256Guid));
-  EXPECT_FALSE (IsKnownImageHashGuid (&gEfiCertX509Sha384Guid));
-  EXPECT_FALSE (IsKnownImageHashGuid (&gEfiCertX509Sha512Guid));
-}
-
-TEST (IsKnownImageHashGuidTest, ArbitraryGuid_ReturnsFalse) {
-  EFI_GUID  Junk = { 0x12345678, 0x1234, 0x5678,
-                     { 0x9a,     0xbc,   0xde,  0xf0,0x12, 0x34, 0x56, 0x78 }
-  };
-
-  EXPECT_FALSE (IsKnownImageHashGuid (&Junk));
-}
-
-// ---------------------------------------------------------------------------
-// IsImageDigestFoundInDatabase
+// IsImageDigestInDatabase
 // ---------------------------------------------------------------------------
 
 //
@@ -133,131 +124,131 @@ SetEntryPayload (
 static constexpr UINTN  kSha256DigestSize = 32;
 static constexpr UINTN  kSha384DigestSize = 48;
 
-static IMAGE_DIGEST_CACHE
+static DIGEST_CACHE
 MakeBoundCache (
   const EFI_GUID            *HashType,
   const std::vector<UINT8>  &Digest
   )
 {
-  IMAGE_DIGEST_CACHE  Cache;
-  UINTN               Index;
+  DIGEST_CACHE  Cache;
+  UINTN         Index;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
-  EXPECT_TRUE (GetKnownImageHashGuidIndex (HashType, &Index));
+  EXPECT_TRUE (GetImageHashIndexForTest (HashType, &Index));
   EXPECT_LE (Digest.size (), (size_t)MAX_DIGEST_SIZE);
 
   std::memcpy (Cache.Entries[Index].Bytes, Digest.data (), Digest.size ());
-  Cache.Entries[Index].Size = Digest.size ();
+  Cache.Entries[Index].BufferSize = Digest.size ();
   return Cache;
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NullDatabaseWithNonZeroSize_ReturnsSuccess) {
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = FALSE;
+TEST (IsImageDigestInDatabaseTest, NullDatabaseWithNonZeroSize_ReturnsSuccess) {
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = FALSE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (NULL, 1, &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (NULL, 1, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
   // Validate that Cache remains consistent
-  EXPECT_EQ (Cache.FileBuffer, (const VOID *)(UINTN)1);
-  EXPECT_EQ (Cache.FileSize, (UINTN)1);
+  EXPECT_EQ (Cache.Buffer, (const VOID *)(UINTN)1);
+  EXPECT_EQ (Cache.BufferSize, (UINTN)1);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NullDatabaseWithZeroSize_EmptyDatabaseNotFound) {
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = TRUE;
+TEST (IsImageDigestInDatabaseTest, NullDatabaseWithZeroSize_EmptyDatabaseNotFound) {
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (NULL, 0, &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (NULL, 0, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
   // Validate that Cache remains consistent
-  EXPECT_EQ (Cache.FileBuffer, (const VOID *)(UINTN)1);
-  EXPECT_EQ (Cache.FileSize, (UINTN)1);
+  EXPECT_EQ (Cache.Buffer, (const VOID *)(UINTN)1);
+  EXPECT_EQ (Cache.BufferSize, (UINTN)1);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NullCache_ReturnsInvalidParameter) {
+TEST (IsImageDigestInDatabaseTest, NullCache_ReturnsInvalidParameter) {
   UINT8    Dummy = 0;
   BOOLEAN  Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (&Dummy, 1, NULL, &Found), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, NULL, &Found), EFI_INVALID_PARAMETER);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NullIsFound_ReturnsInvalidParameter) {
-  UINT8               Dummy = 0;
-  IMAGE_DIGEST_CACHE  Cache;
+TEST (IsImageDigestInDatabaseTest, NullIsFound_ReturnsInvalidParameter) {
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (&Dummy, 1, &Cache, NULL), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, &Cache, NULL), EFI_INVALID_PARAMETER);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, CacheWithoutImageBinding_ReturnsInvalidParameter) {
-  UINT8               Dummy = 0;
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = FALSE;
+TEST (IsImageDigestInDatabaseTest, CacheWithoutImageBinding_ReturnsInvalidParameter) {
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = FALSE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  EXPECT_EQ (IsImageDigestFoundInDatabase (&Dummy, 1, &Cache, &Found), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, &Cache, &Found), EFI_INVALID_PARAMETER);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, CacheWithZeroFileSize_ReturnsInvalidParameter) {
-  UINT8               Dummy = 0;
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = FALSE;
+TEST (IsImageDigestInDatabaseTest, CacheWithZeroFileSize_ReturnsInvalidParameter) {
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = FALSE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 0;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 0;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (&Dummy, 1, &Cache, &Found), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, &Cache, &Found), EFI_INVALID_PARAMETER);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, HashComputationFailure_PropagatesError) {
+TEST (IsImageDigestInDatabaseTest, HashComputationFailure_ReturnsSecurityViolation) {
   MockBaseCryptLib    BaseCryptLibMock;
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
 
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = TRUE;
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
     .WillOnce (Return (EFI_DEVICE_ERROR));
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_DEVICE_ERROR);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SECURITY_VIOLATION);
   EXPECT_FALSE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, ExactMatch_Found) {
+TEST (IsImageDigestInDatabaseTest, ExactMatch_Found) {
   std::vector<UINT8>  Db;
   size_t              Off = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 2);
   std::vector<UINT8>  Target (kSha256DigestSize, 0xAA);
 
   SetEntryPayload (Db, Off, 1, Target);
 
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  BOOLEAN             Found = FALSE;
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
+  BOOLEAN       Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_TRUE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NoMatchingEntry_NotFound) {
+TEST (IsImageDigestInDatabaseTest, NoMatchingEntry_NotFound) {
   std::vector<UINT8>  Db;
   size_t              Off = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   std::vector<UINT8>  Stored (kSha256DigestSize, 0xAA);
@@ -265,27 +256,27 @@ TEST (IsImageDigestFoundInDatabaseTest, NoMatchingEntry_NotFound) {
   SetEntryPayload (Db, Off, 0, Stored);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xBB);
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
   BOOLEAN             Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, UnknownSignatureTypeList_Skipped) {
+TEST (IsImageDigestInDatabaseTest, UnknownSignatureTypeList_Skipped) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 16, 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xAA);
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
   BOOLEAN             Found = TRUE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
+TEST (IsImageDigestInDatabaseTest, MismatchedSignatureSize_Skipped) {
   // List type matches but per-entry size doesn't, so the list describes
   // a different algorithm and must be skipped.
   std::vector<UINT8>  Db;
@@ -293,14 +284,14 @@ TEST (IsImageDigestFoundInDatabaseTest, MismatchedSignatureSize_Skipped) {
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha384EntrySize, 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xCC);
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
   BOOLEAN             Found = TRUE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, MatchInSecondList_Found) {
+TEST (IsImageDigestInDatabaseTest, MatchInSecondList_Found) {
   // First list is the wrong algorithm, second list contains the target.
   std::vector<UINT8>  Db;
 
@@ -311,14 +302,14 @@ TEST (IsImageDigestFoundInDatabaseTest, MatchInSecondList_Found) {
 
   SetEntryPayload (Db, SecondOff, 1, Target);
 
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  BOOLEAN             Found = FALSE;
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
+  BOOLEAN       Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_TRUE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, NonZeroSignatureHeaderSize_EntryMathCorrect) {
+TEST (IsImageDigestInDatabaseTest, NonZeroSignatureHeaderSize_EntryMathCorrect) {
   // SignatureHeaderSize is non-zero: the per-list header occupies
   // additional bytes between EFI_SIGNATURE_LIST and the first entry.
   // A naive cursor that forgets to skip it would either miss the
@@ -336,14 +327,14 @@ TEST (IsImageDigestFoundInDatabaseTest, NonZeroSignatureHeaderSize_EntryMathCorr
 
   SetEntryPayload (Db, Off, 1, Target);
 
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  BOOLEAN             Found = FALSE;
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
+  BOOLEAN       Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_TRUE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, ZeroEntryList_NotFound) {
+TEST (IsImageDigestInDatabaseTest, ZeroEntryList_NotFound) {
   // A well-formed list with zero entries must be skipped without a
   // false positive (EntryCount == 0 means the inner loop never runs).
   std::vector<UINT8>  Db;
@@ -351,36 +342,36 @@ TEST (IsImageDigestFoundInDatabaseTest, ZeroEntryList_NotFound) {
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 0);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0x00);
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
   BOOLEAN             Found = TRUE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, MalformedDb_ReturnsCorrupted) {
+TEST (IsImageDigestInDatabaseTest, MalformedDb_ReturnsCorrupted) {
   std::vector<UINT8>  Db;
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Db.data ())->SignatureListSize = (UINT32)(Db.size () + 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0x00);
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
   BOOLEAN             Found = FALSE;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_VOLUME_CORRUPTED);
+  EXPECT_EQ (IsImageDigestInDatabase (Db.data (), Db.size (), &Cache, &Found), EFI_VOLUME_CORRUPTED);
 }
 
-TEST (IsImageDigestFoundInDatabaseTest, ZeroSizeNonNullDatabase_EmptyDatabaseNotFound) {
-  UINT8               Dummy = 0;
-  IMAGE_DIGEST_CACHE  Cache;
-  BOOLEAN             Found = TRUE;
+TEST (IsImageDigestInDatabaseTest, ZeroSizeNonNullDatabase_EmptyDatabaseNotFound) {
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
+  BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
 
-  EXPECT_EQ (IsImageDigestFoundInDatabase (&Dummy, 0, &Cache, &Found), EFI_SUCCESS);
+  EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 0, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
 }
 
@@ -395,19 +386,19 @@ protected:
 
 TEST_F (LoadSignatureDatabaseTest, NullDatabaseName_ReturnsInvalidParameter) {
   VOID   *Buffer = NULL;
-  UINTN  Size    = 0;
+  UINTN  BufferSize    = 0;
 
   EXPECT_EQ (
-    LoadSignatureDatabase (NULL, &Buffer, &Size),
+    LoadSignatureDatabase (NULL, &Buffer, &BufferSize),
     EFI_INVALID_PARAMETER
     );
 }
 
 TEST_F (LoadSignatureDatabaseTest, NullBuffer_ReturnsInvalidParameter) {
-  UINTN  Size = 0;
+  UINTN  BufferSize = 0;
 
   EXPECT_EQ (
-    LoadSignatureDatabase ((const CHAR16 *)u"db", NULL, &Size),
+    LoadSignatureDatabase ((const CHAR16 *)u"db", NULL, &BufferSize),
     EFI_INVALID_PARAMETER
     );
 }
@@ -427,14 +418,14 @@ TEST_F (LoadSignatureDatabaseTest, VariableMissing_SuccessWithNullBuffer) {
     .WillOnce (Return (EFI_NOT_FOUND));
 
   VOID   *Buffer = (VOID *)(UINTN)0xDEADBEEF;  // pre-set: must be cleared
-  UINTN  Size    = 0xAA;
+  UINTN  BufferSize    = 0xAA;
 
   EXPECT_EQ (
-    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
     EFI_SUCCESS
     );
   EXPECT_EQ (Buffer, (VOID *)NULL);
-  EXPECT_EQ (Size, 0u);
+  EXPECT_EQ (BufferSize, 0u);
 }
 
 TEST_F (LoadSignatureDatabaseTest, VariablePresent_BufferAndSizePopulated) {
@@ -447,26 +438,26 @@ TEST_F (LoadSignatureDatabaseTest, VariablePresent_BufferAndSizePopulated) {
              IN CONST CHAR16    *Name,
              IN CONST EFI_GUID  *Guid,
              OUT      VOID      **Value,
-             OUT      UINTN     *Size
+             OUT      UINTN     *BufferSize
          ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
     *Value = AllocateCopyPool (sizeof (kPayload), kPayload);
-    *Size  = sizeof (kPayload);
+    *BufferSize  = sizeof (kPayload);
     return EFI_SUCCESS;
   }
          )
        );
 
   VOID   *Buffer = NULL;
-  UINTN  Size    = 0;
+  UINTN  BufferSize    = 0;
 
   EXPECT_EQ (
-    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
     EFI_SUCCESS
     );
   ASSERT_NE (Buffer, (VOID *)NULL);
-  EXPECT_EQ (Size, sizeof (kPayload));
+  EXPECT_EQ (BufferSize, sizeof (kPayload));
   EXPECT_EQ (CompareMem (Buffer, kPayload, sizeof (kPayload)), 0);
 
   FreePool (Buffer);
@@ -478,10 +469,10 @@ TEST_F (LoadSignatureDatabaseTest, GetVariableUnexpectedError_PropagatedVerbatim
     .WillOnce (Return (EFI_DEVICE_ERROR));
 
   VOID   *Buffer = NULL;
-  UINTN  Size    = 0;
+  UINTN  BufferSize    = 0;
 
   EXPECT_EQ (
-    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &Size),
+    LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
     EFI_DEVICE_ERROR
     );
 }
@@ -511,12 +502,12 @@ ReturnVariablePayload (
                                    IN CONST CHAR16    *Name,
                                    IN CONST EFI_GUID  *Guid,
                                    OUT      VOID      **Value,
-                                   OUT      UINTN     *Size
+                                   OUT      UINTN     *BufferSize
            ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
     *Value = AllocateCopyPool (PayloadSize, Payload);
-    *Size  = PayloadSize;
+    *BufferSize  = PayloadSize;
     return EFI_SUCCESS;
   }
            );
@@ -723,12 +714,12 @@ TEST_F (LoadSignatureDatabasesTest, DbxLoadFailsWithAllocatedBuffer_DbxFreedAndN
              IN CONST CHAR16    *Name,
              IN CONST EFI_GUID  *Guid,
              OUT      VOID      **Value,
-             OUT      UINTN     *Size
+             OUT      UINTN     *BufferSize
          ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
     *Value = AllocatePool (8);
-    *Size  = 8;
+    *BufferSize  = 8;
     return EFI_DEVICE_ERROR;
   }
          )

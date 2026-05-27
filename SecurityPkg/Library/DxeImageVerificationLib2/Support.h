@@ -12,62 +12,36 @@
 #include <Library/PeCoffLib.h>
 
 //
-// A single Authenticode digest slot held in an IMAGE_DIGEST_CACHE.
-// The slot's position within IMAGE_DIGEST_CACHE::Entries identifies
-// the hash algorithm (matching mKnownImageHashGuids). Size == 0
-// marks an empty slot; any non-zero Size identifies a previously
+// A single cached digest slot held in a DIGEST_CACHE.
+// The slot's position within DIGEST_CACHE::Entries identifies
+// the hash algorithm (matching mHashAlgorithms). BufferSize == 0
+// marks an empty slot; any non-zero BufferSize identifies a previously
 // computed digest of that many bytes stored in Bytes.
 //
 typedef struct {
   UINT8    Bytes[MAX_DIGEST_SIZE];
-  UINTN    Size;
-} IMAGE_DIGEST_CACHE_ENTRY;
+  UINTN    BufferSize;
+} DIGEST_CACHE_ENTRY;
+
+typedef enum {
+  DigestCacheTypeImage,
+  DigestCacheTypeX509
+} DIGEST_CACHE_TYPE;
 
 //
-// Caller-owned cache of Authenticode digests, one fixed slot per
-// supported image hash algorithm in mKnownImageHashGuids order.
+// Caller-owned digest cache, one fixed slot per supported hash
+// algorithm in mHashAlgorithms order.
 // Zero-initialize the structure before the first call to
-// GetOrComputeAuthenticodeHash; each call returns the slot's stored
-// digest on a hit or fills the slot on a miss.
+// GetHash; each
+// call returns the slot's stored digest on a hit or fills the
+// slot on a miss.
 //
-typedef struct _IMAGE_DIGEST_CACHE {
-  CONST VOID                  *FileBuffer;
-  UINTN                       FileSize;
-  IMAGE_DIGEST_CACHE_ENTRY    Entries[ARRAY_SIZE (mKnownImageHashGuids)];
-} IMAGE_DIGEST_CACHE;
-
-/**
-  Determines if the given GUID is a supported image hash signature type.
-
-  @param[in]  Guid  Pointer to an EFI_SIGNATURE_LIST::SignatureType
-                    value, or any candidate signature-type GUID.
-
-  @retval TRUE   The image hash signature type is supported.
-  @retval FALSE  The image hash signature type is not supported.
-**/
-BOOLEAN
-IsKnownImageHashGuid (
-  IN CONST EFI_GUID  *Guid
-  );
-
-/**
-  Look up the position of a known image hash signature-type GUID in
-  mKnownImageHashGuids (see DxeImageVerificationLib.h).
-
-  @param[in]   Guid   Candidate signature-type GUID.
-  @param[out]  Index  On TRUE return, receives Guid's position in
-                      mKnownImageHashGuids. Not modified on FALSE.
-
-  @retval TRUE   Guid matched a known image hash algorithm and *Index
-                 holds its position.
-  @retval FALSE  Guid is NULL, Index is NULL, or Guid is not in
-                 mKnownImageHashGuids.
-**/
-BOOLEAN
-GetKnownImageHashGuidIndex (
-  IN  CONST EFI_GUID  *Guid,
-  OUT UINTN           *Index
-  );
+typedef struct _DIGEST_CACHE {
+  DIGEST_CACHE_TYPE     Type;
+  CONST VOID            *Buffer;
+  UINTN                 BufferSize;
+  DIGEST_CACHE_ENTRY    Entries[ARRAY_SIZE (mHashAlgorithms)];
+} DIGEST_CACHE;
 
 /**
   Locate the EFI_IMAGE_DIRECTORY_ENTRY_SECURITY data directory in the
@@ -78,7 +52,7 @@ GetKnownImageHashGuidIndex (
   is dereferenced.
 
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]   FileSize    Size of FileBuffer in bytes.
+  @param[in]   FileSize    BufferSize of FileBuffer in bytes.
   @param[out]  SecDataDir  On success, filled with a copy of the image's
                            security data directory entry. Zeroed when
                            the image declares no security directory.
@@ -97,19 +71,23 @@ GetImageSecurityDataDirectory (
   );
 
 /**
-  Get or compute the Authenticode digest of a PE/COFF image for a specific hashing
-  algorithm. The algorithm must be supported, which is determined by mKnownImageHashGuids.
+  Get or compute a cached digest for HashType.
 
-  If the digest for a given HashType is already present in Cache, it is returned without
-  recomputation. Otherwise, the digest is computed via GetAuthenticodeHash, stored in Cache, and
-  then returned.
+  Cache->Type selects the miss path:
+  - DigestCacheTypeImage: compute using GetAuthenticodeHash().
+  - DigestCacheTypeX509: compute using the selected algorithm's
+    HashAll function.
+
+  HashType must map to mHashAlgorithms and be compatible with
+  Cache->Type. For DigestCacheTypeImage, HashType must be one of the
+  image-hash GUIDs. For DigestCacheTypeX509, HashType must be one of
+  the X.509 cert-hash GUIDs.
 
   @param[in]      HashType     Signature-type GUID identifying the
-                               hash algorithm to use (for example
-                               gEfiCertSha256Guid).
+                               hash algorithm to use.
   @param[in,out]  Cache        Caller-owned digest cache bound to one
-                               image via Cache->FileBuffer /
-                               Cache->FileSize.
+                               buffer via Cache->Buffer /
+                               Cache->BufferSize.
   @param[out]     Digest       On success, receives a pointer to the
                                cached digest bytes. The pointer is
                                valid for the lifetime of Cache.
@@ -119,17 +97,20 @@ GetImageSecurityDataDirectory (
   @retval EFI_SUCCESS            Digest / DigestSize describe a valid
                                  cached digest.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
-  @retval EFI_UNSUPPORTED        HashType is not one of the supported
-                                 image hash algorithms enumerated by
-                                 mKnownImageHashGuids.
+  @retval EFI_UNSUPPORTED        HashType does not map to an entry in
+                                 mHashAlgorithms compatible with
+                                 Cache->Type.
+  @retval EFI_COMPROMISED_DATA   Cache already holds a digest for this
+                                 slot but the stored size is invalid.
+  @retval EFI_SECURITY_VIOLATION The HashAll operation failed.
   @retval other                  Forwarded from GetAuthenticodeHash.
 **/
 EFI_STATUS
-GetOrComputeAuthenticodeHash (
-  IN     CONST EFI_GUID      *HashType,
-  IN OUT IMAGE_DIGEST_CACHE  *Cache,
-  OUT    CONST UINT8         **Digest,
-  OUT    UINTN               *DigestSize
+GetHash (
+  IN     CONST EFI_GUID  *HashType,
+  IN OUT DIGEST_CACHE    *Cache,
+  OUT    CONST UINT8     **Digest,
+  OUT    UINTN           *DigestSize
   );
 
 #endif // DXE_IMAGE_VERIFICATION_LIB_SUPPORT_H_

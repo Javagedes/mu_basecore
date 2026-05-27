@@ -52,7 +52,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @param[in]    File       This is a pointer to the device path of the file that is
                            being dispatched. This will optionally be used for logging.
   @param[in]    FileBuffer File buffer matches the input file device path.
-  @param[in]    FileSize   Size of File buffer matches the input file device path.
+  @param[in]    FileSize   BufferSize of File buffer matches the input file device path.
   @param[in]    BootPolicy A boot policy that was used to call LoadImage() UEFI service.
 
   @retval EFI_SUCCESS            The file specified by DevicePath and non-NULL
@@ -171,7 +171,7 @@ DxeImageVerificationLibConstructor (
   2) Walk the db next. A hit in the db authorizes the image, while a miss denies it.
 
   @param[in]  FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]  FileSize    Size of FileBuffer in bytes.
+  @param[in]  FileSize    BufferSize of FileBuffer in bytes.
 
   @retval EFI_SUCCESS        The image's hash was found in db (and not
                              in dbx) under at least one enrolled
@@ -187,13 +187,13 @@ ValidateUnsignedImage (
   IN  UINTN  FileSize
   )
 {
-  EFI_STATUS          Status;
-  BOOLEAN             IsFound;
-  IMAGE_DIGEST_CACHE  Cache;
-  VOID                *Db;
-  UINTN               DbSize;
-  VOID                *Dbx;
-  UINTN               DbxSize;
+  EFI_STATUS    Status;
+  BOOLEAN       IsFound;
+  DIGEST_CACHE  Cache;
+  VOID          *Db;
+  UINTN         DbSize;
+  VOID          *Dbx;
+  UINTN         DbxSize;
 
   Db  = NULL;
   Dbx = NULL;
@@ -203,8 +203,9 @@ ValidateUnsignedImage (
   // across EFI_SIGNATURE_LIST structures in the databases.
   //
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = FileBuffer;
-  Cache.FileSize   = FileSize;
+  Cache.Type   = DigestCacheTypeImage;
+  Cache.Buffer = FileBuffer;
+  Cache.BufferSize   = FileSize;
 
   //
   // Load db / dbx. Any failure here is treated as a verification
@@ -219,7 +220,7 @@ ValidateUnsignedImage (
   //
   // Walk the dbx first. A hit in the dbx immediately denies the image.
   //
-  Status = IsImageDigestFoundInDatabase (
+  Status = IsImageDigestInDatabase (
              Dbx,
              DbxSize,
              &Cache,
@@ -235,7 +236,7 @@ ValidateUnsignedImage (
   // Walk the db next. The image is authorized if a match is found. A miss is a failure is treated as a verification
   // failure.
   //
-  Status = IsImageDigestFoundInDatabase (
+  Status = IsImageDigestInDatabase (
              Db,
              DbSize,
              &Cache,
@@ -271,13 +272,13 @@ Exit:
   2) Confirm the image is not revoked by `dbx`. If it is revoked, the
      image is denied.
 
-  The IMAGE_DIGEST_CACHE is created here and shared across both checks
+  The DIGEST_CACHE is created here and shared across both checks
   so Authenticode digests are computed at most once per algorithm. The
   Action output is forwarded to both helpers, which update it to
   reflect the outcome.
 
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]   FileSize    Size of FileBuffer in bytes.
+  @param[in]   FileSize    BufferSize of FileBuffer in bytes.
   @param[in]   SecDataDir  Security data directory describing the
                            embedded WIN_CERTIFICATE table.
   @param[out]  Action      Set to the EFI_IMAGE_EXECUTION_ACTION value
@@ -297,12 +298,12 @@ ValidateSignedImage (
   OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
-  EFI_STATUS          Status;
-  IMAGE_DIGEST_CACHE  Cache;
-  VOID                *Db;
-  UINTN               DbSize;
-  VOID                *Dbx;
-  UINTN               DbxSize;
+  EFI_STATUS    Status;
+  DIGEST_CACHE  Cache;
+  VOID          *Db;
+  UINTN         DbSize;
+  VOID          *Dbx;
+  UINTN         DbxSize;
 
   Db  = NULL;
   Dbx = NULL;
@@ -314,8 +315,9 @@ ValidateSignedImage (
   // across both authorization and revocation checks.
   //
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = FileBuffer;
-  Cache.FileSize   = FileSize;
+  Cache.Type   = DigestCacheTypeImage;
+  Cache.Buffer = FileBuffer;
+  Cache.BufferSize   = FileSize;
 
   //
   // Load db / dbx. Any failure here is treated as a verification

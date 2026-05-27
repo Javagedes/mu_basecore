@@ -171,24 +171,44 @@ Every walker treats its buffer as untrusted input.
   set of image-hash signature types currently enrolled. On failure it
   frees any partial allocations so the caller never has to. Callers are
   responsible for `FreePool`-ing `*Db` and `*Dbx` on success.
-- `WalkSignatureDatabase (Buffer, BufferSize, Callback, Context)` is the single
-  source of structural validation for the signature database buffers. This
-  function validates the 0..N list of `EFI_SIGNATURE_LIST`s, and will execute
-  the provided callback for earch `EFI_SIGNATURE_LIST` in the buffer.
+- `DatabaseIterInit` / `DatabaseIterNext` (declared in `Iterator.h`) are
+  the single source of structural validation for signature database
+  buffers. `DatabaseIterInit` validates the outer 0..N tiling of
+  `EFI_SIGNATURE_LIST` entries up front and returns an `EFI_STATUS`;
+  `DatabaseIterNext` is infallible and yields each list pointer in
+  turn. `SigListIterInit` / `SigListIterNext` perform the analogous
+  validation and walk over the entries within a single
+  `EFI_SIGNATURE_LIST`. `WinCertIterInit` / `WinCertIterNext` walk the
+  PE security data directory's `WIN_CERTIFICATE` sequence the same
+  way.
 
 ### Design notes for future maintainers
 
-- All EFI_SIGNATURE_LIST traversal must go through
-  `WalkSignatureDatabase`. Do not open-code another walker — the
-  centralized validation is what keeps the rest of the helpers safe
-  on attacker-controlled buffers.
+- All EFI_SIGNATURE_LIST traversal must go through the iterator API in
+  `Iterator.h` (`DatabaseIterInit/Next`, `SigListIterInit/Next`). Do
+  not open-code another walker — the centralized validation is what
+  keeps the rest of the helpers safe on attacker-controlled buffers.
 - `SignatureHeaderSize` is required reading: the first entry begins
   at `(UINT8 *)List + sizeof(EFI_SIGNATURE_LIST) + SignatureHeaderSize`,
   not at the end of the fixed header. Forgetting this offset causes
   silent mis-comparison rather than a crash.
-- Keep `IsKnownImageHashGuid` and `mKnownImageHashGuids[]` synchronized
+- Keep `IsKnownImageHashGuid` and `mHashAlgorithms[]` synchronized
   when adding a new image-hash algorithm; `HASH_ALGORITHM_SET::Guids`
-  is sized from that array.
+  is sized from that array. `mHashAlgorithms` is the single source
+  of truth that ties each supported algorithm to its image-hash GUID,
+  its `gEfiCertX509Sha*Guid` (NULL when none, e.g. SHA-1), its
+  `Sha*HashAll` function, and its digest size. Both
+  `GetKnownImageHashGuidIndex`, `GetHash`, and
+  `IsTbsCertHashInList` consume it.
+- `IsCertHashFoundInDbx` initializes a per-call digest cache bound to
+  the extracted TBSCertificate and passes it to `IsTbsCertHashInList`.
+  This ensures repeated `gEfiCertX509Sha*Guid` list types in dbx reuse
+  the previously computed digest rather than re-hashing the same TBS
+  bytes for each list.
+- `DIGEST_CACHE` now uses `Buffer`/`Size` as the bound input pair and
+  includes a `Type` discriminator (`DigestCacheTypeImage` or
+  `DigestCacheTypeX509`). Callers should set `Type` explicitly when
+  initializing a cache, and helpers validate expected type before use.
 - Any methods that need to parse the signature database should consume the
   database as a `CONST UINT8 *Buffer` and `UINTN BufferSize`. Specifically,
   it should not get the database from the variable itself. This is for

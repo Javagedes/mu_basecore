@@ -21,7 +21,7 @@
                              or NULL if the variable does not exist.
                              Caller is responsible for freeing this buffer with
                              FreePool when non-NULL.
-  @param[out]  BufferSize    Size of *Buffer in bytes, or 0 if the
+  @param[out]  BufferSize    BufferSize of *Buffer in bytes, or 0 if the
                              variable does not exist.
 
   @retval EFI_SUCCESS            The variable was loaded successfully, or it was absent.
@@ -61,8 +61,8 @@ LoadSignatureDatabase (
   (computing it on first use) and compared against all list entries.
 
   @param[in]   Database      The raw database contents.
-  @param[in]   DatabaseSize  Size of Database in bytes.
-  @param[in, out] Cache      IMAGE_DIGEST_CACHE pointer bound to the
+  @param[in]   DatabaseSize  BufferSize of Database in bytes.
+  @param[in, out] Cache      DIGEST_CACHE pointer bound to the
                              image being searched. The cache may be
                              updated during the search.
   @param[out]  IsFound       TRUE if a matching digest was located.
@@ -72,14 +72,14 @@ LoadSignatureDatabase (
                                  bound to an image.
   @retval EFI_VOLUME_CORRUPTED   Database is structurally malformed.
   @retval other                  Propagated from
-                                 GetOrComputeAuthenticodeHash.
+                                 GetHash.
 **/
 EFI_STATUS
-IsImageDigestFoundInDatabase (
-  IN  CONST VOID             *Database,
-  IN  UINTN                  DatabaseSize,
-  IN OUT IMAGE_DIGEST_CACHE  *Cache,
-  OUT BOOLEAN                *IsFound
+IsImageDigestInDatabase (
+  IN  CONST VOID       *Database,
+  IN  UINTN            DatabaseSize,
+  IN OUT DIGEST_CACHE  *Cache,
+  OUT BOOLEAN          *IsFound
   )
 {
   EFI_STATUS                Status;
@@ -90,11 +90,10 @@ IsImageDigestFoundInDatabase (
   CONST UINT8               *Digest;
   UINTN                     DigestSize;
 
-  if ((Cache == NULL) || (IsFound == NULL)) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if ((Cache->FileBuffer == NULL) || (Cache->FileSize == 0)) {
+  if ((Cache == NULL) || (IsFound == NULL) ||
+      (Cache->Buffer == NULL) || (Cache->BufferSize == 0) ||
+      (Cache->Type != DigestCacheTypeImage))
+  {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -110,21 +109,22 @@ IsImageDigestFoundInDatabase (
   }
 
   while ((List = DatabaseIterNext (&DbIter)) != NULL) {
-    //
-    // Ignore non-image-hash lists; they are not comparable against an
-    // Authenticode digest.
-    //
-    if (!IsKnownImageHashGuid (&List->SignatureType)) {
-      continue;
-    }
-
-    Status = GetOrComputeAuthenticodeHash (
+    Status = GetHash (
                &List->SignatureType,
                Cache,
                &Digest,
                &DigestSize
                );
+
+    //
+    // Unsupported hash type; skip this list.
+    //
+    if (Status == EFI_UNSUPPORTED) {
+      continue;
+    }
+
     if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: failed to get image hash - %r\n", Status));
       return Status;
     }
 
@@ -159,10 +159,10 @@ IsImageDigestFoundInDatabase (
 
   @param[out]  Db       Pool-allocated copy of the `db` variable
                         contents, or NULL if `db` is absent.
-  @param[out]  DbSize   Size of *Db in bytes; 0 when *Db is NULL.
+  @param[out]  DbSize   BufferSize of *Db in bytes; 0 when *Db is NULL.
   @param[out]  Dbx      Pool-allocated copy of the `dbx` variable
                         contents, or NULL if `dbx` is absent.
-  @param[out]  DbxSize  Size of *Dbx in bytes; 0 when *Dbx is NULL.
+  @param[out]  DbxSize  BufferSize of *Dbx in bytes; 0 when *Dbx is NULL.
 
   @retval EFI_SUCCESS            Databases loaded. *Db / *Dbx may still
                                  be NULL if the corresponding variable

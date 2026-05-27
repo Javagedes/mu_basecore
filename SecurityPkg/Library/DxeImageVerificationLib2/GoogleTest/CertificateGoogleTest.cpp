@@ -26,14 +26,14 @@ extern "C" {
   // unit tests but not published in Certificate.h.
   //
   EFI_STATUS
-  GetWinCertificateAuthData (
+  GetWinCertificatePkcs7AuthData (
     IN  CONST WIN_CERTIFICATE  *Cert,
     OUT CONST UINT8            **AuthData,
     OUT UINTN                  *AuthDataSize
     );
 
   BOOLEAN
-  IsCertHashFoundInDbx (
+  IsX509HashInDbx (
     IN  CONST UINT8  *Cert,
     IN  UINTN        CertSize,
     IN  CONST VOID   *Dbx,
@@ -44,6 +44,28 @@ extern "C" {
 // SHA-256 digest payload size (no owner GUID).
 static constexpr UINTN   kSha256DigestSize = 32;
 static constexpr UINT32  kSha256EntrySize  = sizeof (EFI_GUID) + 32;
+
+static bool
+GetImageHashIndexForTest (
+  const EFI_GUID  *Guid,
+  UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == nullptr) || (Index == nullptr)) {
+    return false;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
+    if (CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid)) {
+      *Index = I;
+      return true;
+    }
+  }
+
+  return false;
+}
 
 //
 // Append one EFI_SIGNATURE_LIST containing SignatureCount entries of
@@ -97,41 +119,41 @@ SetEntryPayload (
 }
 
 //
-// Construct an IMAGE_DIGEST_CACHE bound to a non-NULL FileBuffer and
+// Construct an DIGEST_CACHE bound to a non-NULL FileBuffer and
 // non-zero FileSize, suitable for the stubs' parameter validation.
 //
-static IMAGE_DIGEST_CACHE
+static DIGEST_CACHE
 MakeBoundCache (
   void
   )
 {
-  IMAGE_DIGEST_CACHE  Cache;
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.FileBuffer = (const VOID *)(UINTN)1;
-  Cache.FileSize   = 1;
+  Cache.Buffer = (const VOID *)(UINTN)1;
+  Cache.BufferSize   = 1;
   return Cache;
 }
 
 //
-// Construct an IMAGE_DIGEST_CACHE pre-populated with a digest for
-// HashType. IsImageDigestFoundInDatabase will use the stored digest
+// Construct an DIGEST_CACHE pre-populated with a digest for
+// HashType. IsImageDigestInDatabase will use the stored digest
 // instead of asking BaseCryptLib to compute one.
 //
-static IMAGE_DIGEST_CACHE
+static DIGEST_CACHE
 MakeCacheWithDigest (
   const EFI_GUID            *HashType,
   const std::vector<UINT8>  &Digest
   )
 {
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache ();
-  UINTN               Index;
+  DIGEST_CACHE  Cache = MakeBoundCache ();
+  UINTN         Index;
 
-  EXPECT_TRUE (GetKnownImageHashGuidIndex (HashType, &Index));
+  EXPECT_TRUE (GetImageHashIndexForTest (HashType, &Index));
   EXPECT_LE (Digest.size (), (size_t)MAX_DIGEST_SIZE);
 
   std::memcpy (Cache.Entries[Index].Bytes, Digest.data (), Digest.size ());
-  Cache.Entries[Index].Size = Digest.size ();
+  Cache.Entries[Index].BufferSize = Digest.size ();
   return Cache;
 }
 
@@ -140,7 +162,7 @@ MakeCacheWithDigest (
 // ---------------------------------------------------------------------------
 
 TEST (IsSignedImageAuthorizedTest, NullSecDataDir_ReturnsFalse) {
-  IMAGE_DIGEST_CACHE          Cache  = MakeBoundCache ();
+  DIGEST_CACHE                Cache  = MakeBoundCache ();
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   EXPECT_FALSE (
@@ -159,7 +181,7 @@ TEST (IsSignedImageAuthorizedTest, NullCache_ReturnsFalse) {
 
 TEST (IsSignedImageAuthorizedTest, CacheWithoutImageBinding_ReturnsFalse) {
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache;
+  DIGEST_CACHE                Cache;
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   ZeroMem (&Cache, sizeof (Cache));
@@ -171,7 +193,7 @@ TEST (IsSignedImageAuthorizedTest, CacheWithoutImageBinding_ReturnsFalse) {
 
 TEST (IsSignedImageAuthorizedTest, NullAction_ReturnsFalse) {
   EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE        Cache      = MakeBoundCache ();
+  DIGEST_CACHE              Cache      = MakeBoundCache ();
 
   EXPECT_FALSE (
     IsSignedImageAuthorized (&SecDataDir, NULL, 0, NULL, 0, &Cache, NULL)
@@ -180,7 +202,7 @@ TEST (IsSignedImageAuthorizedTest, NullAction_ReturnsFalse) {
 
 TEST (IsSignedImageAuthorizedTest, EmptyDb_ReturnsFalseAndSetsSigNotFound) {
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache      = MakeBoundCache ();
+  DIGEST_CACHE                Cache      = MakeBoundCache ();
   EFI_IMAGE_EXECUTION_ACTION  Action     = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   EXPECT_FALSE (
@@ -195,7 +217,7 @@ TEST (IsSignedImageAuthorizedTest, ImageDigestInDb_ReturnsTrueAndSetsSigPassed) 
   std::vector<UINT8>          Db;
   size_t                      Off        = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache      = MakeCacheWithDigest (&gEfiCertSha256Guid, Target);
+  DIGEST_CACHE                Cache      = MakeCacheWithDigest (&gEfiCertSha256Guid, Target);
   EFI_IMAGE_EXECUTION_ACTION  Action     = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   SetEntryPayload (Db, Off, 0, Target);
@@ -222,7 +244,7 @@ TEST (IsSignedImageAuthorizedTest, ImageDigestNotInDb_ReturnsFalseAndSetsSigNotF
   std::vector<UINT8>          Db;
   size_t                      Off        = AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache      = MakeCacheWithDigest (&gEfiCertSha256Guid, Other);
+  DIGEST_CACHE                Cache      = MakeCacheWithDigest (&gEfiCertSha256Guid, Other);
   EFI_IMAGE_EXECUTION_ACTION  Action     = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   SetEntryPayload (Db, Off, 0, Stored);
@@ -246,7 +268,7 @@ TEST (IsSignedImageAuthorizedTest, ImageDigestNotInDb_ReturnsFalseAndSetsSigNotF
 // ---------------------------------------------------------------------------
 
 TEST (IsSignedImageRevokedTest, NullSecDataDir_ReturnsFalse) {
-  IMAGE_DIGEST_CACHE          Cache  = MakeBoundCache ();
+  DIGEST_CACHE                Cache  = MakeBoundCache ();
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   EXPECT_FALSE (
@@ -265,7 +287,7 @@ TEST (IsSignedImageRevokedTest, NullCache_ReturnsFalse) {
 
 TEST (IsSignedImageRevokedTest, CacheWithoutImageBinding_ReturnsFalse) {
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache;
+  DIGEST_CACHE                Cache;
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   ZeroMem (&Cache, sizeof (Cache));
@@ -277,7 +299,7 @@ TEST (IsSignedImageRevokedTest, CacheWithoutImageBinding_ReturnsFalse) {
 
 TEST (IsSignedImageRevokedTest, NullAction_ReturnsFalse) {
   EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE        Cache      = MakeBoundCache ();
+  DIGEST_CACHE              Cache      = MakeBoundCache ();
 
   EXPECT_FALSE (
     IsSignedImageRevoked (&SecDataDir, NULL, 0, &Cache, NULL)
@@ -286,7 +308,7 @@ TEST (IsSignedImageRevokedTest, NullAction_ReturnsFalse) {
 
 TEST (IsSignedImageRevokedTest, Stub_ReturnsFalse) {
   EFI_IMAGE_DATA_DIRECTORY    SecDataDir = { 0, 0 };
-  IMAGE_DIGEST_CACHE          Cache      = MakeBoundCache ();
+  DIGEST_CACHE                Cache      = MakeBoundCache ();
   EFI_IMAGE_EXECUTION_ACTION  Action     = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
   EXPECT_FALSE (
@@ -345,35 +367,35 @@ AppendPkcs7Cert (
 }
 
 // ---------------------------------------------------------------------------
-// GetWinCertificateAuthData
+// GetWinCertificatePkcs7AuthData
 // ---------------------------------------------------------------------------
 
-TEST (GetWinCertificateAuthDataTest, NullCert_ReturnsInvalidParameter) {
+TEST (GetWinCertificatePkcs7AuthDataTest, NullCert_ReturnsInvalidParameter) {
   const UINT8  *AuthData    = NULL;
   UINTN        AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (NULL, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (NULL, &AuthData, &AuthDataSize),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST (GetWinCertificateAuthDataTest, NullOutputs_ReturnsInvalidParameter) {
+TEST (GetWinCertificatePkcs7AuthDataTest, NullOutputs_ReturnsInvalidParameter) {
   WIN_CERTIFICATE  Cert         = { sizeof (WIN_CERTIFICATE) + 1, 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA };
   const UINT8      *AuthData    = NULL;
   UINTN            AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&Cert, NULL, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&Cert, NULL, &AuthDataSize),
     EFI_INVALID_PARAMETER
     );
   EXPECT_EQ (
-    GetWinCertificateAuthData (&Cert, &AuthData, NULL),
+    GetWinCertificatePkcs7AuthData (&Cert, &AuthData, NULL),
     EFI_INVALID_PARAMETER
     );
 }
 
-TEST (GetWinCertificateAuthDataTest, PkcsSignedData_ExtractsPayload) {
+TEST (GetWinCertificatePkcs7AuthDataTest, PkcsSignedData_ExtractsPayload) {
   // Build a WIN_CERTIFICATE followed by 4 bytes of payload.
   const UINT8         Payload[] = { 0xAA, 0xBB, 0xCC, 0xDD };
   std::vector<UINT8>  Buffer (sizeof (WIN_CERTIFICATE) + sizeof (Payload), 0);
@@ -388,25 +410,25 @@ TEST (GetWinCertificateAuthDataTest, PkcsSignedData_ExtractsPayload) {
   UINTN        AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (Cert, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (Cert, &AuthData, &AuthDataSize),
     EFI_SUCCESS
     );
   ASSERT_EQ (AuthDataSize, sizeof (Payload));
   EXPECT_EQ (0, std::memcmp (AuthData, Payload, sizeof (Payload)));
 }
 
-TEST (GetWinCertificateAuthDataTest, PkcsSignedData_HeaderOnly_ReturnsCorrupted) {
+TEST (GetWinCertificatePkcs7AuthDataTest, PkcsSignedData_HeaderOnly_ReturnsCorrupted) {
   WIN_CERTIFICATE  Cert         = { sizeof (WIN_CERTIFICATE), 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA };
   const UINT8      *AuthData    = NULL;
   UINTN            AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&Cert, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&Cert, &AuthData, &AuthDataSize),
     EFI_VOLUME_CORRUPTED
     );
 }
 
-TEST (GetWinCertificateAuthDataTest, EfiGuidPkcs7_ExtractsPayload) {
+TEST (GetWinCertificatePkcs7AuthDataTest, EfiGuidPkcs7_ExtractsPayload) {
   const UINT8                Payload[]  = { 0x11, 0x22, 0x33 };
   const size_t               HeaderSize = OFFSET_OF (WIN_CERTIFICATE_UEFI_GUID, CertData);
   std::vector<UINT8>         Buffer (HeaderSize + sizeof (Payload), 0);
@@ -422,14 +444,14 @@ TEST (GetWinCertificateAuthDataTest, EfiGuidPkcs7_ExtractsPayload) {
   UINTN        AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&UefiCert->Hdr, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&UefiCert->Hdr, &AuthData, &AuthDataSize),
     EFI_SUCCESS
     );
   ASSERT_EQ (AuthDataSize, sizeof (Payload));
   EXPECT_EQ (0, std::memcmp (AuthData, Payload, sizeof (Payload)));
 }
 
-TEST (GetWinCertificateAuthDataTest, EfiGuidNonPkcs7_ReturnsUnsupported) {
+TEST (GetWinCertificatePkcs7AuthDataTest, EfiGuidNonPkcs7_ReturnsUnsupported) {
   const size_t               HeaderSize = OFFSET_OF (WIN_CERTIFICATE_UEFI_GUID, CertData);
   std::vector<UINT8>         Buffer (HeaderSize + 4, 0);
   WIN_CERTIFICATE_UEFI_GUID  *UefiCert = (WIN_CERTIFICATE_UEFI_GUID *)Buffer.data ();
@@ -445,12 +467,12 @@ TEST (GetWinCertificateAuthDataTest, EfiGuidNonPkcs7_ReturnsUnsupported) {
   UINTN        AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&UefiCert->Hdr, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&UefiCert->Hdr, &AuthData, &AuthDataSize),
     EFI_UNSUPPORTED
     );
 }
 
-TEST (GetWinCertificateAuthDataTest, EfiGuid_HeaderOnly_ReturnsCorrupted) {
+TEST (GetWinCertificatePkcs7AuthDataTest, EfiGuid_HeaderOnly_ReturnsCorrupted) {
   WIN_CERTIFICATE_UEFI_GUID  UefiCert;
 
   ZeroMem (&UefiCert, sizeof (UefiCert));
@@ -462,18 +484,18 @@ TEST (GetWinCertificateAuthDataTest, EfiGuid_HeaderOnly_ReturnsCorrupted) {
   UINTN        AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&UefiCert.Hdr, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&UefiCert.Hdr, &AuthData, &AuthDataSize),
     EFI_VOLUME_CORRUPTED
     );
 }
 
-TEST (GetWinCertificateAuthDataTest, UnknownCertType_ReturnsUnsupported) {
+TEST (GetWinCertificatePkcs7AuthDataTest, UnknownCertType_ReturnsUnsupported) {
   WIN_CERTIFICATE  Cert         = { sizeof (WIN_CERTIFICATE) + 8, 0x0200, WIN_CERT_TYPE_EFI_PKCS115 };
   const UINT8      *AuthData    = NULL;
   UINTN            AuthDataSize = 0;
 
   EXPECT_EQ (
-    GetWinCertificateAuthData (&Cert, &AuthData, &AuthDataSize),
+    GetWinCertificatePkcs7AuthData (&Cert, &AuthData, &AuthDataSize),
     EFI_UNSUPPORTED
     );
 }
@@ -485,23 +507,23 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 
 // ---------------------------------------------------------------------------
-// IsCertHashFoundInDbx
+// IsX509HashInDbx
 // ---------------------------------------------------------------------------
 
-TEST (IsCertHashFoundInDbxTest, NullDbx_ReturnsFalse) {
+TEST (IsX509HashInDbxTest, NullDbx_ReturnsFalse) {
   UINT8  Cert[8] = { 0 };
 
-  EXPECT_FALSE (IsCertHashFoundInDbx (Cert, sizeof (Cert), NULL, 0));
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), NULL, 0));
 }
 
-TEST (IsCertHashFoundInDbxTest, ZeroSizeDbx_ReturnsFalse) {
+TEST (IsX509HashInDbxTest, ZeroSizeDbx_ReturnsFalse) {
   UINT8  Cert[8]   = { 0 };
   UINT8  DbxBuf[8] = { 0 };
 
-  EXPECT_FALSE (IsCertHashFoundInDbx (Cert, sizeof (Cert), DbxBuf, 0));
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), DbxBuf, 0));
 }
 
-TEST (IsCertHashFoundInDbxTest, TbsCertExtractFails_ReturnsTrue) {
+TEST (IsX509HashInDbxTest, TbsCertExtractFails_ReturnsTrue) {
   MockBaseCryptLib    BaseCryptLibMock;
   UINT8               Cert[8] = { 0 };
   std::vector<UINT8>  Dbx;
@@ -511,10 +533,10 @@ TEST (IsCertHashFoundInDbxTest, TbsCertExtractFails_ReturnsTrue) {
   EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
     .WillOnce (Return (FALSE));
 
-  EXPECT_TRUE (IsCertHashFoundInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+  EXPECT_TRUE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
 }
 
-TEST (IsCertHashFoundInDbxTest, NoMatchingHash_ReturnsFalse) {
+TEST (IsX509HashInDbxTest, NoMatchingHash_ReturnsFalse) {
   MockBaseCryptLib    BaseCryptLibMock;
   UINT8               Cert[8]    = { 0 };
   static UINT8        TbsBytes[] = { 0xDE, 0xAD, 0xBE, 0xEF };
@@ -542,10 +564,10 @@ TEST (IsCertHashFoundInDbxTest, NoMatchingHash_ReturnsFalse) {
          )
        );
 
-  EXPECT_FALSE (IsCertHashFoundInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
 }
 
-TEST (IsCertHashFoundInDbxTest, MatchingHash_ReturnsTrue) {
+TEST (IsX509HashInDbxTest, MatchingHash_ReturnsTrue) {
   MockBaseCryptLib    BaseCryptLibMock;
   UINT8               Cert[8]    = { 0 };
   static UINT8        TbsBytes[] = { 0xDE, 0xAD, 0xBE, 0xEF };
@@ -577,7 +599,7 @@ TEST (IsCertHashFoundInDbxTest, MatchingHash_ReturnsTrue) {
          )
        );
 
-  EXPECT_TRUE (IsCertHashFoundInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+  EXPECT_TRUE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
 }
 
 // ---------------------------------------------------------------------------
@@ -626,14 +648,14 @@ TEST (IsSignedImageAuthorizedTest, SignatureCertInDbAndDbx_ReturnsFalse) {
   SetEntryPayload (Dbx, DbxOff, 0, std::vector<UINT8>(kSha256DigestSize, 0xE1));
 
   // Cache: bind to FileBuf and pre-populate the sha256 slot so that
-  // GetOrComputeAuthenticodeHash never needs to call BaseCryptLib.
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (
-                                &gEfiCertSha256Guid,
-                                std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
-                                );
+  // GetHash never needs to call BaseCryptLib.
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillOnce (
@@ -727,13 +749,13 @@ TEST (IsSignedImageAuthorizedTest, TwoSignatures_FirstRevoked_SecondAuthorized_R
 
   SetEntryPayload (Dbx, DbxOff, 0, std::vector<UINT8>(kSha256DigestSize, 0xE1));
 
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (
-                                &gEfiCertSha256Guid,
-                                std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
-                                );
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillRepeatedly (
@@ -837,13 +859,13 @@ TEST (IsSignedImageAuthorizedTest, SingleSignatureVerifies_NoDbx_ReturnsTrue) {
 
   SetEntryPayload (Db, DbOff, 0, std::vector<UINT8>(16, 0x11));
 
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (
-                                &gEfiCertSha256Guid,
-                                std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
-                                );
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillOnce (
@@ -898,10 +920,10 @@ TEST (IsSignedImageAuthorizedTest, ImageDigestInDb_BeatsSignatureWalk) {
 
   SetEntryPayload (Db, X509Off, 0, std::vector<UINT8>(16, 0x11));
 
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (&gEfiCertSha256Guid, CachedDigest);
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (&gEfiCertSha256Guid, CachedDigest);
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   // No crypto / signature mocks expected. If the fast path regresses
   // and the signature walk runs, gmock will flag unexpected calls.
@@ -951,13 +973,13 @@ TEST (IsSignedImageAuthorizedTest, SignatureDoesNotVerifyAnyDbCert_ReturnsFalse)
   SetEntryPayload (Db, DbOff, 0, std::vector<UINT8>(16, 0x11));
   SetEntryPayload (Db, DbOff, 1, std::vector<UINT8>(16, 0x22));
 
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (
-                                &gEfiCertSha256Guid,
-                                std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
-                                );
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillOnce (
@@ -995,14 +1017,14 @@ TEST (IsSignedImageAuthorizedTest, SignatureDoesNotVerifyAnyDbCert_ReturnsFalse)
 TEST (IsSignedImageAuthorizedTest, CorruptedSecDataDir_ReturnsFalse) {
   MockBaseCryptLib  BaseCryptLibMock;
 
-  // Small file but SecDataDir claims a much larger Size.
+  // Small file but SecDataDir claims a much larger BufferSize.
   std::vector<UINT8>        FileBuf (32, 0);
   EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, 1024 };
 
-  IMAGE_DIGEST_CACHE  Cache = MakeBoundCache ();
+  DIGEST_CACHE  Cache = MakeBoundCache ();
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   // No crypto should be invoked.
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _)).Times (0);
@@ -1039,13 +1061,13 @@ TEST (IsSignedImageAuthorizedTest, NoDbButValidSignature_ReturnsFalse) {
 
   EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
 
-  IMAGE_DIGEST_CACHE  Cache = MakeCacheWithDigest (
-                                &gEfiCertSha256Guid,
-                                std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
-                                );
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
 
-  Cache.FileBuffer = FileBuf.data ();
-  Cache.FileSize   = FileBuf.size ();
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillOnce (
@@ -1074,4 +1096,703 @@ TEST (IsSignedImageAuthorizedTest, NoDbButValidSignature_ReturnsFalse) {
       )
     );
   EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+// ---------------------------------------------------------------------------
+// IsX509HashInDbx -- additional list-handling coverage
+// ---------------------------------------------------------------------------
+
+//
+// X509GetTBSCert succeeds but dbx is too small to even contain one
+// EFI_SIGNATURE_LIST header. DatabaseIterInit must reject it and the
+// helper must fail closed (return TRUE).
+//
+TEST (IsX509HashInDbxTest, MalformedDbx_ReturnsTrue) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  UINT8             Cert[8]    = { 0 };
+  static UINT8      TbsBytes[] = { 0xDE, 0xAD };
+  // Less than sizeof(EFI_SIGNATURE_LIST) -> DatabaseIterInit returns corrupted.
+  std::vector<UINT8>  Dbx (4, 0);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_TRUE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx contains exactly one list whose SignatureType is not any of the
+// supported gEfiCertX509ShaXXXGuid values. IsX509HashInList must
+// skip it and the helper must return FALSE.
+//
+TEST (IsX509HashInDbxTest, UnsupportedShaList_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  // gEfiCertSha256Guid is an image-hash list type, not a cert-hash list type.
+  AppendSignatureList (Dbx, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  // Neither hash routine should be invoked.
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _)).Times (0);
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx is an X509-SHA384 list with no matching entry. IsX509HashInList
+// must take the SHA-384 branch (Sha384HashAll) and the helper must
+// return FALSE.
+//
+TEST (IsX509HashInDbxTest, Sha384List_NoMatch_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  const UINT32        EntrySize  = (UINT32)(sizeof (EFI_GUID) + SHA384_DIGEST_SIZE);
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha384Guid, 0, EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x11, SHA384_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx is an X509-SHA512 list that contains the matching cert hash.
+// IsX509HashInList must take the SHA-512 branch (Sha512HashAll) and
+// the helper must return TRUE.
+//
+TEST (IsX509HashInDbxTest, Sha512List_Match_ReturnsTrue) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  const UINT32        EntrySize  = (UINT32)(sizeof (EFI_GUID) + SHA512_DIGEST_SIZE);
+  std::vector<UINT8>  Dbx;
+
+  size_t  Off = AppendSignatureList (Dbx, gEfiCertX509Sha512Guid, 0, EntrySize, 1);
+
+  SetEntryPayload (Dbx, Off, 0, std::vector<UINT8>(SHA512_DIGEST_SIZE, 0x99));
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x99, SHA512_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_TRUE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// The hash routine itself fails (Sha256HashAll returns FALSE).
+// IsX509HashInList must skip the list and the helper must return
+// FALSE.
+//
+TEST (IsX509HashInDbxTest, HashFails_SkipsList_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (Return (FALSE));
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx X509-SHA256 list whose SignatureSize is too small to contain a
+// 32-byte digest. IsX509HashInList must reject the list at the size
+// check (after hashing) and the helper must return FALSE.
+//
+TEST (IsX509HashInDbxTest, SignatureSizeTooSmall_SkipsList_ReturnsFalse) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  UINT8             Cert[8]    = { 0 };
+  static UINT8      TbsBytes[] = { 0xDE };
+  // EntrySize = GUID + 16 bytes -- smaller than required for a SHA-256 digest.
+  const UINT32        EntrySize = (UINT32)(sizeof (EFI_GUID) + 16);
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx X509-SHA256 list that passes the size check but whose
+// SignatureHeaderSize is inconsistent with SignatureListSize, causing
+// SigListIterInit to fail. The list must be skipped and the helper
+// must return FALSE.
+//
+TEST (IsX509HashInDbxTest, SigListIterInitFails_SkipsList_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  // Build a list with a SignatureHeaderSize larger than the list itself
+  // allows. We size the list to contain a single SHA-256 cert-hash entry
+  // (so the size check at the top of IsX509HashInList passes), but
+  // the inflated SignatureHeaderSize makes SigListIterInit reject it.
+  const UINT32  EntrySize = kSha256EntrySize;
+  const UINT32  ListSize  = (UINT32)(sizeof (EFI_SIGNATURE_LIST) + EntrySize);
+
+  Dbx.resize (ListSize, 0);
+
+  EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Dbx.data ();
+
+  CopyMem (&List->SignatureType, &gEfiCertX509Sha256Guid, sizeof (EFI_GUID));
+  List->SignatureListSize = ListSize;
+  // SignatureHeaderSize > SignatureListSize - sizeof (EFI_SIGNATURE_LIST).
+  List->SignatureHeaderSize = ListSize;
+  List->SignatureSize       = EntrySize;
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx contains two X509-SHA256 lists for the same certificate. The
+// TBS digest should be computed once and reused for the second list.
+//
+TEST (IsX509HashInDbxTest, RepeatedSha256Lists_UsesCachedDigest_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               Cert[8]    = { 0 };
+  static UINT8        TbsBytes[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  size_t  Off0 = AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+  size_t  Off1 = AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+
+  SetEntryPayload (Dbx, Off0, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x11));
+  SetEntryPayload (Dbx, Off1, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x22));
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    *OutTbs     = TbsBytes;
+    *OutTbsSize = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .Times (1)
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0xAA, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsX509HashInDbx (Cert, sizeof (Cert), Dbx.data (), Dbx.size ()));
+}
+
+// ---------------------------------------------------------------------------
+// IsSignedImageAuthorized -- additional signature-list handling coverage
+// ---------------------------------------------------------------------------
+
+//
+// db contains only a non-X.509 list (image-hash list). The signature
+// walk inspects it but skips it; with no trust anchors available the
+// image must be rejected with AUTH_SIG_NOT_FOUND.
+//
+TEST (IsSignedImageAuthorizedTest, DbHasOnlyNonX509List_ReturnsFalse) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // db: one image-hash list (gEfiCertSha256Guid) with a non-matching digest.
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    *Out = gEfiCertSha256Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  // No X.509 list => AuthenticodeVerify is never called.
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// db contains an X.509 list whose SignatureSize equals sizeof(EFI_GUID),
+// i.e. no cert payload at all. The list must be skipped and the image
+// rejected.
+//
+TEST (IsSignedImageAuthorizedTest, DbX509ListNoCertPayload_ReturnsFalse) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // X.509 list with SignatureSize = sizeof(EFI_GUID) (no cert payload).
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertX509Guid, 0, (UINT32)sizeof (EFI_GUID), 1);
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    *Out = gEfiCertSha256Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// db contains an X.509 list whose SignatureHeaderSize is inflated past
+// SignatureListSize - sizeof(EFI_SIGNATURE_LIST). DatabaseIterInit
+// accepts the list (it only validates SignatureListSize), but
+// SigListIterInit inside IsPkcs7AuthDataVerifiedByX509 rejects it.
+// The list must be skipped and the image rejected.
+//
+TEST (IsSignedImageAuthorizedTest, DbX509ListMalformedHeader_ReturnsFalse) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // Build a single X.509 list with SignatureSize > sizeof(EFI_GUID) (so
+  // the early-return check in IsPkcs7AuthDataVerifiedByX509 is passed)
+  // but a SignatureHeaderSize that overflows the list payload area.
+  const UINT32        EntrySize = (UINT32)(sizeof (EFI_GUID) + 16);
+  const UINT32        ListSize  = (UINT32)(sizeof (EFI_SIGNATURE_LIST) + EntrySize);
+  std::vector<UINT8>  Db (ListSize, 0);
+
+  EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Db.data ();
+
+  CopyMem (&List->SignatureType, &gEfiCertX509Guid, sizeof (EFI_GUID));
+  List->SignatureListSize   = ListSize;
+  List->SignatureHeaderSize = ListSize;          // > ListSize - sizeof(EFI_SIGNATURE_LIST)
+  List->SignatureSize       = EntrySize;
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    *Out = gEfiCertSha256Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// GetAuthenticodeHashAlgorithm fails on the image's signature. The
+// signature must be skipped and, with no other signatures, the image
+// must be rejected.
+//
+TEST (IsSignedImageAuthorizedTest, GetHashAlgoFails_RejectsSignature) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // db: one X.509 list with one cert. Need only enough to drive
+  // IsPkcs7AuthDataAuthorizedByDb past its early Db-iter checks; we
+  // expect to bail out before reaching the cert.
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertX509Guid, 0, (UINT32)(sizeof (EFI_GUID) + 16), 1);
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (Return (EFI_UNSUPPORTED));
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// GetAuthenticodeHashAlgorithm returns a GUID that GetOrCompute-
+// AuthenticodeHash does not recognize as an image-hash slot. The
+// signature must be rejected.
+//
+TEST (IsSignedImageAuthorizedTest, GetHashAlgoReturnsUnknownGuid_RejectsSignature) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertX509Guid, 0, (UINT32)(sizeof (EFI_GUID) + 16), 1);
+
+  DIGEST_CACHE  Cache = MakeBoundCache ();
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    // Not a recognized image hash GUID.
+    *Out = gEfiCertX509Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// db is malformed (less than one EFI_SIGNATURE_LIST header). The image
+// digest lookup short-circuits to a non-success status (falls through
+// to the signature walk); the per-signature DatabaseIterInit call then
+// also fails. With no other signatures the image must be rejected.
+//
+TEST (IsSignedImageAuthorizedTest, MalformedDb_RejectsImage) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  std::vector<UINT8>  FileBuf;
+
+  AppendPkcs7Cert (FileBuf, 16, 0xA1);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // Less than sizeof(EFI_SIGNATURE_LIST) -> DatabaseIterInit fails.
+  std::vector<UINT8>  Db (4, 0);
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    *Out = gEfiCertSha256Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_FALSE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND);
+}
+
+//
+// First WIN_CERTIFICATE in the image has an unknown wCertificateType
+// (GetWinCertificatePkcs7AuthData returns EFI_UNSUPPORTED) so the iteration
+// continues to the next entry, which is a valid PKCS#7 that
+// authorizes against db.
+//
+TEST (IsSignedImageAuthorizedTest, FirstCertUnsupportedSecondAuthorized_ReturnsTrue) {
+  MockBaseCryptLib  BaseCryptLibMock;
+
+  // Build two WIN_CERTIFICATE entries: an unknown type followed by a
+  // PKCS#7 SignedData entry.
+  std::vector<UINT8>  FileBuf;
+
+  AppendWinCert (
+    FileBuf,
+    /*dwLength=*/ (UINT32)sizeof (WIN_CERTIFICATE) + 8,
+    /*wRevision=*/ 0x0200,
+    /*wCertificateType=*/ 0x0BAD
+    );
+  AppendPkcs7Cert (FileBuf, 16, 0xA2);
+
+  EFI_IMAGE_DATA_DIRECTORY  SecDataDir = { 0, (UINT32)FileBuf.size () };
+
+  // db with one valid X.509 trust anchor.
+  std::vector<UINT8>  Db;
+  size_t              DbOff = AppendSignatureList (
+                                Db,
+                                gEfiCertX509Guid,
+                                0,
+                                (UINT32)(sizeof (EFI_GUID) + 16),
+                                1
+                                );
+
+  SetEntryPayload (Db, DbOff, 0, std::vector<UINT8>(16, 0x22));
+
+  DIGEST_CACHE  Cache = MakeCacheWithDigest (
+                          &gEfiCertSha256Guid,
+                          std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x55)
+                          );
+
+  Cache.Buffer = FileBuf.data ();
+  Cache.BufferSize   = FileBuf.size ();
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, EFI_GUID *Out) -> EFI_STATUS {
+    *Out = gEfiCertSha256Guid;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _))
+    .WillOnce (Return (TRUE));
+
+  EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
+
+  EXPECT_TRUE (
+    IsSignedImageAuthorized (
+      &SecDataDir,
+      Db.data (),
+      Db.size (),
+      NULL,
+      0,
+      &Cache,
+      &Action
+      )
+    );
+  EXPECT_EQ (Action, (EFI_IMAGE_EXECUTION_ACTION)EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED);
 }

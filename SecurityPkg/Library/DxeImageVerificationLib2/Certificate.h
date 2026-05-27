@@ -18,7 +18,7 @@
 
   Authorization succeeds when at least one of the image's embedded
   signatures (or one of its image hashes) is reflected in `db`. The
-  shared IMAGE_DIGEST_CACHE is used to avoid recomputing Authenticode
+  shared DIGEST_CACHE is used to avoid recomputing Authenticode
   digests across signature-list iterations. On a definitive outcome the
   function updates `*Action` with the corresponding
   EFI_IMAGE_EXECUTION_ACTION value.
@@ -52,7 +52,7 @@ IsSignedImageAuthorized (
   IN     UINTN                           DbSize,
   IN     CONST VOID                      *Dbx,
   IN     UINTN                           DbxSize,
-  IN OUT IMAGE_DIGEST_CACHE              *Cache,
+  IN OUT DIGEST_CACHE                    *Cache,
   IN OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   );
 
@@ -62,7 +62,7 @@ IsSignedImageAuthorized (
 
   Revocation succeeds (returns TRUE) when any of the image's embedded
   signatures, signing certificates, or image hashes are reflected in
-  `dbx`. The shared IMAGE_DIGEST_CACHE is reused so that digests
+  `dbx`. The shared DIGEST_CACHE is reused so that digests
   computed during the authorization check are not recomputed here. On a
   definitive outcome the function updates `*Action` with the
   corresponding EFI_IMAGE_EXECUTION_ACTION value.
@@ -87,7 +87,7 @@ IsSignedImageRevoked (
   IN     CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir,
   IN     CONST VOID                      *Dbx,
   IN     UINTN                           DbxSize,
-  IN OUT IMAGE_DIGEST_CACHE              *Cache,
+  IN OUT DIGEST_CACHE                    *Cache,
   IN OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   );
 
