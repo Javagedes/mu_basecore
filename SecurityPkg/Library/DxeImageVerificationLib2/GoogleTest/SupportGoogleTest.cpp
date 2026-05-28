@@ -479,18 +479,22 @@ TEST (GetHashTest, X509CacheMiss_ComputesAndCachesDigest) {
 
   ASSERT_TRUE (GetX509HashIndexForTest (&gEfiCertX509Sha256Guid, &SlotIndex));
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
          [] (
-             IN   CONST VOID  *Input,
-             IN   UINTN       InputSize,
-             OUT  UINT8       *HashValue
-         ) -> BOOLEAN {
-    (VOID)Input;
-    (VOID)InputSize;
-    SetMem (HashValue, SHA256_DIGEST_SIZE, 0x5A);
-    return TRUE;
+             IN  VOID            *CertBuffer,
+             IN  UINTN           CertSize,
+             IN  CONST EFI_GUID  *HashType,
+             OUT UINT8           *OutDigest,
+             OUT UINTN           *OutDigestSize
+         ) -> EFI_STATUS {
+    (VOID)CertBuffer;
+    (VOID)CertSize;
+    (VOID)HashType;
+    SetMem (OutDigest, SHA256_DIGEST_SIZE, 0x5A);
+    *OutDigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -517,8 +521,8 @@ TEST (GetHashTest, X509CacheMiss_HashFailure_ClearsSlotAndReturnsSecurityViolati
 
   ASSERT_TRUE (GetX509HashIndexForTest (&gEfiCertX509Sha256Guid, &SlotIndex));
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
   EXPECT_EQ (GetHash (&gEfiCertX509Sha256Guid, &Cache, &Digest, &DigestSize), EFI_SECURITY_VIOLATION);
   EXPECT_EQ (Cache.Entries[SlotIndex].BufferSize, (UINTN)0);

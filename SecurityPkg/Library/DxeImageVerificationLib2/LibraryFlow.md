@@ -31,6 +31,8 @@ flowchart TD
 
     classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
     class H,I drill;
+    classDef crypto fill:#ffe6a7,stroke:#d9822b,color:#000;
+    class E crypto;
 ```
 
 Key observations:
@@ -88,7 +90,8 @@ Rules of thumb:
   against every entry.
 - A failure to load either database is fail-closed
   (`EFI_ACCESS_DENIED`), not propagated upward.
-  ## 3. `ValidateSignedImage`
+
+## 3. `ValidateSignedImage`
 
 The image has one or more `WIN_CERTIFICATE` entries in its security
 data directory. The function delegates to two pure helpers that share

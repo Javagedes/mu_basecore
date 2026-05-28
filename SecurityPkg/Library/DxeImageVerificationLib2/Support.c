@@ -70,7 +70,7 @@ GetIndex (
 
   Digest calculations are as follows:
   - DigestCacheTypeImage: compute using GetAuthenticodeHash() with the specified HashType.
-  - DigestCacheTypeX509: compute using BaseCryptLib's HashAll function for the specified HashType.
+  - DigestCacheTypeX509: compute using GetX509Hash() with the specified HashType.
 
   @param[in]      HashType     Signature-type GUID identifying the hash algorithm to use.
   @param[in,out]  Cache        Caller-owned digest cache bound to one buffer via Cache->Buffer /
@@ -84,8 +84,8 @@ GetIndex (
   @retval EFI_UNSUPPORTED        HashType does not map to an entry in mHashAlgorithms compatible
                                  with Cache->Type.
   @retval EFI_COMPROMISED_DATA   Cache already holds a digest for this slot but the stored size is invalid.
-  @retval EFI_SECURITY_VIOLATION The HashAll operation failed.
-  @retval other                  Forwarded from GetAuthenticodeHash.
+  @retval EFI_SECURITY_VIOLATION The hash operation failed.
+  @retval other                  Forwarded from GetAuthenticodeHash or GetX509Hash.
 **/
 EFI_STATUS
 GetHash (
@@ -126,12 +126,12 @@ GetHash (
         break;
 
       case DigestCacheTypeX509:
-        if (!mHashAlgorithms[SlotIndex].HashAll (Cache->Buffer, Cache->BufferSize, Slot->Bytes)) {
+        Status = GetX509Hash ((VOID *)Cache->Buffer, Cache->BufferSize, HashType, Slot->Bytes, &Slot->BufferSize);
+        if (EFI_ERROR (Status)) {
           Slot->BufferSize = 0;
           return EFI_SECURITY_VIOLATION;
         }
 
-        Slot->BufferSize = mHashAlgorithms[SlotIndex].DigestSize;
         break;
 
       default:

@@ -777,17 +777,15 @@ TEST (IsTBSCertHashInDbxTest, UnsupportedShaList_ReturnsFalse) {
   // gEfiCertSha256Guid is an image-hash list type, not a cert-hash list type.
   AppendSignatureList (Dbx, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
 
-  // Neither hash routine should be invoked.
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
-  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _)).Times (0);
-  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _)).Times (0);
+  // GetX509Hash should not be invoked for an unsupported list type.
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _)).Times (0);
 
   EXPECT_FALSE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
 }
 
 //
 // Dbx is an X509-SHA384 list with no matching entry. The helper must
-// take the SHA-384 branch (Sha384HashAll) and return FALSE.
+// take the SHA-384 branch and return FALSE.
 //
 TEST (IsTBSCertHashInDbxTest, Sha384List_NoMatch_ReturnsFalse) {
   MockBaseCryptLib    BaseCryptLibMock;
@@ -797,12 +795,13 @@ TEST (IsTBSCertHashInDbxTest, Sha384List_NoMatch_ReturnsFalse) {
 
   AppendSignatureList (Dbx, gEfiCertX509Sha384Guid, 0, EntrySize, 1);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0x11, SHA384_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA384_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -812,8 +811,7 @@ TEST (IsTBSCertHashInDbxTest, Sha384List_NoMatch_ReturnsFalse) {
 
 //
 // Dbx is an X509-SHA512 list that contains the matching cert hash.
-// The helper must take the SHA-512 branch (Sha512HashAll) and return
-// TRUE.
+// The helper must take the SHA-512 branch and return TRUE.
 //
 TEST (IsTBSCertHashInDbxTest, Sha512List_Match_ReturnsTrue) {
   MockBaseCryptLib    BaseCryptLibMock;
@@ -825,12 +823,13 @@ TEST (IsTBSCertHashInDbxTest, Sha512List_Match_ReturnsTrue) {
 
   SetEntryPayload (Dbx, Off, 0, std::vector<UINT8>(SHA512_DIGEST_SIZE, 0x99));
 
-  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0x99, SHA512_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA512_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -839,7 +838,7 @@ TEST (IsTBSCertHashInDbxTest, Sha512List_Match_ReturnsTrue) {
 }
 
 //
-// The hash routine itself fails (Sha256HashAll returns FALSE).
+// The hash routine itself fails (GetX509Hash returns an error).
 // The helper must fail closed and return TRUE.
 //
 TEST (IsTBSCertHashInDbxTest, HashFails_FailsClosed_ReturnsTrue) {
@@ -849,8 +848,8 @@ TEST (IsTBSCertHashInDbxTest, HashFails_FailsClosed_ReturnsTrue) {
 
   AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
   EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
 }
@@ -868,12 +867,13 @@ TEST (IsTBSCertHashInDbxTest, SignatureSizeTooSmall_FailsClosed_ReturnsTrue) {
 
   AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, EntrySize, 1);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -909,12 +909,13 @@ TEST (IsTBSCertHashInDbxTest, SigListIterInitFails_FailsClosed_ReturnsTrue) {
   List->SignatureHeaderSize = ListSize;
   List->SignatureSize       = EntrySize;
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -937,13 +938,14 @@ TEST (IsTBSCertHashInDbxTest, RepeatedSha256Lists_UsesCachedDigest_ReturnsFalse)
   SetEntryPayload (Dbx, Off0, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x11));
   SetEntryPayload (Dbx, Off1, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x22));
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .Times (1)
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0xAA, SHA256_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );

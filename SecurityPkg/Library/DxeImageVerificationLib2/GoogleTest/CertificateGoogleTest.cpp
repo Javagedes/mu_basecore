@@ -530,7 +530,7 @@ TEST (IsSignedImageAuthorizedTest, SignatureCertInDbAndDbx_ReturnsFalse) {
 
   SetEntryPayload (Db, DbOff, 0, std::vector<UINT8>(16, 0x11));
 
-  // dbx: one X509-SHA256 list with the digest the mocked Sha256HashAll
+  // dbx: one X509-SHA256 list with the digest the mocked GetX509Hash
   // will produce for the cert's TBS bytes (0xE1 * 32).
   std::vector<UINT8>  Dbx;
   size_t              DbxOff = AppendSignatureList (
@@ -575,12 +575,13 @@ TEST (IsSignedImageAuthorizedTest, SignatureCertInDbAndDbx_ReturnsFalse) {
   }
          )
        );
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     std::memset (Digest, 0xE1, SHA256_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -679,7 +680,7 @@ TEST (IsSignedImageAuthorizedTest, TwoSignatures_FirstRevoked_SecondAuthorized_R
   }
          )
        );
-  // TBS bytes mirror the first byte of the cert so Sha256HashAll can
+  // TBS bytes mirror the first byte of the cert so GetX509Hash can
   // route on them.
   EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
     .WillRepeatedly (
@@ -702,13 +703,14 @@ TEST (IsSignedImageAuthorizedTest, TwoSignatures_FirstRevoked_SecondAuthorized_R
        );
   // Hash(0x11) -> 0xE1*32 (matches dbx); Hash(0x22) -> 0xE2*32 (does
   // not match dbx).
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _))
     .WillRepeatedly (
        Invoke (
-         [] (CONST VOID *Data, UINTN, UINT8 *Digest) -> BOOLEAN {
+         [] (VOID *Data, UINTN, CONST EFI_GUID *, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
     UINT8  Marker = ((CONST UINT8 *)Data)[0];
     std::memset (Digest, (Marker == 0x11) ? 0xE1 : 0xE2, SHA256_DIGEST_SIZE);
-    return TRUE;
+    *DigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
   }
          )
        );
@@ -732,8 +734,9 @@ TEST (IsSignedImageAuthorizedTest, TwoSignatures_FirstRevoked_SecondAuthorized_R
 //
 // Happy path: a single PKCS#7 signature, db contains an X509 trust
 // anchor that AuthenticodeVerify accepts, and no dbx. The image must
-// be authorized and Action must be set to SIG_PASSED. No
-// X509GetTBSCert/Sha256HashAll calls are needed because dbx is empty.
+// be authorized and Action must be set to SIG_PASSED. X509GetTBSCert is
+// still called for the verifying trust anchor, but dbx hashing is skipped
+// because dbx is empty.
 //
 TEST (IsSignedImageAuthorizedTest, SingleSignatureVerifies_NoDbx_ReturnsTrue) {
   MockBaseCryptLib  BaseCryptLibMock;
@@ -774,6 +777,17 @@ TEST (IsSignedImageAuthorizedTest, SingleSignatureVerifies_NoDbx_ReturnsTrue) {
        );
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _))
     .WillOnce (Return (TRUE));
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    static UINT8  TbsBytes[] = { 0x11 };
+    *OutTbs                  = TbsBytes;
+    *OutTbsSize              = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
 
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
@@ -826,7 +840,7 @@ TEST (IsSignedImageAuthorizedTest, ImageDigestInDb_BeatsSignatureWalk) {
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _)).Times (0);
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _)).Times (0);
   EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _)).Times (0);
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, GetX509Hash (_, _, _, _, _)).Times (0);
 
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
@@ -1379,6 +1393,17 @@ TEST (IsSignedImageAuthorizedTest, FirstCertUnsupportedSecondAuthorized_ReturnsT
        );
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerify (_, _, _, _, _, _))
     .WillOnce (Return (TRUE));
+  EXPECT_CALL (BaseCryptLibMock, X509GetTBSCert (_, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST UINT8 *, UINTN, UINT8 **OutTbs, UINTN *OutTbsSize) -> BOOLEAN {
+    static UINT8  TbsBytes[] = { 0x22 };
+    *OutTbs                  = TbsBytes;
+    *OutTbsSize              = sizeof (TbsBytes);
+    return TRUE;
+  }
+         )
+       );
 
   EFI_IMAGE_EXECUTION_ACTION  Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
 
