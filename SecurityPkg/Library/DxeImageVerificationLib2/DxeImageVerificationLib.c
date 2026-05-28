@@ -20,6 +20,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include "DxeImageVerificationLib.h"
+#include "Certificate.h"
 #include "Database.h"
 #include "Support.h"
 #include "Policy.h"
@@ -137,8 +138,71 @@ ValidateSignedImage (
   OUT EFI_IMAGE_EXECUTION_ACTION      *Action
   )
 {
+  EFI_STATUS    Status;
+  DIGEST_CACHE  Cache;
+  VOID          *Db;
+  UINTN         DbSize;
+  VOID          *Dbx;
+  UINTN         DbxSize;
+
+  Db  = NULL;
+  Dbx = NULL;
+
   *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED;
-  return EFI_UNSUPPORTED;
+
+  //
+  // Load db / dbx. Any failure here is treated as a verification
+  // failure.
+  //
+  Status = LoadSignatureDatabases (&Db, &DbSize, &Dbx, &DbxSize);
+  if (EFI_ERROR (Status)) {
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Setup digest cache for the image. This prevents redundant authenticode hash computations
+  // across both authorization and revocation checks.
+  //
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeImage;
+  Cache.Buffer     = FileBuffer;
+  Cache.BufferSize = FileSize;
+
+  //
+  // Authorization check first. An unauthorized image is denied
+  // immediately; the revocation check is only meaningful for an
+  // authorized image.
+  //
+  if (!IsSignedImageAuthorized (SecDataDir, Db, DbSize, Dbx, DbxSize, &Cache, Action)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Signed image is not authorized by DB.\n"));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Revocation check. A hit in dbx denies the image even if db
+  // authorized it.
+  //
+  if (IsSignedImageRevoked (SecDataDir, Dbx, DbxSize, &Cache, Action)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Signed image is forbidden by DBX.\n"));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  *Action = EFI_IMAGE_EXECUTION_AUTH_SIG_PASSED;
+  Status  = EFI_SUCCESS;
+
+Exit:
+  if (Db != NULL) {
+    FreePool (Db);
+  }
+
+  if (Dbx != NULL) {
+    FreePool (Dbx);
+  }
+
+  return Status;
 }
 
 /**

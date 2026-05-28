@@ -141,8 +141,8 @@ MakeBoundCache (
   UINTN         Index;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_TRUE (GetImageHashIndexForTest (HashType, &Index));
   EXPECT_LE (Digest.size (), (size_t)MAX_DIGEST_SIZE);
@@ -157,8 +157,8 @@ TEST (IsImageDigestInDatabaseTest, NullDatabaseWithNonZeroSize_ReturnsSuccess) {
   BOOLEAN       Found = FALSE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_EQ (IsImageDigestInDatabase (NULL, 1, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
@@ -172,8 +172,8 @@ TEST (IsImageDigestInDatabaseTest, NullDatabaseWithZeroSize_EmptyDatabaseNotFoun
   BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_EQ (IsImageDigestInDatabase (NULL, 0, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
@@ -194,8 +194,8 @@ TEST (IsImageDigestInDatabaseTest, NullIsFound_ReturnsInvalidParameter) {
   DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, &Cache, NULL), EFI_INVALID_PARAMETER);
 }
@@ -215,8 +215,8 @@ TEST (IsImageDigestInDatabaseTest, CacheWithZeroFileSize_ReturnsInvalidParameter
   BOOLEAN       Found = FALSE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 0;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 0;
 
   EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 1, &Cache, &Found), EFI_INVALID_PARAMETER);
 }
@@ -231,8 +231,8 @@ TEST (IsImageDigestInDatabaseTest, HashComputationFailure_ReturnsSecurityViolati
   BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
     .WillOnce (Return (EFI_DEVICE_ERROR));
@@ -375,8 +375,8 @@ TEST (IsImageDigestInDatabaseTest, ZeroSizeNonNullDatabase_EmptyDatabaseNotFound
   BOOLEAN       Found = TRUE;
 
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer = (const VOID *)(UINTN)1;
-  Cache.BufferSize   = 1;
+  Cache.Buffer     = (const VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
 
   EXPECT_EQ (IsImageDigestInDatabase (&Dummy, 0, &Cache, &Found), EFI_SUCCESS);
   EXPECT_FALSE (Found);
@@ -392,8 +392,8 @@ protected:
 };
 
 TEST_F (LoadSignatureDatabaseTest, NullDatabaseName_ReturnsInvalidParameter) {
-  VOID   *Buffer = NULL;
-  UINTN  BufferSize    = 0;
+  VOID   *Buffer    = NULL;
+  UINTN  BufferSize = 0;
 
   EXPECT_EQ (
     LoadSignatureDatabase (NULL, &Buffer, &BufferSize),
@@ -424,8 +424,8 @@ TEST_F (LoadSignatureDatabaseTest, VariableMissing_SuccessWithNullBuffer) {
   EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
     .WillOnce (Return (EFI_NOT_FOUND));
 
-  VOID   *Buffer = (VOID *)(UINTN)0xDEADBEEF;  // pre-set: must be cleared
-  UINTN  BufferSize    = 0xAA;
+  VOID   *Buffer    = (VOID *)(UINTN)0xDEADBEEF; // pre-set: must be cleared
+  UINTN  BufferSize = 0xAA;
 
   EXPECT_EQ (
     LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
@@ -449,15 +449,15 @@ TEST_F (LoadSignatureDatabaseTest, VariablePresent_BufferAndSizePopulated) {
          ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
-    *Value = AllocateCopyPool (sizeof (kPayload), kPayload);
-    *BufferSize  = sizeof (kPayload);
+    *Value      = AllocateCopyPool (sizeof (kPayload), kPayload);
+    *BufferSize = sizeof (kPayload);
     return EFI_SUCCESS;
   }
          )
        );
 
-  VOID   *Buffer = NULL;
-  UINTN  BufferSize    = 0;
+  VOID   *Buffer    = NULL;
+  UINTN  BufferSize = 0;
 
   EXPECT_EQ (
     LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
@@ -475,8 +475,8 @@ TEST_F (LoadSignatureDatabaseTest, GetVariableUnexpectedError_PropagatedVerbatim
   EXPECT_CALL (UefiLibMock, GetVariable2 (_, _, _, _))
     .WillOnce (Return (EFI_DEVICE_ERROR));
 
-  VOID   *Buffer = NULL;
-  UINTN  BufferSize    = 0;
+  VOID   *Buffer    = NULL;
+  UINTN  BufferSize = 0;
 
   EXPECT_EQ (
     LoadSignatureDatabase ((const CHAR16 *)u"db", &Buffer, &BufferSize),
@@ -513,8 +513,8 @@ ReturnVariablePayload (
            ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
-    *Value = AllocateCopyPool (PayloadSize, Payload);
-    *BufferSize  = PayloadSize;
+    *Value      = AllocateCopyPool (PayloadSize, Payload);
+    *BufferSize = PayloadSize;
     return EFI_SUCCESS;
   }
            );
@@ -725,8 +725,8 @@ TEST_F (LoadSignatureDatabasesTest, DbxLoadFailsWithAllocatedBuffer_DbxFreedAndN
          ) -> EFI_STATUS {
     (VOID)Name;
     (VOID)Guid;
-    *Value = AllocatePool (8);
-    *BufferSize  = 8;
+    *Value      = AllocatePool (8);
+    *BufferSize = 8;
     return EFI_DEVICE_ERROR;
   }
          )
@@ -745,4 +745,208 @@ TEST_F (LoadSignatureDatabasesTest, DbxLoadFailsWithAllocatedBuffer_DbxFreedAndN
   EXPECT_EQ (DbSize, 0u);
   EXPECT_EQ (Dbx, (VOID *)NULL);
   EXPECT_EQ (DbxSize, 0u);
+}
+
+// ---------------------------------------------------------------------------
+// IsTBSCertHashInDbx -- additional list-handling coverage
+// ---------------------------------------------------------------------------
+
+//
+// Dbx is too small to even contain one EFI_SIGNATURE_LIST header.
+// DatabaseIterInit must reject it and the helper must fail closed
+// (return TRUE).
+//
+TEST (IsTBSCertHashInDbxTest, MalformedDbx_ReturnsTrue) {
+  UINT8  TBSCert[] = { 0xDE, 0xAD };
+  // Less than sizeof(EFI_SIGNATURE_LIST) -> DatabaseIterInit returns corrupted.
+  std::vector<UINT8>  Dbx (4, 0);
+
+  EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx contains exactly one list whose SignatureType is not any of the
+// supported gEfiCertX509ShaXXXGuid values. The helper must skip it
+// and return FALSE.
+//
+TEST (IsTBSCertHashInDbxTest, UnsupportedShaList_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  // gEfiCertSha256Guid is an image-hash list type, not a cert-hash list type.
+  AppendSignatureList (Dbx, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+
+  // Neither hash routine should be invoked.
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _)).Times (0);
+
+  EXPECT_FALSE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx is an X509-SHA384 list with no matching entry. The helper must
+// take the SHA-384 branch (Sha384HashAll) and return FALSE.
+//
+TEST (IsTBSCertHashInDbxTest, Sha384List_NoMatch_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  const UINT32        EntrySize = (UINT32)(sizeof (EFI_GUID) + SHA384_DIGEST_SIZE);
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha384Guid, 0, EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x11, SHA384_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx is an X509-SHA512 list that contains the matching cert hash.
+// The helper must take the SHA-512 branch (Sha512HashAll) and return
+// TRUE.
+//
+TEST (IsTBSCertHashInDbxTest, Sha512List_Match_ReturnsTrue) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  const UINT32        EntrySize = (UINT32)(sizeof (EFI_GUID) + SHA512_DIGEST_SIZE);
+  std::vector<UINT8>  Dbx;
+
+  size_t  Off = AppendSignatureList (Dbx, gEfiCertX509Sha512Guid, 0, EntrySize, 1);
+
+  SetEntryPayload (Dbx, Off, 0, std::vector<UINT8>(SHA512_DIGEST_SIZE, 0x99));
+
+  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x99, SHA512_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// The hash routine itself fails (Sha256HashAll returns FALSE).
+// The helper must fail closed and return TRUE.
+//
+TEST (IsTBSCertHashInDbxTest, HashFails_FailsClosed_ReturnsTrue) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (Return (FALSE));
+
+  EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx X509-SHA256 list whose SignatureSize is too small to contain a
+// 32-byte digest. The helper must fail closed and return TRUE.
+//
+TEST (IsTBSCertHashInDbxTest, SignatureSizeTooSmall_FailsClosed_ReturnsTrue) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  UINT8             TBSCert[] = { 0xDE };
+  // EntrySize = GUID + 16 bytes -- smaller than required for a SHA-256 digest.
+  const UINT32        EntrySize = (UINT32)(sizeof (EFI_GUID) + 16);
+  std::vector<UINT8>  Dbx;
+
+  AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, EntrySize, 1);
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx X509-SHA256 list that passes the size check but whose
+// SignatureHeaderSize is inconsistent with SignatureListSize, causing
+// SigListIterInit to fail. The helper must fail closed and return
+// TRUE.
+//
+TEST (IsTBSCertHashInDbxTest, SigListIterInitFails_FailsClosed_ReturnsTrue) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  // Build a list with a SignatureHeaderSize larger than the list itself
+  // allows. We size the list to contain a single SHA-256 cert-hash entry
+  // (so the size check at the top of IsX509HashInList passes), but
+  // the inflated SignatureHeaderSize makes SigListIterInit reject it.
+  const UINT32  EntrySize = kSha256EntrySize;
+  const UINT32  ListSize  = (UINT32)(sizeof (EFI_SIGNATURE_LIST) + EntrySize);
+
+  Dbx.resize (ListSize, 0);
+
+  EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Dbx.data ();
+
+  CopyMem (&List->SignatureType, &gEfiCertX509Sha256Guid, sizeof (EFI_GUID));
+  List->SignatureListSize = ListSize;
+  // SignatureHeaderSize > SignatureListSize - sizeof (EFI_SIGNATURE_LIST).
+  List->SignatureHeaderSize = ListSize;
+  List->SignatureSize       = EntrySize;
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0x00, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_TRUE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
+}
+
+//
+// Dbx contains two X509-SHA256 lists for the same certificate. The
+// TBS digest should be computed once and reused for the second list.
+//
+TEST (IsTBSCertHashInDbxTest, RepeatedSha256Lists_UsesCachedDigest_ReturnsFalse) {
+  MockBaseCryptLib    BaseCryptLibMock;
+  UINT8               TBSCert[] = { 0xDE };
+  std::vector<UINT8>  Dbx;
+
+  size_t  Off0 = AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+  size_t  Off1 = AppendSignatureList (Dbx, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+
+  SetEntryPayload (Dbx, Off0, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x11));
+  SetEntryPayload (Dbx, Off1, 0, std::vector<UINT8>(SHA256_DIGEST_SIZE, 0x22));
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .Times (1)
+    .WillOnce (
+       Invoke (
+         [] (CONST VOID *, UINTN, UINT8 *Digest) -> BOOLEAN {
+    std::memset (Digest, 0xAA, SHA256_DIGEST_SIZE);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_FALSE (IsTBSCertHashInDbx (TBSCert, sizeof (TBSCert), Dbx.data (), Dbx.size ()));
 }

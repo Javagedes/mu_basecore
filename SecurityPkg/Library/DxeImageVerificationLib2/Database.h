@@ -14,26 +14,22 @@
 #include <Library/UefiLib.h>
 
 /**
-  Search an image signature database buffer for a match against the
-  image represented by Cache.
+  Search an image signature database buffer for a match against the image represented by Cache.
 
-  The database is walked list-by-list. For each known image-hash
-  SignatureType, the corresponding image digest is obtained from Cache
-  (computing it on first use) and compared against all list entries.
+  The database is walked list-by-list. For each known image-hash SignatureType, the corresponding
+  image digest is obtained from Cache (computing it on first use) and compared against all list
+  entries.
 
   @param[in]   Database      The raw database contents.
-  @param[in]   DatabaseSize  BufferSize of Database in bytes.
-  @param[in, out] Cache      DIGEST_CACHE pointer bound to the
-                             image being searched. The cache may be
-                             updated during the search.
+  @param[in]   DatabaseSize  The size of the Database in bytes.
+  @param[in, out] Cache      DIGEST_CACHE pointer bound to the image being searched. The cache may
+                             be updated during the search.
   @param[out]  IsFound       TRUE if a matching digest was located.
 
   @retval EFI_SUCCESS            Search completed; IsFound is valid.
-  @retval EFI_INVALID_PARAMETER  Cache or IsFound is NULL, Cache is not
-                                 bound to an image.
+  @retval EFI_INVALID_PARAMETER  Cache or IsFound is NULL, Cache is not bound to an image.
   @retval EFI_VOLUME_CORRUPTED   Database is structurally malformed.
-  @retval other                  Propagated from
-                                 GetHash.
+  @retval other                  Propagated from GetHash.
 **/
 EFI_STATUS
 IsImageDigestInDatabase (
@@ -44,20 +40,43 @@ IsImageDigestInDatabase (
   );
 
 /**
+  Determine whether a TBS Certificate hash is present in the `dbx`.
+
+  Iterates over the EFI_SIGNATURE_LISTs in the `dbx` database and checks if any of them contain
+  the hash of the TBS Certificate.
+
+  @param[in]  Cert      DER-encoded X.509 certificate.
+  @param[in]  CertSize  BufferSize of Cert in bytes.
+  @param[in]  Dbx       Raw dbx contents, or NULL.
+  @param[in]  DbxSize   BufferSize of Dbx in bytes; 0 when Dbx is NULL.
+
+  @retval TRUE   The certificate hash was located in dbx, or an error
+                 prevented a definitive answer.
+  @retval FALSE  The certificate hash is not present in dbx.
+**/
+BOOLEAN
+IsTBSCertHashInDbx (
+  IN  CONST UINT8  *TBSCert,
+  IN  UINTN        TBSCertSize,
+  IN  CONST VOID   *Dbx,
+  IN  UINTN        DbxSize
+  );
+
+/**
   Load the platform's db and dbx signature databases.
 
-  The returned buffers for Db and Dbx are allocated using AllocatePool(). The caller is responsible for
-  freeing these buffers with FreePool().
+  The returned buffers for Db and Dbx are allocated using AllocatePool(). The caller is responsible
+  for freeing these buffers with FreePool().
 
-  @param[out]  Db              Pool-allocated copy of the `db` variable
-                               contents, or NULL if `db` is absent.
-  @param[out]  DbSize          BufferSize of *Db in bytes; 0 when *Db is NULL.
-  @param[out]  Dbx             Pool-allocated copy of the `dbx` variable
-                               contents, or NULL if `dbx` is absent.
-  @param[out]  DbxSize         BufferSize of *Dbx in bytes; 0 when *Dbx is NULL.
-  @retval EFI_SUCCESS            Databases loaded. *Db / *Dbx may still
-                                 be NULL if the corresponding variable
-                                 was absent.
+  @param[out]  Db       Pool-allocated copy of the `db` variable contents, or NULL if `db` is
+                        absent.
+  @param[out]  DbSize   BufferSize of *Db in bytes; 0 when *Db is NULL.
+  @param[out]  Dbx      Pool-allocated copy of the `dbx` variable  contents, or NULL if `dbx` is
+                        absent.
+  @param[out]  DbxSize  BufferSize of *Dbx in bytes; 0 when *Dbx is NULL.
+
+  @retval EFI_SUCCESS            Databases loaded. *Db / *Dbx may still be NULL if the
+                                 corresponding variable was absent.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
   @retval Other                  Failure status from gRT->GetVariable.
 **/
