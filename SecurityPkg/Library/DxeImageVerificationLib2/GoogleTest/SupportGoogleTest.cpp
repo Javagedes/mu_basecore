@@ -23,6 +23,51 @@ extern "C" {
 
 using ::testing::_;
 using ::testing::Invoke;
+using ::testing::Return;
+
+static bool
+GetImageHashIndexForTest (
+  const EFI_GUID  *Guid,
+  UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == nullptr) || (Index == nullptr)) {
+    return false;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
+    if (CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid)) {
+      *Index = I;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static bool
+GetX509HashIndexForTest (
+  const EFI_GUID  *Guid,
+  UINTN           *Index
+  )
+{
+  UINTN  I;
+
+  if ((Guid == nullptr) || (Index == nullptr)) {
+    return false;
+  }
+
+  for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
+    if (CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuid)) {
+      *Index = I;
+      return true;
+    }
+  }
+
+  return false;
+}
 
 //
 // Layout constants for the synthetic PE32+ image.
@@ -272,4 +317,251 @@ TEST_F (GetImageSecurityDataDirectoryTest, OtherDataDirectoriesDoNotLeak) {
     );
   EXPECT_EQ (SecDataDir.VirtualAddress, kSecDirVa);
   EXPECT_EQ (SecDataDir.Size, kSecDirSize);
+}
+
+// ---------------------------------------------------------------------------
+// GetHash
+// ---------------------------------------------------------------------------
+
+TEST (GetHashTest, NullParameters_ReturnsInvalidParameter) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  EXPECT_EQ (GetHash (NULL, &Cache, &Digest, &DigestSize), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, NULL, &Digest, &DigestSize), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, NULL, &DigestSize), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, NULL), EFI_INVALID_PARAMETER);
+}
+
+TEST (GetHashTest, CacheWithoutFileBuffer_ReturnsInvalidParameter) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+
+  ZeroMem (&Cache, sizeof (Cache));
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_INVALID_PARAMETER);
+}
+
+TEST (GetHashTest, UnsupportedHashGuid_ReturnsUnsupported) {
+  EFI_GUID      UnknownGuid = {
+    0xA1B2C3D4,
+    0x9999,
+    0x8888,
+    { 0x10,    0x20,0x30, 0x40, 0x50, 0x60, 0x70, 0x80 }
+  };
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  EXPECT_EQ (GetHash (&UnknownGuid, &Cache, &Digest, &DigestSize), EFI_UNSUPPORTED);
+}
+
+TEST (GetHashTest, CacheHit_ReturnsExistingDigestBytes) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+  UINTN         SlotIndex;
+  CONST UINT8   ExpectedDigest[] = { 0x10, 0x20, 0x30, 0x40 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  ASSERT_TRUE (GetImageHashIndexForTest (&gEfiCertSha256Guid, &SlotIndex));
+  CopyMem (Cache.Entries[SlotIndex].Bytes, ExpectedDigest, sizeof (ExpectedDigest));
+  Cache.Entries[SlotIndex].BufferSize = sizeof (ExpectedDigest);
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_SUCCESS);
+  ASSERT_NE (Digest, (CONST UINT8 *)NULL);
+  EXPECT_EQ (DigestSize, sizeof (ExpectedDigest));
+  EXPECT_EQ (CompareMem (Digest, ExpectedDigest, sizeof (ExpectedDigest)), 0);
+}
+
+TEST (GetHashTest, CacheMiss_ComputesAndCachesDigest) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = NULL;
+  UINTN             DigestSize = 0;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN  VOID            *FileBuffer,
+             IN  UINTN           FileSize,
+             IN  CONST EFI_GUID  *HashType,
+             OUT UINT8           *OutDigest,
+             OUT UINTN           *OutDigestSize
+         ) -> EFI_STATUS {
+    (VOID)FileBuffer;
+    (VOID)FileSize;
+    (VOID)HashType;
+    OutDigest[0]   = 0x11;
+    OutDigest[1]   = 0x22;
+    OutDigest[2]   = 0x33;
+    *OutDigestSize = 3;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_SUCCESS);
+  ASSERT_NE (Digest, (CONST UINT8 *)NULL);
+  EXPECT_EQ (DigestSize, (UINTN)3);
+  EXPECT_EQ (Digest[0], 0x11);
+  EXPECT_EQ (Digest[1], 0x22);
+  EXPECT_EQ (Digest[2], 0x33);
+}
+
+TEST (GetHashTest, CacheMiss_HashFailure_ClearsSlotAndReturnsSecurityViolation) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = (CONST UINT8 *)(UINTN)1;
+  UINTN             DigestSize = 9;
+  UINTN             SlotIndex;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  ASSERT_TRUE (GetImageHashIndexForTest (&gEfiCertSha256Guid, &SlotIndex));
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN  VOID            *FileBuffer,
+             IN  UINTN           FileSize,
+             IN  CONST EFI_GUID  *HashType,
+             OUT UINT8           *OutDigest,
+             OUT UINTN           *OutDigestSize
+         ) -> EFI_STATUS {
+    (VOID)FileBuffer;
+    (VOID)FileSize;
+    (VOID)HashType;
+    (VOID)OutDigest;
+    *OutDigestSize = 64;
+    return EFI_DEVICE_ERROR;
+  }
+         )
+       );
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_SECURITY_VIOLATION);
+  EXPECT_EQ (Cache.Entries[SlotIndex].BufferSize, (UINTN)0);
+}
+
+TEST (GetHashTest, X509CacheMiss_ComputesAndCachesDigest) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = NULL;
+  UINTN             DigestSize = 0;
+  UINTN             SlotIndex;
+  UINT8             Data[3] = { 0xA1, 0xB2, 0xC3 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeX509;
+  Cache.Buffer     = Data;
+  Cache.BufferSize = sizeof (Data);
+
+  ASSERT_TRUE (GetX509HashIndexForTest (&gEfiCertX509Sha256Guid, &SlotIndex));
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN   CONST VOID  *Input,
+             IN   UINTN       InputSize,
+             OUT  UINT8       *HashValue
+         ) -> BOOLEAN {
+    (VOID)Input;
+    (VOID)InputSize;
+    SetMem (HashValue, SHA256_DIGEST_SIZE, 0x5A);
+    return TRUE;
+  }
+         )
+       );
+
+  EXPECT_EQ (GetHash (&gEfiCertX509Sha256Guid, &Cache, &Digest, &DigestSize), EFI_SUCCESS);
+  ASSERT_NE (Digest, (CONST UINT8 *)NULL);
+  EXPECT_EQ (DigestSize, (UINTN)SHA256_DIGEST_SIZE);
+  EXPECT_EQ (Cache.Entries[SlotIndex].BufferSize, (UINTN)SHA256_DIGEST_SIZE);
+  EXPECT_EQ (Digest[0], (UINT8)0x5A);
+}
+
+TEST (GetHashTest, X509CacheMiss_HashFailure_ClearsSlotAndReturnsSecurityViolation) {
+  MockBaseCryptLib  BaseCryptLibMock;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = (CONST UINT8 *)(UINTN)1;
+  UINTN             DigestSize = 17;
+  UINTN             SlotIndex;
+  UINT8             Data[3] = { 0xA1, 0xB2, 0xC3 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeX509;
+  Cache.Buffer     = Data;
+  Cache.BufferSize = sizeof (Data);
+
+  ASSERT_TRUE (GetX509HashIndexForTest (&gEfiCertX509Sha256Guid, &SlotIndex));
+
+  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+    .WillOnce (Return (FALSE));
+
+  EXPECT_EQ (GetHash (&gEfiCertX509Sha256Guid, &Cache, &Digest, &DigestSize), EFI_SECURITY_VIOLATION);
+  EXPECT_EQ (Cache.Entries[SlotIndex].BufferSize, (UINTN)0);
+}
+
+TEST (GetHashTest, X509CacheWithImageGuid_ReturnsUnsupported) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+  UINT8         Data[1]    = { 0x11 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeX509;
+  Cache.Buffer     = Data;
+  Cache.BufferSize = sizeof (Data);
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_UNSUPPORTED);
+}
+
+TEST (GetHashTest, ImageCacheWithX509Guid_ReturnsUnsupported) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+  UINT8         Data[1]    = { 0x22 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeImage;
+  Cache.Buffer     = Data;
+  Cache.BufferSize = sizeof (Data);
+
+  EXPECT_EQ (GetHash (&gEfiCertX509Sha256Guid, &Cache, &Digest, &DigestSize), EFI_UNSUPPORTED);
+}
+
+TEST (GetHashTest, InvalidCacheType_ReturnsUnsupported) {
+  DIGEST_CACHE  Cache;
+  CONST UINT8   *Digest    = NULL;
+  UINTN         DigestSize = 0;
+  UINT8         Data[1]    = { 0x33 };
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = (DIGEST_CACHE_TYPE)0xFF;
+  Cache.Buffer     = Data;
+  Cache.BufferSize = sizeof (Data);
+
+  EXPECT_EQ (GetHash (&gEfiCertSha256Guid, &Cache, &Digest, &DigestSize), EFI_UNSUPPORTED);
 }

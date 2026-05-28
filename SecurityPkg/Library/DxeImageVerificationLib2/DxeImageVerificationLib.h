@@ -18,11 +18,47 @@
 #include <IndustryStandard/PeImage.h>
 #include <Library/SecureBootVariableLib.h>
 #include <Library/BaseLib.h>
+#include <Library/BaseCryptLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
 #include <Library/SecurityManagementLib.h>
 #include <Protocol/DevicePath.h>
+
+#define MAX_DIGEST_SIZE  SHA512_DIGEST_SIZE
+
+//
+// Signature of BaseCryptLib's one-shot hash helpers (Sha256HashAll, etc.).
+//
+typedef
+BOOLEAN
+(EFIAPI *HASH_ALL_FN)(
+  IN  CONST VOID  *Data,
+  IN  UINTN       DataSize,
+  OUT UINT8       *HashValue
+  );
+
+//
+// Type definition for all information necessary to describe hash algorithm usage in this library.
+//
+typedef struct {
+  CONST CHAR8       *Name;
+  CONST EFI_GUID    *ImageHashGuid;
+  CONST EFI_GUID    *X509CertHashGuid;
+  HASH_ALL_FN       HashAll;
+  UINTN             DigestSize;
+} HASH_ALGORITHM;
+
+//
+// All supported hash algorithms for secureboot validation. Adding a new algorithm to this list
+// will add support for that algorithm across the entire library.
+//
+STATIC CONST HASH_ALGORITHM  mHashAlgorithms[] = {
+  { "SHA256", &gEfiCertSha256Guid, &gEfiCertX509Sha256Guid, Sha256HashAll, SHA256_DIGEST_SIZE },
+  { "SHA384", &gEfiCertSha384Guid, &gEfiCertX509Sha384Guid, Sha384HashAll, SHA384_DIGEST_SIZE },
+  { "SHA512", &gEfiCertSha512Guid, &gEfiCertX509Sha512Guid, Sha512HashAll, SHA512_DIGEST_SIZE }
+};
 
 /**
   Provide verification service for signed images, which include both signature validation

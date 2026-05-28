@@ -20,6 +20,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include "DxeImageVerificationLib.h"
+#include "Database.h"
 #include "Support.h"
 #include "Policy.h"
 
@@ -41,7 +42,78 @@ ValidateUnsignedImage (
   IN  UINTN  FileSize
   )
 {
-  return EFI_UNSUPPORTED;
+  EFI_STATUS    Status;
+  BOOLEAN       IsFound;
+  DIGEST_CACHE  Cache;
+  VOID          *Db;
+  UINTN         DbSize;
+  VOID          *Dbx;
+  UINTN         DbxSize;
+
+  Db  = NULL;
+  Dbx = NULL;
+
+  //
+  // Load db / dbx. Any failure here is treated as a verification
+  // failure.
+  //
+  Status = LoadSignatureDatabases (&Db, &DbSize, &Dbx, &DbxSize);
+  if (EFI_ERROR (Status)) {
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Setup digest cache for the image. This prevents redundant authenticode hash computations
+  // across EFI_SIGNATURE_LIST structures in the databases.
+  //
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Type       = DigestCacheTypeImage;
+  Cache.Buffer     = FileBuffer;
+  Cache.BufferSize = FileSize;
+
+  //
+  // Walk the dbx first. A hit in the dbx immediately denies the image.
+  //
+  Status = IsImageDigestInDatabase (
+             Dbx,
+             DbxSize,
+             &Cache,
+             &IsFound
+             );
+  if (EFI_ERROR (Status) || IsFound) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image is not signed and image is forbidden by DBX.\n"));
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  //
+  // Walk the db next. The image is authorized if a match is found. A miss is a failure is treated as a verification
+  // failure.
+  //
+  Status = IsImageDigestInDatabase (
+             Db,
+             DbSize,
+             &Cache,
+             &IsFound
+             );
+  if (EFI_ERROR (Status) || !IsFound) {
+    Status = EFI_ACCESS_DENIED;
+    goto Exit;
+  }
+
+  Status = EFI_SUCCESS;
+
+Exit:
+  if (Db != NULL) {
+    FreePool (Db);
+  }
+
+  if (Dbx != NULL) {
+    FreePool (Dbx);
+  }
+
+  return Status;
 }
 
 /**

@@ -12,6 +12,73 @@
 
 #include <Library/PeCoffLib.h>
 
+//
+// An enum to specify the type of data being cached in an instance of `DIGEST_CACHE`.
+//
+typedef enum {
+  DigestCacheTypeImage,
+  DigestCacheTypeX509
+} DIGEST_CACHE_TYPE;
+
+//
+// A cached digest slot in `DIGEST_CACHE`. The slot's position within `DIGEST_CACHE::Entries`
+// identifies the hash algorithm (ordering matches `mHashAlgorithms`).
+//
+// BufferSize == 0 marks an empty slot; any non-zero BufferSize identifies a valid cached digest
+// for that particular hash algorithm (based on index compared to `mHashAlgorithms`).
+//
+typedef struct {
+  UINT8    Bytes[MAX_DIGEST_SIZE];
+  UINTN    BufferSize;
+} DIGEST_CACHE_ENTRY;
+
+//
+// Caller-owned digest cache, one fixed slot per supported hash algorithm based on
+// `mHashAlgorithms` order.
+//
+// The structure should be Zero-initialized before use as the DigestSize in each entry is used to
+// determine whether the slot contains a valid cached digest.
+//
+typedef struct {
+  DIGEST_CACHE_TYPE     Type;
+  CONST VOID            *Buffer;
+  UINTN                 BufferSize;
+  DIGEST_CACHE_ENTRY    Entries[ARRAY_SIZE (mHashAlgorithms)];
+} DIGEST_CACHE;
+
+/**
+  Get or compute a cached digest for HashType.
+
+  `Cache->Buffer` is the data to be hashed for cache miss while `Cache->Type` indicates how to
+  compute the digest.
+
+  Digest calculations are as follows:
+  - DigestCacheTypeImage: compute using GetAuthenticodeHash() with the specified HashType.
+  - DigestCacheTypeX509: compute using BaseCryptLib's HashAll function for the specified HashType.
+
+  @param[in]      HashType     Signature-type GUID identifying the hash algorithm to use.
+  @param[in,out]  Cache        Caller-owned digest cache bound to one buffer via Cache->Buffer /
+                               Cache->BufferSize.
+  @param[out]     Digest       On success, receives a pointer to the cached digest bytes. The
+                               pointer is valid for the lifetime of Cache.
+  @param[out]     DigestSize   On success, receives the digest length in bytes.
+
+  @retval EFI_SUCCESS            Digest / DigestSize describe a valid cached digest.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval EFI_UNSUPPORTED        HashType does not map to an entry in mHashAlgorithms compatible
+                                 with Cache->Type.
+  @retval EFI_COMPROMISED_DATA   Cache already holds a digest for this slot but the stored size is invalid.
+  @retval EFI_SECURITY_VIOLATION The HashAll operation failed.
+  @retval other                  Forwarded from GetAuthenticodeHash.
+**/
+EFI_STATUS
+GetHash (
+  IN     CONST EFI_GUID  *HashType,
+  IN OUT DIGEST_CACHE    *Cache,
+  OUT    CONST UINT8     **Digest,
+  OUT    UINTN           *DigestSize
+  );
+
 /**
   Locate the EFI_IMAGE_DIRECTORY_ENTRY_SECURITY data directory in the
   PE/COFF image contained in FileBuffer.
