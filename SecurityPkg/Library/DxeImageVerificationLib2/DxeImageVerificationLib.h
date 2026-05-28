@@ -13,6 +13,13 @@
 #define DXE_IMAGE_VERIFICATION_LIB_H_
 
 #include <Uefi.h>
+#include <UefiSecureBoot.h>
+#include <Guid/ImageAuthentication.h>
+#include <IndustryStandard/PeImage.h>
+#include <Library/SecureBootVariableLib.h>
+#include <Library/BaseLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
 #include <Library/SecurityManagementLib.h>
 #include <Protocol/DevicePath.h>

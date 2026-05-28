@@ -31,6 +31,8 @@
 
 [Sources]
   DxeImageVerificationLib.c
+  Policy.c
+  Support.c
   DxeImageVerificationLib.h
 
 [Packages]
