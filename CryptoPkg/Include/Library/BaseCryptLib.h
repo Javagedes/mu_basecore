@@ -2049,6 +2049,48 @@ X509GetTBSCert (
   );
 
 /**
+  Compute the digest of a DER-encoded X.509 certificate using the
+  hash algorithm identified by HashType.
+
+  The caller selects the digest algorithm by HashType (e.g.
+  gEfiCertX509Sha256Guid, gEfiCertX509Sha384Guid, gEfiCertX509Sha512Guid).
+
+  If the Digest buffer is too small to hold the contents of the digest,
+  the error EFI_BUFFER_TOO_SMALL is returned and DigestSize is set to
+  the required buffer size to obtain the data.
+
+  @param[in]   Cert        Pointer to the DER-encoded X.509 certificate.
+  @param[in]   CertSize    Size of Cert in bytes.
+  @param[in]   HashType    Signature-type GUID identifying the hash
+                           algorithm to use.
+  @param[out]  Digest      Caller-provided buffer that receives the
+                           computed digest. Must be at least
+                           SHA512_DIGEST_SIZE bytes.
+  @param[out]  DigestSize  On success, receives the digest length in
+                           bytes.
+
+  @retval EFI_SUCCESS            Digest was computed successfully.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL or CertSize
+                                 is zero.
+  @retval EFI_BUFFER_TOO_SMALL   DigestSize is too small for the
+                                 requested hash algorithm.
+  @retval EFI_UNSUPPORTED        HashType is not a recognized X.509
+                                 certificate hash algorithm, or this
+                                 interface is not supported by the
+                                 underlying library instance.
+  @retval EFI_SECURITY_VIOLATION The hash computation failed.
+**/
+EFI_STATUS
+EFIAPI
+GetX509Hash (
+  IN  VOID            *Cert,
+  IN  UINTN           CertSize,
+  IN  CONST EFI_GUID  *HashType,
+  OUT UINT8           *Digest,
+  OUT UINTN           *DigestSize
+  );
+
+/**
   Derives a key from a password using a salt and iteration count, based on PKCS#5 v2.0
   password based encryption key derivation function PBKDF2, as specified in RFC 2898.
 
