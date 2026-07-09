@@ -102,6 +102,8 @@ MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, Pkcs7GetAttachedContent, 4, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, AuthenticodeVerify, 6, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, GetAuthenticodeHash, 5, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, GetAuthenticodeHashAlgorithm, 3, EFIAPI);
+MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, GetTrustAnchorX509FromAuthData, 7, EFIAPI);
+MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, FreeTrustAnchorX509Cache, 1, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, ImageTimestampVerify, 5, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, X509GetVersion, 3, EFIAPI);
 MOCK_FUNCTION_DEFINITION (MockBaseCryptLib, X509GetSerialNumber, 4, EFIAPI);
