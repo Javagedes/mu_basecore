@@ -756,6 +756,18 @@ struct MockBaseCryptLib {
     );
 
   MOCK_FUNCTION_DECLARATION (
+    EFI_STATUS,
+    X509GetTbsCertHash,
+    (
+     IN  VOID            *Cert,
+     IN  UINTN           CertSize,
+     IN  CONST EFI_GUID  *HashType,
+     OUT UINT8           *Digest,
+     OUT UINTN           *DigestSize
+    )
+    );
+
+  MOCK_FUNCTION_DECLARATION (
     BOOLEAN,
     Pkcs5HashPassword,
     (
