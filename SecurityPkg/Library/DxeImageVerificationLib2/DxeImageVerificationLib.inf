@@ -34,7 +34,6 @@
   Database.h
   DxeImageVerificationLib.c
   DxeImageVerificationLib.h
-  ImageExecution.c
   Iterator.c
   Iterator.h
   Measurement.c

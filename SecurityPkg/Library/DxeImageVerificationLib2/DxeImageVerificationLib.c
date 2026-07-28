@@ -33,17 +33,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
        WIN_CERTIFICATE needs to authorize the image for it to be validated.
     3. Authorize the image if the image's Authenticode hash is enrolled in the `db`.
 
-  When the image is rejected for any reason, an entry describing the rejection is appended to the
-  Image Execution Information Table. The recorded EFI_IMAGE_EXECUTION_ACTION is:
-    - EFI_IMAGE_EXECUTION_AUTH_UNTESTED      Unsigned image rejected (digest in `dbx`, or digest
-                                             not in `db`).
-    - EFI_IMAGE_EXECUTION_AUTH_SIG_FOUND     Signed image rejected because its digest is in `dbx`.
-    - EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED    Signed image rejected and at least one certificate was
-                                             revoked by `dbx` (or could not be evaluated).
-    - EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND Signed image rejected because no certificate is in `db`
-                                             and the digest is not in `db`.
-
-  @param[in]   File         Device path of the image being verified. Used to record rejections.
+  @param[in]   File         Device path of the image being verified.
   @param[in]   FileBuffer   Pointer to the in-memory PE/COFF image.
   @param[in]   FileSize     Size of FileBuffer in bytes.
   @param[in]   SecDataDir   Security data directory describing the embedded WIN_CERTIFICATE table.
@@ -64,19 +54,13 @@ ValidateImage (
   IN OUT MEASURED_AUTHORITIES            *Measured
   )
 {
-  EFI_STATUS                  Status;
-  DIGEST_CACHE                Cache;
-  SIGNATURE_DATABASES         Databases;
-  WIN_CERT_ITER               CertIter;
-  CONST WIN_CERTIFICATE       *Cert;
-  IMAGE_AUTHORITY             Authority;
-  EFI_IMAGE_EXECUTION_ACTION  Action;
-  EFI_GUID                    RejectHashType;
-  CONST UINT8                 *RejectDigest;
-  UINTN                       RejectDigestSize;
-
-  Action = EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND;
-  ZeroMem (&RejectHashType, sizeof (EFI_GUID));
+  EFI_STATUS             Status;
+  DIGEST_CACHE           Cache;
+  SIGNATURE_DATABASES    Databases;
+  WIN_CERT_ITER          CertIter;
+  CONST WIN_CERTIFICATE  *Cert;
+  IMAGE_AUTHORITY        Authority;
+  IMAGE_CERT_EVALUATION  CertEval;
 
   //
   // Setup digest cache for the image. This prevents redundant authenticode hash computations
@@ -94,20 +78,11 @@ ValidateImage (
   }
 
   //
-  // Step 1: Reject the image if its Authenticode hash is found in the `dbx`. A failure to search
-  // the `dbx` rejects the image.
+  // Step 1: Reject the image if its Authenticode hash is found in the `dbx`. A `dbx` that cannot
+  // be fully parsed fails closed (IsInDbx returns TRUE), rejecting the image.
   //
-  Status = GetImageDigestAuthority (Databases.Dbx, Databases.DbxSize, &Cache, &Authority);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Failed to search DBX for image hash (%r).\n", Status));
-    Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FOUND;
-    goto Reject;
-  }
-
-  if (Authority.Data != NULL) {
+  if (IsInDbx (&Cache, Databases.Dbx, Databases.DbxSize, &Authority)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image hash is forbidden by DBX.\n"));
-    Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FOUND;
-    CopyGuid (&RejectHashType, &Authority.SignatureType);
     goto Reject;
   }
 
@@ -115,18 +90,17 @@ ValidateImage (
   // Step 2: For each WIN_CERTIFICATE in the image's security data directory, extract the auth data
   // and check if it authorizes the image per the `db` and `dbx`. Exit on the first authorization.
   //
-  // Note: If the image is unsigned, the iterator is empty and this step is a no-op.
+  // Note: If the image is unsigned, the iterator is empty and this step is a no-op. A malformed
+  // certificate table only truncates the walk to its valid prefix (best-effort); the certificates
+  // that parse cleanly are still evaluated, and the image can still be authorized by Step 3.
   //
-  Status = WinCertIterInit (&CertIter, FileBuffer, FileSize, SecDataDir);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Failed to walk security data directory (%r).\n", Status));
-    Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED;
-    goto Reject;
+  if (!WinCertIterInit (&CertIter, FileBuffer, FileSize, SecDataDir)) {
+    DEBUG ((DEBUG_WARN, "DxeImageVerificationLib: certificate table truncated at a malformed entry; evaluating the valid prefix.\n"));
   }
 
   while ((Cert = WinCertIterNext (&CertIter)) != NULL) {
-    Status = GetImageCertAuthority (Cert, &Cache, &Databases, &Authority);
-    if ((Status == EFI_SUCCESS) && (Authority.Data != NULL)) {
+    Status = EvaluateImageCertificate (Cert, &Cache, &Databases, &CertEval);
+    if (!EFI_ERROR (Status) && (CertEval.Verdict == ImageCertApproved)) {
       //
       // Measure the `db` trust anchor that authorized the image into PCR 7.
       //
@@ -134,27 +108,17 @@ ValidateImage (
         Measured,
         EFI_IMAGE_SECURITY_DATABASE,
         &gEfiImageSecurityDatabaseGuid,
-        &Authority
+        &CertEval.Authority
         );
       Status = EFI_SUCCESS;
       goto Exit;
-    }
-
-    //
-    // This auth data is rejected by the `dbx`; update the rejection information so that we can
-    // properly record a rejection record if we end up rejecting the image.
-    //
-    if (Status == EFI_ACCESS_DENIED) {
-      CopyGuid (&RejectHashType, &Authority.SignatureType);
-      Action = EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED;
     }
   }
 
   //
   // Step 3: Authorize the image if the image authenticode hash is in the `db`.
   //
-  Status = GetImageDigestAuthority (Databases.Db, Databases.DbSize, &Cache, &Authority);
-  if (!EFI_ERROR (Status) && (Authority.Data != NULL)) {
+  if (IsInDb (&Cache, Databases.Db, Databases.DbSize, &Authority)) {
     //
     // Measure the `db` image-hash entry that authorized the image into PCR 7.
     //
@@ -171,28 +135,6 @@ ValidateImage (
   DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image is not authorized by DB.\n"));
 
 Reject:
-  //
-  // Above logic assumed signed images. If the image is unsigned, it's rejection reason is always
-  // EFI_IMAGE_EXECUTION_AUTH_UNTESTED and the table record does not contain any signature
-  // information.
-  //
-  if (SecDataDir->Size == 0) {
-    Action = EFI_IMAGE_EXECUTION_AUTH_UNTESTED;
-    ZeroMem (&RejectHashType, sizeof (EFI_GUID));
-  }
-
-  //
-  // Recover the memoized image digest for the rejection signature when a hash
-  // algorithm was established (SIG_FOUND / SIG_FAILED). A failure simply records
-  // no signature.
-  //
-  RejectDigest     = NULL;
-  RejectDigestSize = 0;
-  if (!IsZeroGuid (&RejectHashType)) {
-    GetHash (&RejectHashType, &Cache, &RejectDigest, &RejectDigestSize);
-  }
-
-  RecordRejectedImage (File, Action, &RejectHashType, RejectDigest, RejectDigestSize);
   Status = EFI_ACCESS_DENIED;
 
 Exit:

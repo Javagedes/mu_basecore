@@ -156,6 +156,58 @@ violations.
   to avoid colliding with UEFI's `EFI_HANDLE` / `ImageHandle`
   (LoadImage) concepts.
 
+## Structure Iterators (`Iterator.c` / `Iterator.h`)
+
+Three forward-only iterators centralize the structural validation of the
+attacker-controlled containers this library walks:
+
+- `SIG_DATABASE_ITER` - each `EFI_SIGNATURE_LIST` in a `db` / `dbx` / `dbt`
+  buffer.
+- `SIG_LIST_ITER` - each `EFI_SIGNATURE_DATA` entry inside one
+  `EFI_SIGNATURE_LIST`.
+- `WIN_CERT_ITER` - each `WIN_CERTIFICATE` in a PE/COFF security data
+  directory.
+
+All three share an `Init` / `Next` contract. `<Structure>Init(..)` validates
+the container and establishes the iteration range; `<Structure>Next(..)`
+returns the next item (or `NULL` once the range is exhausted) and is
+infallible after `Init` has run.
+
+### Truncation contract (return `BOOLEAN`, never log)
+
+`Init` is **not fallible**. Rather than rejecting a container that is
+malformed partway through, it clamps the iteration range to the valid prefix:
+it stops at the first entry that fails to parse and iterates only the entries
+that precede it. `Init` returns a `BOOLEAN`:
+
+- `TRUE`  - the whole container parsed cleanly; the iterator covers every
+  entry.
+- `FALSE` - the range was truncated (one or more trailing entries were
+  dropped, or the inputs were unusable, e.g. a NULL pointer). The exposed
+  iterator is still safe to use and covers the valid prefix (possibly empty).
+
+`Init` **never logs**. Callers decide what to log based on the returned
+boolean, so the parsing primitive stays free of policy and each call site can
+describe the container it is walking.
+
+### Design notes for future maintainers
+
+- Truncation-to-empty is the safe default for unusable inputs (NULL `Iter`,
+  NULL buffer with a non-zero size, or size fields that leave the entry
+  stride undeterminable): the iterator yields nothing and `Next` returns
+  `NULL` immediately.
+- `Next` must remain infallible. All bounds and consistency checks belong in
+  `Init` so the hot iteration path is a simple advance. Do not add validation
+  to `Next`.
+- Call sites currently treat a `FALSE` return (truncation) the same way they
+  treated the old `EFI_ERROR` return (fail-closed for `dbx` revocation paths,
+  skip-the-list for the `db` authorization walks) - that is, they check
+  `if (!<Structure>Init (...))`. The intent is to later revisit call sites so
+  they consume the valid prefix instead of aborting.
+- Because `Init` no longer emits diagnostics, any log about a malformed
+  container must live at the call site. Prefer `DEBUG_WARN` and name the
+  container (db / dbx / certificate table) being walked.
+
 ## Signature Database Helpers (`Database.c` / `Database.h`)
 
 `Database.c` contains parsers for Secure Boot's `db`, `dbx`, and `dbt`
@@ -199,3 +251,55 @@ Every walker treats its buffer as untrusted input.
   (`EFI_NOT_FOUND`) to that shape, and unsigned-image validation relies on
   this to handle absent `db`/`dbx` variables correctly. Only reject
   `Database == NULL` when `DatabaseSize != 0`.
+
+### Signed-image certificate authorization (chain-relative revocation)
+
+`EvaluateImageCertificate` evaluates one `WIN_CERTIFICATE` and reports a
+*verdict* (`IMAGE_CERT_EVALUATION`), performing the `db`/`dbx` decision
+with revocation evaluated **relative to the authorizing certificate
+chain** rather than globally. The model, and its rationale, for future
+maintainers:
+
+- After a prelude (parse PKCS#7 `AuthData`, resolve the Authenticode hash
+  algorithm, compute the image digest), it walks every `db` trust anchor. An
+  `EFI_CERT_X509_GUID` entry is a
+  certificate used directly; an X.509-cert-hash entry (matched via
+  `IsX509CertHashGuid`, e.g. `EFI_CERT_X509_SHA256_GUID`) is resolved to
+  the certificate carried in the image's own `AuthData` via
+  `GetX509FromTbsCertHash` (a thin, unit-tested wrapper over the
+  `BaseCryptLib` `GetTrustAnchorX509FromAuthData` primitive). This "cert
+  relativeness" lets `db` enroll only a certificate's TBS hash.
+- A candidate anchor authorizes the image only when `AuthenticodeVerifyEx`
+  confirms it signs the image AND `IsChainRevoked` finds no certificate
+  in the returned signer->anchor chain enrolled in `dbx`.
+  `AuthenticodeVerifyEx` returns the exact `EFI_CERT_STACK` built and used by
+  the verifier, ordered signer..anchor, so revocation does not depend on a
+  separate chain reconstruction that could select a different path.
+- `IsChainRevoked` checks each chain certificate with `IsInDbx`, the
+  single revocation primitive: an `EFI_CERT_X509_GUID` `dbx` entry
+  matches by exact DER bytes; an X.509-cert-hash `dbx` entry matches by
+  the certificate's TBSCertificate digest under that list's algorithm.
+- Return contract: the `EFI_STATUS` says only whether evaluation ran; the
+  security outcome is `Evaluation->Verdict`. `EFI_SUCCESS` means "read the
+  verdict"; `EFI_INVALID_PARAMETER` means a NULL argument; any other error
+  is a genuine image-hash computation failure (propagated from `GetHash`)
+  with no verdict produced. The verdict is one of `ImageCertApproved`
+  (authorized; `Evaluation->Authority` identifies the `db` entry for PCR 7
+  measurement), `ImageCertRevokedByDbx` (an anchor verified but its chain
+  is revoked and nothing else authorizes), `ImageCertNotInDb` (no anchor
+  verifies), or `ImageCertUnusable` (the certificate could not be
+  evaluated: unparseable `WIN_CERTIFICATE` or unknown hash algorithm).
+  `ValidateImage` treats only `EFI_SUCCESS` +
+  `ImageCertApproved` as "this certificate authorized" and otherwise moves
+  on.
+- **Fail closed everywhere**: any inability to parse `dbx`, obtain or parse a
+  verified chain, resolve a hash, or compute a digest is treated as revoked
+  (`IsInDbx` / `IsChainRevoked` return TRUE); a `db` parse problem
+  yields an `ImageCertNotInDb` verdict. This deliberately replaced the
+  earlier global revocation pass (a now-removed `IsCertRevoked`, which used
+  `Pkcs7GetSigners` + a `dbx` `AuthenticodeVerify` pre-check) so a `dbx`
+  entry only blocks an image when the revoked certificate actually
+  participates in the chain that would authorize it (FR-4).
+- BaseCryptLib buffers are caller-owned: free chains returned by
+  `AuthenticodeVerifyEx` and resolved anchors via `FreePool`, and the
+  trust-anchor cache via `FreeTrustAnchorX509Cache`.

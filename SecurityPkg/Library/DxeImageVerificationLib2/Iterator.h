@@ -1,14 +1,18 @@
 /** @file
   Forward-only iterators for walking different data structures.
 
-  Iterators perform data validation during initialization. If initialization succeeds, the
-  iterator is guaranteed to produce valid results during iteration. This does mean that certain
-  iterator implemenations walk the data structures twice. Once during initialization to validate
-  the data, and again during iteration to produce the results.
+  Iterators perform data validation during initialization. Rather than rejecting a malformed
+  container, initialization clamps the iteration range to the valid prefix: it stops at the first
+  entry that fails to parse and only iterates over the entries that precede it. This does mean that
+  certain iterator implementations walk the data structures twice. Once during initialization to
+  validate the data and establish the valid range, and again during iteration to produce the
+  results.
 
   All iterators use the same Init / Next contract. `<Structure>Init(..)` initializes the iterator
-  and validates the structure while `<Structure>Next(..)` returns the next item or NULL once
-  initialized.
+  and returns whether the range is complete: TRUE if the whole structure parsed cleanly, FALSE if
+  it had to truncate the range because one or more trailing entries were dropped (a parse error or
+  unusable inputs). `<Structure>Next(..)` returns the next item or NULL once the range is
+  exhausted. Init never logs; callers decide what to log based on the returned boolean.
 
   Three iterators are provided:
 
@@ -69,20 +73,17 @@ typedef struct {
   Initialize an iterator over the EFI_SIGNATURE_LIST records contained in a signature database
   buffer.
 
-  Init validates every list header in the buffer end-to-end. After a successful return,
-  DatabaseIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter        Iterator state to initialize.
   @param[in]   Buffer      Raw database contents, or NULL for an empty database.
   @param[in]   BufferSize  Size of Buffer in bytes; 0 when Buffer is NULL.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter is NULL, or Buffer is NULL with a non-zero BufferSize.
-  @retval EFI_VOLUME_CORRUPTED   The buffer contains a malformed EFI_SIGNATURE_LIST (bad size
-                                 fields, trailing bytes, or payload not a multiple of
-                                 SignatureSize).
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 DatabaseIterInit (
   OUT SIG_DATABASE_ITER  *Iter,
   IN  CONST VOID         *Buffer,
@@ -92,7 +93,7 @@ DatabaseIterInit (
 /**
   Return the next EFI_SIGNATURE_LIST from the buffer being iterated.
 
-  Cannot fail after a successful DatabaseIterInit.
+  Infallible over the range established by DatabaseIterInit.
 
   @param[in,out]  Iter  Iterator initialized by DatabaseIterInit.
 
@@ -108,16 +109,16 @@ DatabaseIterNext (
   Initialize an iterator over the EFI_SIGNATURE_DATA entries contained in a single
   EFI_SIGNATURE_LIST.
 
-  Init validates the list's size fields. After a successful return, SigListIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter  Iterator state to initialize.
   @param[in]   List  The signature list to walk.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter or List is NULL.
-  @retval EFI_VOLUME_CORRUPTED   List has internally inconsistent size fields.
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 SigListIterInit (
   OUT SIG_LIST_ITER             *Iter,
   IN  CONST EFI_SIGNATURE_LIST  *List
@@ -126,7 +127,7 @@ SigListIterInit (
 /**
   Return the next EFI_SIGNATURE_DATA entry from the list being iterated.
 
-  Cannot fail after a successful SigListIterInit.
+  Infallible over the range established by SigListIterInit.
 
   @param[in,out]  Iter  Iterator initialized by SigListIterInit.
 
@@ -142,21 +143,18 @@ SigListIterNext (
   Initialize an iterator over the WIN_CERTIFICATE records contained in a PE/COFF image's security
   data directory.
 
-  Init validates that the directory described by SecDataDir lies entirely within the supplied file
-  buffer and walks every WIN_CERTIFICATE header to verify its dwLength fits the remaining table.
-  After a successful return, WinCertIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter        Iterator state to initialize.
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]   FileSize    Size of FileBuffer in bytes.
   @param[in]   SecDataDir  Security data directory describing the embedded WIN_CERTIFICATE table.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter, FileBuffer, or SecDataDir is NULL.
-  @retval EFI_VOLUME_CORRUPTED   SecDataDir is out of bounds of the file, or an entry has a
-                                 malformed dwLength.
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 WinCertIterInit (
   OUT WIN_CERT_ITER                   *Iter,
   IN  CONST VOID                      *FileBuffer,
@@ -167,7 +165,7 @@ WinCertIterInit (
 /**
   Return the next WIN_CERTIFICATE from the directory being iterated.
 
-  Cannot fail after a successful WinCertIterInit.
+  Infallible over the range established by WinCertIterInit.
 
   @param[in,out]  Iter  Iterator initialized by WinCertIterInit.
 

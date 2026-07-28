@@ -1,14 +1,18 @@
 /** @file
   Forward-only iterators for walking different data structures.
 
-  Iterators perform data validation during initialization. If initialization succeeds, the
-  iterator is guaranteed to produce valid results during iteration. This does mean that certain
-  iterator implemenations walk the data structures twice. Once during initialization to validate
-  the data, and again during iteration to produce the results.
+  Iterators perform data validation during initialization. Rather than rejecting a malformed
+  container, initialization clamps the iteration range to the valid prefix: it stops at the first
+  entry that fails to parse and only iterates over the entries that precede it. This does mean that
+  certain iterator implementations walk the data structures twice. Once during initialization to
+  validate the data and establish the valid range, and again during iteration to produce the
+  results.
 
   All iterators use the same Init / Next contract. `<Structure>Init(..)` initializes the iterator
-  and validates the structure while `<Structure>Next(..)` returns the next item or NULL once
-  initialized.
+  and returns whether the range is complete: TRUE if the whole structure parsed cleanly, FALSE if
+  it had to truncate the range because one or more trailing entries were dropped (a parse error or
+  unusable inputs). `<Structure>Next(..)` returns the next item or NULL once the range is
+  exhausted. Init never logs; callers decide what to log based on the returned boolean.
 
   Three iterators are provided:
 
@@ -29,20 +33,17 @@
   Initialize an iterator over the EFI_SIGNATURE_LIST records contained in a signature database
   buffer.
 
-  Init validates every list header in the buffer end-to-end. After a successful return,
-  DatabaseIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter        Iterator state to initialize.
   @param[in]   Buffer      Raw database contents, or NULL for an empty database.
   @param[in]   BufferSize  Size of Buffer in bytes; 0 when Buffer is NULL.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter is NULL, or Buffer is NULL with a non-zero BufferSize.
-  @retval EFI_VOLUME_CORRUPTED   The buffer contains a malformed EFI_SIGNATURE_LIST (bad size
-                                 fields, trailing bytes, or payload not a multiple of
-                                 SignatureSize).
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 DatabaseIterInit (
   OUT SIG_DATABASE_ITER  *Iter,
   IN  CONST VOID         *Buffer,
@@ -54,47 +55,56 @@ DatabaseIterInit (
   CONST EFI_SIGNATURE_LIST  *List;
 
   if (Iter == NULL) {
-    return EFI_INVALID_PARAMETER;
+    return FALSE;
   }
 
-  if ((Buffer == NULL) && (BufferSize != 0)) {
-    return EFI_INVALID_PARAMETER;
+  Iter->Cursor    = (CONST UINT8 *)Buffer;
+  Iter->Remaining = 0;
+
+  //
+  // An empty database has nothing to iterate and is not a truncation. A NULL buffer with a
+  // non-zero size is inconsistent input; expose an empty iterator and report truncation.
+  //
+  if (Buffer == NULL) {
+    return (BOOLEAN)(BufferSize == 0);
   }
 
   //
-  // Walk the buffer using SignatureListSize. The only thing this iter
-  // needs to guarantee is that the lists tile the buffer cleanly.
+  // Walk the buffer using SignatureListSize. The lists must tile the buffer cleanly; the first
+  // list that does not marks the end of the valid iteration range.
   //
   Cursor    = (CONST UINT8 *)Buffer;
-  Remaining = (Buffer == NULL) ? 0 : BufferSize;
+  Remaining = BufferSize;
 
   while (Remaining > 0) {
     if (Remaining < sizeof (EFI_SIGNATURE_LIST)) {
-      DEBUG ((DEBUG_ERROR, "DatabaseIter: trailing bytes in signature database.\n"));
-      return EFI_VOLUME_CORRUPTED;
+      break;
     }
 
     List = (CONST EFI_SIGNATURE_LIST *)(CONST VOID *)Cursor;
     if ((List->SignatureListSize < sizeof (EFI_SIGNATURE_LIST)) ||
         (List->SignatureListSize > Remaining))
     {
-      DEBUG ((DEBUG_ERROR, "DatabaseIter: malformed SignatureListSize.\n"));
-      return EFI_VOLUME_CORRUPTED;
+      break;
     }
 
     Cursor    += List->SignatureListSize;
     Remaining -= List->SignatureListSize;
   }
 
+  //
+  // Remaining is the size of the tail that could not be parsed; the valid prefix is everything
+  // that came before it.
+  //
   Iter->Cursor    = (CONST UINT8 *)Buffer;
-  Iter->Remaining = (Buffer == NULL) ? 0 : BufferSize;
-  return EFI_SUCCESS;
+  Iter->Remaining = BufferSize - Remaining;
+  return (BOOLEAN)(Remaining == 0);
 }
 
 /**
   Return the next EFI_SIGNATURE_LIST from the buffer being iterated.
 
-  Cannot fail after a successful DatabaseIterInit.
+  Infallible over the range established by DatabaseIterInit.
 
   @param[in,out]  Iter  Iterator initialized by DatabaseIterInit.
 
@@ -122,16 +132,16 @@ DatabaseIterNext (
   Initialize an iterator over the EFI_SIGNATURE_DATA entries contained in a single
   EFI_SIGNATURE_LIST.
 
-  Init validates the list's size fields. After a successful return, SigListIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter  Iterator state to initialize.
   @param[in]   List  The signature list to walk.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter or List is NULL.
-  @retval EFI_VOLUME_CORRUPTED   List has internally inconsistent size fields.
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 SigListIterInit (
   OUT SIG_LIST_ITER             *Iter,
   IN  CONST EFI_SIGNATURE_LIST  *List
@@ -139,45 +149,55 @@ SigListIterInit (
 {
   UINTN  PayloadSize;
 
-  if ((Iter == NULL) || (List == NULL)) {
-    return EFI_INVALID_PARAMETER;
+  if (Iter == NULL) {
+    return FALSE;
+  }
+
+  Iter->Cursor    = NULL;
+  Iter->Stride    = 0;
+  Iter->Remaining = 0;
+
+  //
+  // Without a list, or with size fields that leave the entry stride or payload region
+  // undeterminable, there is no entry that can be safely produced. Expose an empty iterator.
+  //
+  if (List == NULL) {
+    return FALSE;
   }
 
   if (List->SignatureListSize < sizeof (EFI_SIGNATURE_LIST)) {
-    DEBUG ((DEBUG_ERROR, "SigListIter: malformed SignatureListSize.\n"));
-    return EFI_VOLUME_CORRUPTED;
+    return FALSE;
   }
 
   if (List->SignatureSize < sizeof (EFI_GUID)) {
-    DEBUG ((DEBUG_ERROR, "SigListIter: malformed SignatureSize.\n"));
-    return EFI_VOLUME_CORRUPTED;
+    return FALSE;
   }
 
   if (List->SignatureHeaderSize > List->SignatureListSize - sizeof (EFI_SIGNATURE_LIST)) {
-    DEBUG ((DEBUG_ERROR, "SigListIter: malformed SignatureHeaderSize.\n"));
-    return EFI_VOLUME_CORRUPTED;
+    return FALSE;
   }
 
+  //
+  // The payload holds a whole number of fixed-size entries. If it does not divide evenly, drop the
+  // trailing partial entry and iterate only the whole entries that precede it.
+  //
   PayloadSize = List->SignatureListSize
                 - sizeof (EFI_SIGNATURE_LIST)
                 - List->SignatureHeaderSize;
-  if ((PayloadSize % List->SignatureSize) != 0) {
-    DEBUG ((DEBUG_ERROR, "SigListIter: payload size is not a multiple of signature size.\n"));
-    return EFI_VOLUME_CORRUPTED;
-  }
 
   Iter->Stride    = List->SignatureSize;
   Iter->Remaining = PayloadSize / List->SignatureSize;
   Iter->Cursor    = (CONST UINT8 *)List
                     + sizeof (EFI_SIGNATURE_LIST)
                     + List->SignatureHeaderSize;
-  return EFI_SUCCESS;
+
+  return (BOOLEAN)((PayloadSize % List->SignatureSize) == 0);
 }
 
 /**
   Return the next EFI_SIGNATURE_DATA entry from the list being iterated.
 
-  Cannot fail after a successful SigListIterInit.
+  Infallible over the range established by SigListIterInit.
 
   @param[in,out]  Iter  Iterator initialized by SigListIterInit.
 
@@ -205,21 +225,18 @@ SigListIterNext (
   Initialize an iterator over the WIN_CERTIFICATE records contained in a PE/COFF image's security
   data directory.
 
-  Init validates that the directory described by SecDataDir lies entirely within the supplied file
-  buffer and walks every WIN_CERTIFICATE header to verify its dwLength fits the remaining table.
-  After a successful return, WinCertIterNext is infallible.
+  The initialization validates the list and will truncate the iteration range to the
+  last valid entry if the list if malformed.
 
   @param[out]  Iter        Iterator state to initialize.
   @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
   @param[in]   FileSize    Size of FileBuffer in bytes.
   @param[in]   SecDataDir  Security data directory describing the embedded WIN_CERTIFICATE table.
 
-  @retval EFI_SUCCESS            Iterator is ready for use.
-  @retval EFI_INVALID_PARAMETER  Iter, FileBuffer, or SecDataDir is NULL.
-  @retval EFI_VOLUME_CORRUPTED   SecDataDir is out of bounds of the file, or an entry has a
-                                 malformed dwLength.
+  @retval TRUE   The iterator covers every entry in the list.
+  @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
-EFI_STATUS
+BOOLEAN
 WinCertIterInit (
   OUT WIN_CERT_ITER                   *Iter,
   IN  CONST VOID                      *FileBuffer,
@@ -232,27 +249,37 @@ WinCertIterInit (
   CONST WIN_CERTIFICATE  *Cert;
   UINTN                  EntrySize;
 
-  if ((Iter == NULL) || (FileBuffer == NULL) || (SecDataDir == NULL)) {
-    return EFI_INVALID_PARAMETER;
+  if (Iter == NULL) {
+    return FALSE;
+  }
+
+  Iter->Cursor    = NULL;
+  Iter->Remaining = 0;
+
+  //
+  // Without a file buffer or directory, or with a directory that does not lie within the file, the
+  // certificate table cannot be located. Expose an empty iterator.
+  //
+  if ((FileBuffer == NULL) || (SecDataDir == NULL)) {
+    return FALSE;
   }
 
   if ((SecDataDir->VirtualAddress > FileSize) ||
       (SecDataDir->Size > FileSize - SecDataDir->VirtualAddress))
   {
-    DEBUG ((DEBUG_ERROR, "WinCertIter: security data directory is out of bounds of the file.\n"));
-    return EFI_VOLUME_CORRUPTED;
+    return FALSE;
   }
 
   //
-  // Validate the entire certificate table up front.
+  // Walk the certificate table. The first entry with a malformed dwLength, or a trailing fragment
+  // too small to hold a header, marks the end of the valid iteration range.
   //
   Cursor    = (CONST UINT8 *)FileBuffer + SecDataDir->VirtualAddress;
   Remaining = SecDataDir->Size;
 
   while (Remaining > 0) {
     if (Remaining < sizeof (WIN_CERTIFICATE)) {
-      DEBUG ((DEBUG_ERROR, "Iterator: trailing bytes in certificate table.\n"));
-      return EFI_VOLUME_CORRUPTED;
+      break;
     }
 
     Cert = (CONST WIN_CERTIFICATE *)(CONST VOID *)Cursor;
@@ -260,8 +287,7 @@ WinCertIterInit (
     if ((Cert->dwLength < sizeof (WIN_CERTIFICATE)) ||
         (Cert->dwLength > Remaining))
     {
-      DEBUG ((DEBUG_ERROR, "Iterator: malformed WIN_CERTIFICATE dwLength.\n"));
-      return EFI_VOLUME_CORRUPTED;
+      break;
     }
 
     //
@@ -278,15 +304,19 @@ WinCertIterInit (
     Remaining -= EntrySize;
   }
 
+  //
+  // Remaining is the size of the tail that could not be parsed; the valid prefix is everything
+  // that came before it.
+  //
   Iter->Cursor    = (CONST UINT8 *)FileBuffer + SecDataDir->VirtualAddress;
-  Iter->Remaining = SecDataDir->Size;
-  return EFI_SUCCESS;
+  Iter->Remaining = SecDataDir->Size - Remaining;
+  return (BOOLEAN)(Remaining == 0);
 }
 
 /**
   Return the next WIN_CERTIFICATE from the directory being iterated.
 
-  Cannot fail after a successful WinCertIterInit.
+  Infallible over the range established by WinCertIterInit.
 
   @param[in,out]  Iter  Iterator initialized by WinCertIterInit.
 

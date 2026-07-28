@@ -63,12 +63,12 @@ STATIC CONST HASH_ALGORITHM  mHashAlgorithms[] = {
 };
 
 //
-// The result of evaluating an image against a signature database.
+// An authority entry drawn from a signature database.
 //
-// Data / Size describe the `db` authority that authorized the image: Data
-// references the EFI_SIGNATURE_DATA entry inside the signature database that
-// authorized the image, and Size is that entry's SignatureSize. Data is NULL
-// and Size is 0 when no authority authorized the image.
+// Data / Size identify the EFI_SIGNATURE_DATA entry responsible for a verdict:
+// the `db` entry that authorized an image, or the `dbx` entry that revoked it.
+// Size is that entry's SignatureSize. Data is NULL and Size is 0 when no such
+// entry applies.
 //
 // SignatureType is the image-hash algorithm GUID under which the image was
 // evaluated.
@@ -116,35 +116,6 @@ typedef struct {
 MEASURED_AUTHORITIES *
 GetMeasuredAuthorities (
   VOID
-  );
-
-/**
-  Record a rejected image into the Image Execution Information Table.
-
-  Appends a single EFI_IMAGE_EXECUTION_INFO entry describing the rejection. The
-  image name is derived from File via ConvertDevicePathToText. When Digest is
-  non-NULL it is wrapped as an EFI_SIGNATURE_LIST typed by HashType and recorded
-  as the entry's signature (matching the legacy SIG_FOUND / SIG_FAILED
-  behavior); otherwise no signature is recorded. All transient allocations are
-  freed before return.
-
-  @param[in]  File        Device path of the rejected image. Must be non-NULL.
-  @param[in]  Action      The EFI_IMAGE_EXECUTION_ACTION describing why the image
-                          was rejected.
-  @param[in]  HashType    Image-hash algorithm GUID describing Digest. Ignored
-                          when Digest is NULL.
-  @param[in]  Digest      Optional image digest to record, or NULL to record no
-                          signature.
-  @param[in]  DigestSize  Size of Digest in bytes; must be non-zero when Digest
-                          is non-NULL.
-**/
-VOID
-RecordRejectedImage (
-  IN  CONST EFI_DEVICE_PATH_PROTOCOL  *File,
-  IN  EFI_IMAGE_EXECUTION_ACTION      Action,
-  IN  CONST EFI_GUID                  *HashType,
-  IN  CONST UINT8                     *Digest OPTIONAL,
-  IN  UINTN                           DigestSize
   );
 
 /**

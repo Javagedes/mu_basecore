@@ -2,9 +2,10 @@
   Unit tests for the iterators in Iterator.c:
   DatabaseIterInit/Next, SigListIterInit/Next, and WinCertIterInit/Next.
 
-  All three iterators follow the same contract: Init performs full
-  structural validation of the container, and Next is infallible after
-  a successful Init.
+  All three iterators follow the same contract: Init validates the
+  container and clamps the iteration range to the valid prefix, returning
+  TRUE when it had to truncate (drop trailing entries) and FALSE when the
+  whole container parsed cleanly. Next is infallible over that range.
 
   Copyright (C) Microsoft Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -64,76 +65,92 @@ AppendSignatureList (
 // DatabaseIterInit
 // ---------------------------------------------------------------------------
 
-TEST (DatabaseIterInitTest, NullIter_ReturnsInvalidParameter) {
+TEST (DatabaseIterInitTest, NullIter_ReturnsTruncated) {
   std::vector<UINT8>  Buffer (16, 0);
 
-  EXPECT_EQ (DatabaseIterInit (NULL, Buffer.data (), Buffer.size ()), EFI_INVALID_PARAMETER);
+  EXPECT_FALSE (DatabaseIterInit (NULL, Buffer.data (), Buffer.size ()));
 }
 
-TEST (DatabaseIterInitTest, NullBufferWithNonZeroSize_ReturnsInvalidParameter) {
+TEST (DatabaseIterInitTest, NullBufferWithNonZeroSize_ReturnsTruncated) {
   SIG_DATABASE_ITER  Iter;
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, NULL, 16), EFI_INVALID_PARAMETER);
-}
-
-TEST (DatabaseIterInitTest, NullBufferWithZeroSize_Succeeds) {
-  SIG_DATABASE_ITER  Iter;
-
-  EXPECT_EQ (DatabaseIterInit (&Iter, NULL, 0), EFI_SUCCESS);
+  EXPECT_FALSE (DatabaseIterInit (&Iter, NULL, 16));
   EXPECT_EQ (Iter.Remaining, (UINTN)0);
   EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
-TEST (DatabaseIterInitTest, EmptyBuffer_Succeeds) {
-  std::vector<UINT8>  Buffer;
-  SIG_DATABASE_ITER   Iter;
+TEST (DatabaseIterInitTest, NullBufferWithZeroSize_NotTruncated) {
+  SIG_DATABASE_ITER  Iter;
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), 0), EFI_SUCCESS);
+  EXPECT_TRUE (DatabaseIterInit (&Iter, NULL, 0));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
   EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
-TEST (DatabaseIterInitTest, SingleWellFormedList_Succeeds) {
+TEST (DatabaseIterInitTest, EmptyBuffer_NotTruncated) {
+  std::vector<UINT8>  Buffer;
+  SIG_DATABASE_ITER   Iter;
+
+  EXPECT_TRUE (DatabaseIterInit (&Iter, Buffer.data (), 0));
+  EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
+}
+
+TEST (DatabaseIterInitTest, SingleWellFormedList_NotTruncated) {
   std::vector<UINT8>  Buffer;
   SIG_DATABASE_ITER   Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 2);
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_SUCCESS);
+  EXPECT_TRUE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
 }
 
-TEST (DatabaseIterInitTest, TrailingBytesBelowHeader_ReturnsCorrupted) {
+// A well-formed list followed by stray bytes too small to be a header: the
+// range is clamped to the valid list and the trailing bytes are dropped.
+TEST (DatabaseIterInitTest, TrailingBytesBelowHeader_TruncatesToValidPrefix) {
   std::vector<UINT8>  Buffer;
   SIG_DATABASE_ITER   Iter;
+  size_t              Off1;
 
-  AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
+  Off1 = AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   // Append a few stray bytes too small to be even a list header.
   Buffer.resize (Buffer.size () + sizeof (EFI_SIGNATURE_LIST) - 1, 0);
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_VOLUME_CORRUPTED);
+  EXPECT_FALSE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
+  // The one well-formed list preceding the stray bytes is still iterable.
+  EXPECT_EQ ((CONST UINT8 *)DatabaseIterNext (&Iter), Buffer.data () + Off1);
+  EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
-TEST (DatabaseIterInitTest, ListSizeBelowHeaderSize_ReturnsCorrupted) {
+// The only list has a SignatureListSize below the header size: nothing can be
+// parsed, so the range is clamped to empty.
+TEST (DatabaseIterInitTest, ListSizeBelowHeaderSize_TruncatesToEmpty) {
   std::vector<UINT8>  Buffer;
   SIG_DATABASE_ITER   Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureListSize = sizeof (EFI_SIGNATURE_LIST) - 1;
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_VOLUME_CORRUPTED);
+  EXPECT_FALSE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
-TEST (DatabaseIterInitTest, ListSizeOverrunsBuffer_ReturnsCorrupted) {
+// The only list claims a size larger than the buffer: nothing can be parsed,
+// so the range is clamped to empty.
+TEST (DatabaseIterInitTest, ListSizeOverrunsBuffer_TruncatesToEmpty) {
   std::vector<UINT8>  Buffer;
   SIG_DATABASE_ITER   Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureListSize = (UINT32)(Buffer.size () + 1);
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_VOLUME_CORRUPTED);
+  EXPECT_FALSE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
 // Init only checks the outer tiling; bad internals belong to SigListIterInit.
-TEST (DatabaseIterInitTest, MalformedInternalsButValidTiling_Succeeds) {
+TEST (DatabaseIterInitTest, MalformedInternalsButValidTiling_NotTruncated) {
   std::vector<UINT8>  Buffer;
   SIG_DATABASE_ITER   Iter;
 
@@ -142,7 +159,7 @@ TEST (DatabaseIterInitTest, MalformedInternalsButValidTiling_Succeeds) {
   // DatabaseIterInit deliberately ignores.
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureSize = 1;
 
-  EXPECT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_SUCCESS);
+  EXPECT_TRUE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +173,7 @@ TEST (DatabaseIterNextTest, NullIter_ReturnsNull) {
 TEST (DatabaseIterNextTest, EmptyDatabase_ReturnsNull) {
   SIG_DATABASE_ITER  Iter;
 
-  ASSERT_EQ (DatabaseIterInit (&Iter, NULL, 0), EFI_SUCCESS);
+  ASSERT_TRUE (DatabaseIterInit (&Iter, NULL, 0));
   EXPECT_EQ (DatabaseIterNext (&Iter), nullptr);
 }
 
@@ -169,7 +186,7 @@ TEST (DatabaseIterNextTest, IteratesAllListsInOrder) {
   Off2 = AppendSignatureList (Buffer, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 8, 2);
   Off3 = AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 3);
 
-  ASSERT_EQ (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()), EFI_SUCCESS);
+  ASSERT_TRUE (DatabaseIterInit (&Iter, Buffer.data (), Buffer.size ()));
 
   CONST EFI_SIGNATURE_LIST  *L1 = DatabaseIterNext (&Iter);
   CONST EFI_SIGNATURE_LIST  *L2 = DatabaseIterNext (&Iter);
@@ -189,50 +206,47 @@ TEST (DatabaseIterNextTest, IteratesAllListsInOrder) {
 // SigListIterInit
 // ---------------------------------------------------------------------------
 
-TEST (SigListIterInitTest, NullIter_ReturnsInvalidParameter) {
+TEST (SigListIterInitTest, NullIter_ReturnsTruncated) {
   std::vector<UINT8>  Buffer;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
 
-  EXPECT_EQ (
-    SigListIterInit (NULL, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_INVALID_PARAMETER
-    );
+  EXPECT_FALSE (SigListIterInit (NULL, (EFI_SIGNATURE_LIST *)Buffer.data ()));
 }
 
-TEST (SigListIterInitTest, NullList_ReturnsInvalidParameter) {
+TEST (SigListIterInitTest, NullList_ReturnsTruncated) {
   SIG_LIST_ITER  Iter;
 
-  EXPECT_EQ (SigListIterInit (&Iter, NULL), EFI_INVALID_PARAMETER);
+  EXPECT_FALSE (SigListIterInit (&Iter, NULL));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
 
-TEST (SigListIterInitTest, ListSizeBelowHeader_ReturnsCorrupted) {
+TEST (SigListIterInitTest, ListSizeBelowHeader_TruncatesToEmpty) {
   std::vector<UINT8>  Buffer;
   SIG_LIST_ITER       Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureListSize = sizeof (EFI_SIGNATURE_LIST) - 1;
 
-  EXPECT_EQ (
-    SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
 
-TEST (SigListIterInitTest, SignatureSizeBelowGuid_ReturnsCorrupted) {
+TEST (SigListIterInitTest, SignatureSizeBelowGuid_TruncatesToEmpty) {
   std::vector<UINT8>  Buffer;
   SIG_LIST_ITER       Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureSize = sizeof (EFI_GUID) - 1;
 
-  EXPECT_EQ (
-    SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
 
-TEST (SigListIterInitTest, HeaderSizeExceedsList_ReturnsCorrupted) {
+TEST (SigListIterInitTest, HeaderSizeExceedsList_TruncatesToEmpty) {
   std::vector<UINT8>  Buffer;
   SIG_LIST_ITER       Iter;
 
@@ -241,10 +255,14 @@ TEST (SigListIterInitTest, HeaderSizeExceedsList_ReturnsCorrupted) {
 
   List->SignatureHeaderSize = List->SignatureListSize;  // leaves no room
 
-  EXPECT_EQ (SigListIterInit (&Iter, List), EFI_VOLUME_CORRUPTED);
+  EXPECT_FALSE (SigListIterInit (&Iter, List));
+  EXPECT_EQ (Iter.Remaining, (UINTN)0);
+  EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
 
-TEST (SigListIterInitTest, PayloadNotMultipleOfSignatureSize_ReturnsCorrupted) {
+// A payload that does not divide evenly into whole entries: the trailing
+// partial entry is dropped and only the whole entries are iterated.
+TEST (SigListIterInitTest, PayloadNotMultipleOfSignatureSize_TruncatesPartialEntry) {
   std::vector<UINT8>  Buffer;
   SIG_LIST_ITER       Iter;
 
@@ -253,22 +271,20 @@ TEST (SigListIterInitTest, PayloadNotMultipleOfSignatureSize_ReturnsCorrupted) {
   // evenly into SignatureSize chunks.
   ((EFI_SIGNATURE_LIST *)Buffer.data ())->SignatureListSize -= 1;
 
-  EXPECT_EQ (
-    SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()));
+  // The one whole entry preceding the partial tail is still iterable.
+  EXPECT_EQ (Iter.Remaining, (UINTN)1);
+  EXPECT_NE (SigListIterNext (&Iter), nullptr);
+  EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
 
-TEST (SigListIterInitTest, WellFormed_Succeeds) {
+TEST (SigListIterInitTest, WellFormed_NotTruncated) {
   std::vector<UINT8>  Buffer;
   SIG_LIST_ITER       Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 3);
 
-  EXPECT_EQ (
-    SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_SUCCESS
-    );
+  EXPECT_TRUE (SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()));
   EXPECT_EQ (Iter.Stride, (UINTN)kSha256EntrySize);
   EXPECT_EQ (Iter.Remaining, (UINTN)3);
 }
@@ -286,10 +302,7 @@ TEST (SigListIterNextTest, EmptyList_ReturnsNull) {
   SIG_LIST_ITER       Iter;
 
   AppendSignatureList (Buffer, gEfiCertSha256Guid, 0, kSha256EntrySize, 0);
-  ASSERT_EQ (
-    SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()),
-    EFI_SUCCESS
-    );
+  ASSERT_TRUE (SigListIterInit (&Iter, (EFI_SIGNATURE_LIST *)Buffer.data ()));
 
   EXPECT_EQ (SigListIterNext (&Iter), nullptr);
 }
@@ -305,7 +318,7 @@ TEST (SigListIterNextTest, IteratesEntriesWithCorrectStride) {
   UINT8               *FirstEntry =
     (UINT8 *)List + sizeof (EFI_SIGNATURE_LIST) + List->SignatureHeaderSize;
 
-  ASSERT_EQ (SigListIterInit (&Iter, List), EFI_SUCCESS);
+  ASSERT_TRUE (SigListIterInit (&Iter, List));
 
   for (UINT32 i = 0; i < EntryCount; i++) {
     CONST EFI_SIGNATURE_DATA  *Entry = SigListIterNext (&Iter);
@@ -326,7 +339,7 @@ TEST (SigListIterNextTest, RespectsSignatureHeaderSize) {
 
   EFI_SIGNATURE_LIST  *List = (EFI_SIGNATURE_LIST *)Buffer.data ();
 
-  ASSERT_EQ (SigListIterInit (&Iter, List), EFI_SUCCESS);
+  ASSERT_TRUE (SigListIterInit (&Iter, List));
 
   CONST EFI_SIGNATURE_DATA  *Entry = SigListIterNext (&Iter);
 
@@ -400,26 +413,26 @@ BuildImageWithDir (
 // WinCertIterInit
 // ---------------------------------------------------------------------------
 
-TEST (WinCertIterInitTest, NullParams_ReturnInvalidParameter) {
+TEST (WinCertIterInitTest, NullParams_ReturnTruncated) {
   WIN_CERT_ITER             Iter;
   std::vector<UINT8>        File (64, 0);
   EFI_IMAGE_DATA_DIRECTORY  Dir = { 0, 0 };
 
-  EXPECT_EQ (WinCertIterInit (NULL, File.data (), File.size (), &Dir), EFI_INVALID_PARAMETER);
-  EXPECT_EQ (WinCertIterInit (&Iter, NULL, File.size (), &Dir), EFI_INVALID_PARAMETER);
-  EXPECT_EQ (WinCertIterInit (&Iter, File.data (), File.size (), NULL), EFI_INVALID_PARAMETER);
+  EXPECT_FALSE (WinCertIterInit (NULL, File.data (), File.size (), &Dir));
+  EXPECT_FALSE (WinCertIterInit (&Iter, NULL, File.size (), &Dir));
+  EXPECT_FALSE (WinCertIterInit (&Iter, File.data (), File.size (), NULL));
 }
 
-TEST (WinCertIterInitTest, EmptyDirectory_Succeeds) {
+TEST (WinCertIterInitTest, EmptyDirectory_NotTruncated) {
   WIN_CERT_ITER             Iter;
   std::vector<UINT8>        File (64, 0);
   EFI_IMAGE_DATA_DIRECTORY  Dir = { 0, 0 };
 
-  EXPECT_EQ (WinCertIterInit (&Iter, File.data (), File.size (), &Dir), EFI_SUCCESS);
+  EXPECT_TRUE (WinCertIterInit (&Iter, File.data (), File.size (), &Dir));
   EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
-TEST (WinCertIterInitTest, DirVirtualAddressPastEnd_ReturnsCorrupted) {
+TEST (WinCertIterInitTest, DirVirtualAddressPastEnd_TruncatesToEmpty) {
   WIN_CERT_ITER             Iter;
   std::vector<UINT8>        File (64, 0);
   EFI_IMAGE_DATA_DIRECTORY  Dir;
@@ -427,13 +440,11 @@ TEST (WinCertIterInitTest, DirVirtualAddressPastEnd_ReturnsCorrupted) {
   Dir.VirtualAddress = (UINT32)(File.size () + 1);
   Dir.Size           = 0;
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, File.data (), File.size (), &Dir),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (WinCertIterInit (&Iter, File.data (), File.size (), &Dir));
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
-TEST (WinCertIterInitTest, DirSizeOverrunsFile_ReturnsCorrupted) {
+TEST (WinCertIterInitTest, DirSizeOverrunsFile_TruncatesToEmpty) {
   WIN_CERT_ITER             Iter;
   std::vector<UINT8>        File (128, 0);
   EFI_IMAGE_DATA_DIRECTORY  Dir;
@@ -441,13 +452,11 @@ TEST (WinCertIterInitTest, DirSizeOverrunsFile_ReturnsCorrupted) {
   Dir.VirtualAddress = 64;
   Dir.Size           = (UINT32)(File.size () - 64 + 1);
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, File.data (), File.size (), &Dir),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (WinCertIterInit (&Iter, File.data (), File.size (), &Dir));
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
-TEST (WinCertIterInitTest, EntryDwLengthBelowHeader_ReturnsCorrupted) {
+TEST (WinCertIterInitTest, EntryDwLengthBelowHeader_TruncatesToEmpty) {
   std::vector<UINT8>  Dir;
 
   AppendWinCert (Dir, sizeof (WIN_CERTIFICATE), 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA);
@@ -457,13 +466,11 @@ TEST (WinCertIterInitTest, EntryDwLengthBelowHeader_ReturnsCorrupted) {
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir));
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
-TEST (WinCertIterInitTest, EntryDwLengthOverrunsRemaining_ReturnsCorrupted) {
+TEST (WinCertIterInitTest, EntryDwLengthOverrunsRemaining_TruncatesToEmpty) {
   std::vector<UINT8>  Dir;
 
   AppendWinCert (Dir, sizeof (WIN_CERTIFICATE) + 8, 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA);
@@ -472,13 +479,11 @@ TEST (WinCertIterInitTest, EntryDwLengthOverrunsRemaining_ReturnsCorrupted) {
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir));
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
-TEST (WinCertIterInitTest, WellFormedEntries_Succeeds) {
+TEST (WinCertIterInitTest, WellFormedEntries_NotTruncated) {
   std::vector<UINT8>  Dir;
 
   AppendWinCert (Dir, sizeof (WIN_CERTIFICATE) + 16, 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA);
@@ -487,26 +492,44 @@ TEST (WinCertIterInitTest, WellFormedEntries_Succeeds) {
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_SUCCESS
-    );
+  EXPECT_TRUE (WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir));
+}
+
+// A well-formed entry followed by one with a malformed dwLength: the range is
+// clamped to the valid entry and the malformed tail is dropped.
+TEST (WinCertIterInitTest, MalformedSecondEntry_TruncatesToValidPrefix) {
+  std::vector<UINT8>  Dir;
+
+  AppendWinCert (Dir, sizeof (WIN_CERTIFICATE) + 16, 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA);
+  const size_t  SecondOffset = Dir.size ();
+
+  AppendWinCert (Dir, sizeof (WIN_CERTIFICATE) + 16, 0x0200, WIN_CERT_TYPE_PKCS_SIGNED_DATA);
+  // Corrupt the second entry's dwLength so it cannot be parsed.
+  ((WIN_CERTIFICATE *)(Dir.data () + SecondOffset))->dwLength = sizeof (WIN_CERTIFICATE) - 1;
+
+  SyntheticImage  Img   = BuildImageWithDir (Dir);
+  CONST UINT8     *Base = Img.FileBuffer.data () + Img.Dir.VirtualAddress;
+  WIN_CERT_ITER   Iter;
+
+  EXPECT_FALSE (WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir));
+  // The first, well-formed entry is still iterable; the second is dropped.
+  EXPECT_EQ ((CONST UINT8 *)WinCertIterNext (&Iter), Base);
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
 //
 // A directory smaller than a WIN_CERTIFICATE header: the walk sees a
-// non-zero Remaining that cannot hold another header and fails closed.
+// non-zero Remaining that cannot hold another header, so the range is
+// clamped to empty.
 //
-TEST (WinCertIterInitTest, TrailingBytesBelowHeader_ReturnsCorrupted) {
+TEST (WinCertIterInitTest, TrailingBytesBelowHeader_TruncatesToEmpty) {
   std::vector<UINT8>  Dir (sizeof (WIN_CERTIFICATE) - 1, 0);
 
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  EXPECT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_VOLUME_CORRUPTED
-    );
+  EXPECT_FALSE (WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir));
+  EXPECT_EQ (WinCertIterNext (&Iter), nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -533,9 +556,8 @@ TEST (WinCertIterNextTest, IteratesAllEntriesWithAlignment) {
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  ASSERT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_SUCCESS
+  ASSERT_TRUE (
+    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir)
     );
 
   CONST UINT8            *Base = Img.FileBuffer.data () + Img.Dir.VirtualAddress;
@@ -577,9 +599,8 @@ TEST (WinCertIterNextTest, LastEntryUnpaddedClampsToRemaining) {
   SyntheticImage  Img = BuildImageWithDir (Dir);
   WIN_CERT_ITER   Iter;
 
-  ASSERT_EQ (
-    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir),
-    EFI_SUCCESS
+  ASSERT_TRUE (
+    WinCertIterInit (&Iter, Img.FileBuffer.data (), Img.FileBuffer.size (), &Img.Dir)
     );
 
   CONST WIN_CERTIFICATE  *C = WinCertIterNext (&Iter);

@@ -27,6 +27,51 @@ typedef struct {
   UINTN    DbxSize;
 } SIGNATURE_DATABASES;
 
+//
+// The verdict from evaluating a single image WIN_CERTIFICATE against the `db`
+// and `dbx` databases.
+//
+typedef enum {
+  //
+  // A `db` trust anchor authorized the image and no certificate in its verified
+  // signer->anchor chain is revoked by the `dbx`.
+  //
+  ImageCertApproved,
+  //
+  // A `db` trust anchor verified the image, but a certificate in its verified
+  // chain is enrolled in the `dbx`. No un-revoked anchor authorized the image.
+  //
+  ImageCertRevokedByDbx,
+  //
+  // No `db` trust anchor verifies the image's signature.
+  //
+  ImageCertNotInDb,
+  //
+  // The WIN_CERTIFICATE could not be evaluated: an unsupported certificate
+  // type, a malformed PKCS#7 payload, an unrecognized Authenticode hash
+  // algorithm, or another failure before trust-anchor evaluation.
+  //
+  ImageCertUnusable
+} IMAGE_CERT_VERDICT;
+
+//
+// The result of EvaluateImageCertificate: the evaluation verdict plus the
+// authority responsible for it - the `db` entry that authorized the image
+// (ImageCertApproved, for measurement) or the `dbx` entry that revoked it
+// (ImageCertRevokedByDbx).
+//
+typedef struct {
+  IMAGE_CERT_VERDICT    Verdict;
+  //
+  // Authority.Data is non-NULL when Verdict is ImageCertApproved (it references
+  // the authorizing `db` EFI_SIGNATURE_DATA entry) or ImageCertRevokedByDbx (it
+  // references the revoking `dbx` entry); it is NULL for every other verdict.
+  // Authority.SignatureType carries the image-hash algorithm once it has been
+  // determined, regardless of verdict.
+  //
+  IMAGE_AUTHORITY       Authority;
+} IMAGE_CERT_EVALUATION;
+
 /**
   Load the platform's db and dbx signature databases.
 
@@ -48,83 +93,90 @@ LoadSignatureDatabases (
   );
 
 /**
-  Search the database for a digest authority that matches the image.
+  Determine whether the subject bound to Cache is present in a `db`-style allow-list.
 
-  A match is defined as a hash in the database that matches the hash of the image being searched.
-  The hash algorithm used is determined by the SignatureType of each EFI_SIGNATURE_LIST in the
-  database.
+  The subject is described by Cache->Type: an image (DigestCacheTypeImage) is matched by its digest
+  under each list's hash algorithm; a certificate (DigestCacheTypeX509) is matched either by exact
+  DER bytes against an EFI_CERT_X509_GUID list or by its TBSCertificate digest against a cert-hash
+  list.
 
-  @param[in]      Database       The raw database contents.
-  @param[in]      DatabaseSize   The size of the Database in bytes.
-  @param[in, out] Cache          DIGEST_CACHE pointer bound to the image being searched. The cache
-                                 may be updated during the search.
-  @param[out]     Authority      Only valid on EFI_SUCCESS; reflects if a matching entry was found.
-                                 NULL if no match; otherwise, it contains the matching entry.
+  As an allow-list search this is best-effort: if the database is malformed partway through, the
+  valid prefix is still honored (a trailing malformed entry can only remove a potential authorizer,
+  never add one).
 
-  @retval EFI_SUCCESS            Search completed; Authority reflects if a matching entry was found.
-  @retval EFI_INVALID_PARAMETER  A required pointer is NULL, or Cache is not bound to an image.
-  @retval EFI_VOLUME_CORRUPTED   Database is structurally malformed.
-  @retval other                  Propagated from GetHash.
-**/
-EFI_STATUS
-GetImageDigestAuthority (
-  IN     CONST VOID       *Database,
-  IN     UINTN            DatabaseSize,
-  IN OUT DIGEST_CACHE     *Cache,
-  OUT    IMAGE_AUTHORITY  *Authority
-  );
+  @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
+  @param[in]      Db         Raw `db` contents, or NULL for an empty database.
+  @param[in]      DbSize     Size of Db in bytes; 0 when Db is NULL.
+  @param[out]     Authority  Optional. On a match, receives the matching entry (for PCR 7
+                             measurement). Zeroed when no match is found.
 
-/**
-  Determine whether a TBS Certificate hash is present in the `dbx`.
-
-  Iterates over the EFI_SIGNATURE_LISTs in the `dbx` database and checks if any of them contain
-  the hash of the TBS Certificate.
-
-  @param[in]  Cert      DER-encoded X.509 certificate.
-  @param[in]  CertSize  BufferSize of Cert in bytes.
-  @param[in]  Dbx       Raw dbx contents, or NULL.
-  @param[in]  DbxSize   BufferSize of Dbx in bytes; 0 when Dbx is NULL.
-
-  @retval TRUE   The certificate hash was located in dbx, or an error
-                 prevented a definitive answer.
-  @retval FALSE  The certificate hash is not present in dbx.
+  @retval TRUE   The subject matches an entry in the valid prefix of Db.
+  @retval FALSE  The subject is not present, or Cache is unusable.
 **/
 BOOLEAN
-IsTBSCertHashInDbx (
-  IN  CONST UINT8  *Cert,
-  IN  UINTN        CertSize,
-  IN  CONST VOID   *Dbx,
-  IN  UINTN        DbxSize
+IsInDb (
+  IN OUT DIGEST_CACHE     *Cache,
+  IN     CONST VOID       *Db,
+  IN     UINTN            DbSize,
+  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
   );
 
 /**
-  Search the `db` for a trust anchor that authorizes the image via a single WIN_CERTIFICATE.
+  Determine whether the subject bound to Cache is present in a `dbx`-style deny-list.
 
-  A match is defined as a X.509 certificate in the `db` which:
-  1. Verifies the auth data found in the WIN_CERTIFICATE against the hashed image digest.
-  2. Whose TBS (To Be Signed) hash is not present in the `dbx`.
+  The subject is described by Cache exactly as for IsInDb.
 
-  @param[in]      Cert       The certificate to evaluate.
-  @param[in,out]  Cache      Image digest cache bound to the image buffer; the cache may
-                             memoize one digest per algorithm across calls.
-  @param[in]      Databases  The `db` / `dbx` signature databases to evaluate against.
-  @param[out]     Authority  Authority->SignatureType is the authenticode hash algorithm. On
-                             EFI_SUCCESS, Authority->Data references the EFI_SIGNATURE_DATA
-                             trust anchor in the `db` that authorized the image.
+  As a deny-list search this fails closed: if the database cannot be fully parsed (a malformed
+  entry truncates the walk, a required hash cannot be computed, or Cache is unusable), the subject
+  is treated as present, because a dropped entry might have matched it.
 
-  @retval EFI_SUCCESS            The certificate authorizes the image; inspect Authority.
-  @retval EFI_NOT_FOUND          The certificate is valid but no `db` trust anchor authorizes it.
-  @retval EFI_ACCESS_DENIED      The certificate is revoked by `dbx`, or a prelude failure
-                                 (PKCS#7 extraction, hash-algorithm lookup, or image-hash
-                                 computation) prevented evaluation.
+  @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
+  @param[in]      Dbx        Raw `dbx` contents, or NULL for an empty database.
+  @param[in]      DbxSize    Size of Dbx in bytes; 0 when Dbx is NULL.
+  @param[out]     Authority  Optional. On an actual match, receives the revoking entry (for
+                             rejection reporting). Zeroed when the TRUE result is due to
+                             fail-closed truncation rather than a specific entry.
+
+  @retval TRUE   The subject matches an entry in Dbx, or the database could not be fully parsed.
+  @retval FALSE  The subject is definitively absent from Dbx (including an absent/empty Dbx).
+**/
+BOOLEAN
+IsInDbx (
+  IN OUT DIGEST_CACHE     *Cache,
+  IN     CONST VOID       *Dbx,
+  IN     UINTN            DbxSize,
+  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
+  );
+
+/**
+  Evaluate a single image WIN_CERTIFICATE against the `db` / `dbx` databases.
+
+  Consolidates PKCS#7 extraction, image-hash computation, `db` authorization, and chain-relative
+  `dbx` revocation into one pass. The certificate authorizes the image when some `db` trust anchor
+  verifies the image's signature and no certificate in the verified signer->anchor chain is
+  enrolled in the `dbx`.
+
+  The EFI_STATUS return reports whether evaluation could be performed, not the security outcome;
+  the outcome is reported in Evaluation->Verdict.
+
+  @param[in]      Cert        The WIN_CERTIFICATE to evaluate.
+  @param[in,out]  Cache       Image digest cache bound to the image buffer; the cache may memoize
+                              one digest per algorithm across calls.
+  @param[in]      Databases   The `db` / `dbx` signature databases to evaluate against.
+  @param[out]     Evaluation  On EFI_SUCCESS, receives the verdict and (when approved) the
+                              authorizing `db` authority.
+
+  @retval EFI_SUCCESS            Evaluation completed; inspect Evaluation->Verdict.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval other                  The image's Authenticode hash could not be computed (propagated
+                                 from GetHash); no verdict was produced.
 **/
 EFI_STATUS
-GetImageCertAuthority (
+EvaluateImageCertificate (
   IN     CONST WIN_CERTIFICATE      *Cert,
   IN OUT DIGEST_CACHE               *Cache,
   IN     CONST SIGNATURE_DATABASES  *Databases,
-  OUT    IMAGE_AUTHORITY            *Authority
+  OUT    IMAGE_CERT_EVALUATION      *Evaluation
   );
 
 #endif // DXE_IMAGE_VERIFICATION_LIB_DATABASE_H_

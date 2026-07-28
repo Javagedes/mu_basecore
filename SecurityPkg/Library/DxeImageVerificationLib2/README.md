@@ -7,9 +7,10 @@ It focuses on the following phases:
 1. **Policy validation** (entry-point gating)
 2. **`ValidateImage`** (the single, unified validator for both signed
    and unsigned images)
-3. The helpers `ValidateImage` drives — `GetImageDigestAuthority`
-   (image-hash lookup) and `GetImageCertAuthority` (per-certificate
-   evaluation, which in turn drives `IsCertRevoked` / `IsCertAuthorized`)
+3. The helpers `ValidateImage` drives — `IsInDbx` / `IsInDb`
+   (deny-list / allow-list membership search) and
+   `EvaluateImageCertificate` (per-certificate evaluation, which
+   resolves trust anchors and performs chain-relative revocation)
 
 `ValidateImage` builds a single `DIGEST_CACHE` bound to the image and
 threads it through every step, so each Authenticode digest is computed
@@ -27,28 +28,10 @@ execution or `EFI_ACCESS_DENIED` to block it.
 
 ### Recording the outcome
 
-Each rejection is also reported to the OS through the
-`EFI_IMAGE_EXECUTION_INFO_TABLE`, a UEFI configuration table published
-under `gEfiImageSecurityDatabaseGuid`. Every rejected image appends one
-entry whose `EFI_IMAGE_EXECUTION_ACTION` records *why* it was rejected:
-
-| Action | Meaning |
-| --- | --- |
-| `EFI_IMAGE_EXECUTION_AUTH_UNTESTED` | Unsigned image that was not authorized. |
-| `EFI_IMAGE_EXECUTION_AUTH_SIG_FOUND` | Signed image whose Authenticode hash is enrolled in `dbx`. |
-| `EFI_IMAGE_EXECUTION_AUTH_SIG_FAILED` | Signed image with at least one certificate revoked by `dbx` (or otherwise un-evaluable). |
-| `EFI_IMAGE_EXECUTION_AUTH_SIG_NOT_FOUND` | Signed image with no certificate in `db` and whose hash is not in `db`. |
-
-The `SIG_*` actions apply to **signed** images (those carrying a
-`WIN_CERTIFICATE`). An **unsigned** image (`SecDataDir.Size == 0`) that
-is rejected is *always* recorded as `EFI_IMAGE_EXECUTION_AUTH_UNTESTED`,
-regardless of which step denied it — the signed-image reasoning above is
-overridden for the unsigned case. The table is written **only on
-rejection**; an authorized image produces no entry.
-
-For the `SIG_FOUND` and `SIG_FAILED` cases the recorded entry also
-carries the image digest (wrapped as an `EFI_SIGNATURE_LIST`) so the OS
-can identify the offending image; the other cases record no signature.
+> **Note:** Reporting rejected images to the OS through the
+> `EFI_IMAGE_EXECUTION_INFO_TABLE` has been **temporarily removed** and is
+> slated for rework. The handler currently returns `EFI_ACCESS_DENIED` for a
+> rejected image without publishing any table entry.
 
 ### Measuring the outcome
 
@@ -58,8 +41,7 @@ measurement faithful to UEFI Secure Boot semantics, each distinct
 authority is measured **at most once per boot**: the handler tracks the
 set of already-measured authorities and skips any it has seen before, so
 loading many images authorized by the same `db` entry extends PCR 7 only
-once for that entry. Authorization (and therefore measurement) never
-writes the Image Execution Information Table.
+once for that entry.
 
 > **Diagram conventions**
 >
@@ -67,9 +49,9 @@ writes the Image Execution Information Table.
 >   classes** (e.g. `BaseCryptLib`, `SecureBootVariableLib`).
 > - **Blue** nodes are functions owned by this library that are
 >   **expanded in a later section**.
-> - For simplicity the diagrams assume infallible setup calls (iterator
->   init, database load, etc.); the early-abort-on-error branches are
->   omitted.
+> - For simplicity the diagrams assume the setup calls (iterator init,
+>   database load, etc.) neither truncate nor fail; the early-abort
+>   branches are omitted.
 
 ## 1. Top-level flow
 
@@ -111,41 +93,38 @@ Key observations:
 `DIGEST_CACHE`:
 
 1. **Image-hash revocation.** Look up the image's Authenticode digest
-   in `dbx` via `GetImageDigestAuthority`. A hit rejects the image.
+   in `dbx` via `IsInDbx`. A hit - or a `dbx` that cannot be fully
+   parsed (fail-closed) - rejects the image.
 2. **Per-`WIN_CERTIFICATE` walk.** For each embedded `WIN_CERTIFICATE`,
-   ask `GetImageCertAuthority` whether that certificate authorizes the
-   image. The first certificate that authorizes wins.
+   ask `EvaluateImageCertificate` for a verdict; the first certificate
+   whose verdict is `ImageCertApproved` authorizes the image.
 3. **Image-hash fallback.** If no embedded signature authorizes the
-   image, look up the image's digest in `db`. A hit authorizes on the
-   image-hash path.
+   image, look up the image's digest in `db` via `IsInDb`. A hit
+   authorizes on the image-hash path.
 
 When the image is authorized, the authorizing `db` entry is measured
-into PCR 7 via `SecureBootHook` and the function returns `EFI_SUCCESS`
-**without** writing the Image Execution Information Table.
-
-When the image is rejected, `RecordRejectedImage` appends an entry to
-the Image Execution Information Table and the function returns
+into PCR 7 via `SecureBootHook` and the function returns `EFI_SUCCESS`.
+When the image is rejected, the function simply returns
 `EFI_ACCESS_DENIED`.
 
 ```mermaid
 flowchart TD
-    A[ValidateImage] --> B[LoadSignatureDatabases db, dbx]
-    B --> S1[GetImageDigestAuthority dbx]
-    S1 --> S1Q{{Authority found?}}
+    A[ValidateImage] --> B[LoadSignatureDatabases]
+    B --> S1[IsInDbx]
+    S1 --> S1Q{{Found or unparsable?}}
     S1Q -- yes --> R[Reject]
     S1Q -- no  --> D1[WinCertIterNext: next WIN_CERTIFICATE]
     D1 --> D2{{Entry?}}
-    D2 -- yes --> IA[GetImageCertAuthority Cert, Cache, Databases]
-    IA --> IA1{{Authorized?}}
+    D2 -- yes --> IA[EvaluateImageCertificate]
+    IA --> IA1{{Approved?}}
     IA1 -- yes --> G[SecureBootHook]
     IA1 -- no --> D1
-    D2 -- no  --> H[GetImageDigestAuthority db]
-    H --> H1{{Authority found?}}
+    D2 -- no  --> H[IsInDb]
+    H --> H1{{Authorized?}}
     H1 -- yes --> G
     H1 -- no  --> R
     G --> S[return EFI_SUCCESS]
-    R --> RR[RecordRejectedImage]
-    RR --> X[return EFI_ACCESS_DENIED]
+    R --> X[return EFI_ACCESS_DENIED]
 
     classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
     class IA,S1,H drill;
@@ -154,239 +133,143 @@ flowchart TD
 Rules of thumb:
 
 - `dbx` is consulted **before** the certificate walk and the `db`
-  hash fallback. A revoked image hash is denied regardless of `db`.
+  hash fallback. A revoked image hash is denied regardless of any
+  certificates.
 - The first `WIN_CERTIFICATE` that authorizes wins; the walk is empty
   for an unsigned image (`SecDataDir.Size == 0`), so such an image can
   only be authorized by the `db` image-hash fallback.
 
-> The classification of *why* an image was rejected (the
-> `EFI_IMAGE_EXECUTION_ACTION` recorded into the Image Execution
-> Information Table) is intentionally omitted from this overview. See
-> the `ValidateImage` implementation for those details.
+## 3. `IsInDb` / `IsInDbx`
 
-## 3. `GetImageDigestAuthority`
+Cache-driven membership search over a signature database. The subject is
+described by a `DIGEST_CACHE`: an *image* (`DigestCacheTypeImage`) is
+matched by its digest under each list's hash algorithm; a *certificate*
+(`DigestCacheTypeX509`) is matched either by exact DER bytes against an
+`EFI_CERT_X509_GUID` list, or by its TBSCertificate digest against a
+cert-hash list. Both wrappers share a `STATIC` core, `FindInDatabase`,
+which walks the valid prefix, reports the matching entry on `Authority`,
+and signals through an internal `Truncated` flag whether the walk could
+be completed end-to-end.
 
-Image-hash lookup against a single database buffer (used for both the
-`dbx` revocation check and the `db` fallback). It walks every
-`EFI_SIGNATURE_LIST` in the buffer; for each list it asks `GetHash` for
-the image digest under that list's `SignatureType` (memoized in
-`Cache`), then byte-compares that digest against every entry in the
-list. The first matching entry is reported on `Authority` (including the
-list's `SignatureType`).
+The wrappers differ only in how they treat an incomplete walk:
 
-An empty database (`Database == NULL` / `DatabaseSize == 0`) is treated
-as a successful no-match, not an error. A list whose `SignatureType` is
-not a supported image-hash algorithm (`GetHash` returns
-`EFI_UNSUPPORTED`) is skipped.
-
-The diagram below assumes `DatabaseIterInit` / `SigListIterInit`
-succeed; on a `GetHash` failure other than `EFI_UNSUPPORTED` the
-function returns that error.
+- **`IsInDb` (allow-list, best-effort).** Ignores truncation and honors
+  the valid prefix: dropped entries can only remove a potential
+  authorizer, never add one. Returns TRUE with the authorizing entry on
+  `Authority`, otherwise FALSE.
+- **`IsInDbx` (deny-list, fail-closed).** Returns TRUE if a matching
+  entry is found **or** the walk could not be completed, because a dropped
+  entry might have matched the subject. On an actual match `Authority`
+  names the revoking entry; on a fail-closed truncation `Authority` is
+  empty.
 
 ```mermaid
 flowchart TD
-    A[GetImageDigestAuthority Database, Cache] --> E[DatabaseIterNext: next EFI_SIGNATURE_LIST]
-    E --> E1{{List?}}
-    E1 -- no  --> RNF[return EFI_SUCCESS, no authority]
-    E1 -- yes --> GH[GetHash Cache → image digest for SignatureType]
-    GH --> GHU{{Supported hash type?}}
-    GHU -- no --> E
-    GHU -- yes --> G[SigListIterNext: next entry]
-    G --> G1{{Entry?}}
-    G1 -- no  --> E
-    G1 -- yes --> CM{{Digest matches entry?}}
-    CM -- no  --> G
-    CM -- yes --> RT[set Authority, return EFI_SUCCESS]
+    A[FindInDatabase Cache, Database] --> E[DatabaseIterNext: next EFI_SIGNATURE_LIST]
+    E --> E1{{Entry?}}
+    E1 -- no --> RF[found = FALSE]
+    E1 -- yes --> TY{{Signature type}}
+    TY -- EFI_CERT_X509_GUID --> ST[Target = cert DER]
+    TY -- hash algorithm --> GH[GetHash: cert digest]
+    GH --> ST2[Target = digest]
+    ST --> EN[SigListIterNext: next entry]
+    ST2 --> EN
+    EN --> EN1{{Entry?}}
+    EN1 -- no --> E
+    EN1 -- yes --> CM{{CompareMem Target == entry?}}
+    CM -- no --> EN
+    CM -- yes --> FD[set Authority; found = TRUE]
+    FD --> RET{{caller wrapper}}
+    RF --> RET
+    RET -- IsInDb allow-list --> RB[return found]
+    RET -- IsInDbx deny-list --> RX[return found OR Truncated]
 ```
 
-## 4. `GetImageCertAuthority`
+## 4. `EvaluateImageCertificate`
 
-Evaluates a single `WIN_CERTIFICATE`. It extracts the PKCS#7 `AuthData`
-from `Cert` via `GetWinCertificatePkcs7AuthData`, identifies the
-Authenticode hash algorithm declared by that signature via
-`GetAuthenticodeHashAlgorithm`, computes (or retrieves from `Cache`)
-the image digest under that algorithm via `GetHash`, records that
-algorithm on `Authority.SignatureType`, then dispatches the resulting
-`AuthData` / `ImageHash` pair into `IsCertRevoked` and
-`IsCertAuthorized`.
+Evaluates a single `WIN_CERTIFICATE` and reports a verdict as an
+`IMAGE_CERT_EVALUATION` out-parameter. The `EFI_STATUS` return
+indicates whether evaluation could be performed; the security
+outcome is the verdict.
 
-It returns a three-way status:
+It runs a prelude, then a `db` walk:
 
-- `EFI_SUCCESS` (with `Authority.Data` set) — a `db` trust anchor
-  authorized the image.
-- `EFI_ACCESS_DENIED` — the certificate is revoked by `dbx`, **or** a
-  prelude failure prevented evaluation.
-- `EFI_NOT_FOUND` — the signature is valid but no `db` trust anchor
-  authorizes it.
+1. **Prelude.** Extract the PKCS#7 `AuthData`, determine the
+   Authenticode hash algorithm, and compute the image digest
+   under that algorithm.
+2. **`db` walk.** Walk every trust anchor in `db`. An
+  `EFI_CERT_X509_GUID` entry is a DER certificate
+   used directly; an X.509-cert-hash entry is resolved to a certificate.
+  `AuthenticodeVerifyEx` authenticates the image and returns the exact
+  signer→anchor chain used by the verifier. The chain is then checked to
+  ensure no certificate in it is enrolled in `dbx`.
 
-The diagram below assumes the three prelude calls
-(`GetWinCertificatePkcs7AuthData`, `GetAuthenticodeHashAlgorithm`,
-`GetHash`) succeed; on any prelude failure the function returns
-`EFI_ACCESS_DENIED` with a zero `SignatureType`.
+The verdict (`Evaluation->Verdict`) is one of:
+
+| Verdict | Meaning |
+| --- | --- |
+| `ImageCertApproved` | A `db` anchor verified the image with an un-revoked chain. `Evaluation->Authority` identifies the authorizing `db` entry (for PCR 7 measurement). |
+| `ImageCertRevokedByDbx` | A `db` anchor verified the image, but a certificate in its verified chain is enrolled in `dbx`, and no other anchor authorizes it. |
+| `ImageCertNotInDb` | No `db` anchor verifies the image. |
+| `ImageCertUnusable` | The certificate could not be evaluated before trust-anchor processing: unsupported `WIN_CERTIFICATE` type, malformed PKCS#7, or unrecognized hash algorithm. |
+
+Evaluation is only valid if the return is `EFI_SUCCESS`. Any `EFI_ERROR`
+indicates that there was an error and the Evaluation cannot be trusted.
 
 ```mermaid
 flowchart TD
-    A[GetImageCertAuthority Cert, Cache, Databases] --> P[GetWinCertificatePkcs7AuthData]
-    P --> HA[GetAuthenticodeHashAlgorithm AuthData]
+    A[EvaluateImageCertificate Cert, Cache, Databases] --> P[GetWinCertificatePkcs7AuthData]
+    P --> HA[GetAuthenticodeHashAlgorithm]
     HA --> GH[GetHash Cache → image hash]
-    GH --> DR[IsCertRevoked AuthData, ImageHash, dbx]
-    DR --> DR1{{Revoked?}}
-    DR1 -- yes --> RA[return EFI_ACCESS_DENIED]
-    DR1 -- no  --> DA[IsCertAuthorized AuthData, ImageHash, Databases]
-    DA --> DA1{{Authorized?}}
-    DA1 -- yes --> RT[return EFI_SUCCESS, Authority set]
-    DA1 -- no  --> RN[return EFI_NOT_FOUND]
+    GH --> DL[DatabaseIterNext: next EFI_SIGNATURE_LIST]
+    DL --> DL1{{Entry?}}
+    DL1 -- no --> EX[exit EFI_SUCCESS]
+    DL1 -- yes --> TY{{X509 or cert-hash list?}}
+    TY -- no --> DL
+    TY -- yes --> EN[SigListIterNext: next entry]
+    EN --> EN1{{Entry?}}
+    EN1 -- no --> DL
+    EN1 -- yes --> RT{{Signature type}}
+    RT -- EFI_CERT_X509_GUID --> AX[Anchor = entry DER]
+    RT -- cert-hash --> GX[GetTrustAnchorX509FromAuthData → Anchor]
+    GX --> AV
+    AX --> AV{{AuthenticodeVerifyEx → verified chain?}}
+    AV -- no --> EN
+    AV -- yes --> CR[IsChainRevoked]
+    CR --> CR1{{revoked?}}
+    CR1 -- yes --> REV[Verdict = ImageCertRevokedByDbx, set Authority]
+    REV --> EN
+    CR1 -- no --> APP[Verdict = ImageCertApproved, set Authority]
+    APP --> EX
 
     classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
+    class CR drill;
     classDef libclass fill:#ffe6a7,stroke:#d9822b,color:#000;
-    class DR,DA drill;
-    class HA libclass;
+    class HA,GH,GX,AV libclass;
 ```
 
-### 4a. `IsCertRevoked`
+### 4a. `IsChainRevoked`
 
-Per-certificate revocation check against `dbx`. The caller supplies
-the PKCS#7 `AuthData` payload (extracted from a `WIN_CERTIFICATE` via
-`GetWinCertificatePkcs7AuthData`) and the precomputed Authenticode
-image hash for the algorithm declared by that signature. Runs in two
-phases against the same `AuthData`. The first phase walks every X.509
-entry in every `EFI_CERT_X509_GUID` signature list in `dbx` and asks
-`AuthenticodeVerify` whether the image was signed by that
-revoked anchor. The second phase walks the signer chain returned by
-`Pkcs7GetSigners` and, for each signer, asks `IsTBSCertHashInDbx`
-whether the signer's TBS hash appears in `dbx`. Any hit in either
-phase revokes the certificate.
+Decides whether the certificate chain that authorizes the image is
+revoked by `dbx`. It consumes the `EFI_CERT_STACK` returned by the successful
+`AuthenticodeVerifyEx` call and reports the chain revoked if **any**
+certificate in it — signer, intermediates, or the anchor — is enrolled in
+`dbx` (checked via `IsInDbx`, 3). Using the verifier-produced chain ensures
+the revocation decision applies to the exact chain that authorized the image.
 
-`Pkcs7GetSigners` returning FALSE means the signer chain is
-unavailable, so phase 2 is skipped and only phase 1's result counts.
-Missing parameters and an empty `dbx` fail open (return FALSE — let
-`IsCertAuthorized` make the final decision).
-
-The diagram below assumes `DatabaseIterInit` and `X509GetTBSCert`
-succeed; on failure the function fails closed and returns TRUE.
+It fails **closed**: a missing or malformed chain buffer returns TRUE
+(revoked). An absent/empty `dbx` returns FALSE (nothing to revoke against).
 
 ```mermaid
 flowchart TD
-    A[IsCertRevoked AuthData, ImageHash, dbx] --> E[DatabaseIterNext: next EFI_SIGNATURE_LIST]
-    E --> E1{{X509 list with payload?}}
-    E1 -- no, more lists --> E
-    E1 -- no, end --> S[Pkcs7GetSigners AuthData]
-    E1 -- yes --> G[SigListIterNext: next entry]
-    G --> G1{{Entry?}}
-    G1 -- no  --> E
-    G1 -- yes --> AV[AuthenticodeVerify entry, ImageHash]
-    AV --> AV1{{Verifies?}}
-    AV1 -- yes --> RT[return TRUE]
-    AV1 -- no  --> G
-
-    S --> S1{{Signers?}}
-    S1 -- no  --> RF[return FALSE]
-    S1 -- yes --> W[walk EFI_CERT_STACK entries]
-    W --> TBS[X509GetTBSCert signer]
-    TBS --> ID[IsTBSCertHashInDbx TBS, dbx]
+  A[IsChainRevoked verified chain, dbx] --> W[walk EFI_CERT_STACK certs]
+    W --> W1{{Next cert?}}
+    W1 -- no --> RF[return FALSE]
+    W1 -- yes --> ID[IsInDbx]
     ID --> ID1{{In dbx?}}
-    ID1 -- yes --> FC[return TRUE]
-    ID1 -- no, more signers --> W
-    ID1 -- no, end --> FF[return FALSE]
+    ID1 -- yes --> RT[return TRUE]
+    ID1 -- no --> W
 
     classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
     class ID drill;
-    classDef libclass fill:#ffe6a7,stroke:#d9822b,color:#000;
-    class AV,S,TBS libclass;
-```
-
-Phase 2's per-signer revocation check (`IsTBSCertHashInDbx`) is detailed
-in section 4c.
-
-### 4b. `IsCertAuthorized`
-
-Given a PKCS#7 `AuthData` payload and the precomputed Authenticode
-image hash (both supplied by the caller), asks `db` to authorize the
-signature. For each `EFI_SIGNATURE_LIST` in `db`, dispatches by
-`SignatureType` GUID:
-
-- `EFI_CERT_X509_GUID` → `IsPkcs7AuthDataAuthorizedByX509List`: walk
-  each X.509 trust anchor, verify with `AuthenticodeVerify`, extract
-  TBS, reject if the TBS hash is enrolled in `dbx`.
-- Any X.509-cert-hash list GUID (matched via `IsX509CertHashGuid`,
-  e.g. `EFI_CERT_X509_SHA256_GUID`, future digests such as SM3, etc.)
-  → `IsPkcs7AuthDataAuthorizedByX509HashList`: TODO — match each entry
-  against the TBS hashes of signers carried in `AuthData`, then check
-  `dbx`.
-
-Returns TRUE on the first trust anchor in `db` that both verifies the
-signature **and** is not revoked by `dbx`.
-
-The diagram below assumes `DatabaseIterInit` on `db` succeeds; on
-failure the function simply returns FALSE.
-
-```mermaid
-flowchart TD
-    A[IsCertAuthorized AuthData, ImageHash, Databases] --> E[DatabaseIterNext: next EFI_SIGNATURE_LIST]
-    E --> E1{{List?}}
-    E1 -- no  --> R[return FALSE]
-    E1 -- yes --> DG{{SignatureType?}}
-    DG -- EFI_CERT_X509_GUID --> G
-    DG -- X.509-cert-hash GUID --> HL[IsPkcs7AuthDataAuthorizedByX509HashList TODO]
-    DG -- other --> E
-    HL --> E
-
-    subgraph SUB[IsPkcs7AuthDataAuthorizedByX509List List]
-        direction TB
-        G[SigListIterNext: next entry]
-        G --> G1{{Entry?}}
-        G1 -- yes --> H[AuthenticodeVerify AuthData, ImageHash]
-        H --> H1{{Verifies?}}
-        H1 -- no  --> G
-        H1 -- yes --> I[X509GetTBSCert entry]
-        I --> J{{IsTBSCertHashInDbx?}}
-        J -- yes --> G
-    end
-
-    G1 -- no  --> E
-    J -- no  --> T[return TRUE]
-
-    classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
-    class J drill;
-    classDef libclass fill:#ffe6a7,stroke:#d9822b,color:#000;
-    class H,I libclass;
-```
-
-For each verifying trust anchor, `X509GetTBSCert` extracts the TBS bytes
-and `IsTBSCertHashInDbx` (section 4c) performs the trust-anchor
-revocation check (distinct from the per-certificate signer-chain
-revocation in section 4a above, which targets the signing certificates
-carried in the image).
-
-### 4c. `IsTBSCertHashInDbx`
-
-Shared revocation primitive used by both `IsCertRevoked` (4a, against
-the image's signer chain) and `IsCertAuthorized` (4b, against a
-verifying `db` trust anchor). Given the DER TBS-certificate bytes, it
-asks whether that certificate's hash is enrolled in `dbx`.
-
-It walks every `EFI_SIGNATURE_LIST` in `dbx`; for each list it computes
-the TBS hash under the list's `SignatureType` (skipping lists whose type
-is not a supported hash algorithm) and byte-compares that hash against
-every entry. A match means the certificate is revoked.
-
-It fails **closed**: an empty `dbx` returns FALSE (nothing revoked), but
-a malformed `dbx`, a hash-computation failure, or a malformed list is
-treated as a revocation hit (returns TRUE). It reports "not present"
-(FALSE) only after cleanly walking the entire `dbx` with no match.
-
-```mermaid
-flowchart TD
-    A[IsTBSCertHashInDbx TBSCert, dbx] --> E[DatabaseIterNext: next EFI_SIGNATURE_LIST]
-    E --> E1{{List?}}
-    E1 -- no  --> RF[return FALSE]
-    E1 -- yes --> GH[GetHash → TBS hash for SignatureType]
-    GH --> GHU{{Supported hash type?}}
-    GHU -- no --> E
-    GHU -- yes --> G[SigListIterNext: next entry]
-    G --> G1{{Entry?}}
-    G1 -- no  --> E
-    G1 -- yes --> CM{{Hash matches entry?}}
-    CM -- no  --> G
-    CM -- yes --> RT[return TRUE]
 ```
