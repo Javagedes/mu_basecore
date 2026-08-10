@@ -152,6 +152,30 @@ SetEntryPayload (
 static constexpr UINTN  kSha256DigestSize = 32;
 static constexpr UINTN  kSha384DigestSize = 48;
 
+// V2 (EFI_SIGNATURE_V2_DATA) entry size: the payload only, with no SignatureOwner prefix.
+static constexpr UINT32  kSha256V2EntrySize = 32;
+
+//
+// Write Bytes into the entry payload of a V2 (EFI_SIGNATURE_V2_DATA) signature list, whose entries
+// omit the SignatureOwner, so the payload begins at the entry start rather than sizeof (EFI_GUID)
+// bytes in.
+//
+static void
+SetV2EntryPayload (
+  std::vector<UINT8>        &Buffer,
+  size_t                    ListOffset,
+  UINTN                     EntryIndex,
+  const std::vector<UINT8>  &Bytes
+  )
+{
+  EFI_SIGNATURE_LIST  *List      = (EFI_SIGNATURE_LIST *)(Buffer.data () + ListOffset);
+  const size_t        FirstEntry = ListOffset + sizeof (EFI_SIGNATURE_LIST) + List->SignatureHeaderSize;
+  const size_t        EntryStart = FirstEntry + (size_t)EntryIndex * (size_t)List->SignatureSize;
+
+  ASSERT_LE (EntryStart + Bytes.size (), Buffer.size ());
+  std::memcpy (Buffer.data () + EntryStart, Bytes.data (), Bytes.size ());
+}
+
 static DIGEST_CACHE
 MakeBoundCache (
   const EFI_GUID            *HashType,
@@ -354,6 +378,93 @@ TEST (IsInDbTest, ExactMatch_Found) {
   IMAGE_AUTHORITY  Authority = { NULL, 0 };
 
   EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
+  EXPECT_NE (Authority.Data, nullptr);
+}
+
+TEST (IsInDbTest, V2ImageHashExactMatch_Found) {
+  // A V2 (EFI_SIGNATURE_V2_DATA) image-hash list stores the digest with no SignatureOwner prefix,
+  // so the payload must be read from the entry start rather than sizeof (EFI_GUID) bytes in.
+  std::vector<UINT8>  Db;
+  size_t              Off = AppendSignatureList (Db, gEfiCertV2Sha256Guid, 0, kSha256V2EntrySize, 2);
+  std::vector<UINT8>  Target (kSha256DigestSize, 0xAA);
+
+  SetV2EntryPayload (Db, Off, 1, Target);
+
+  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
+  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
+  ASSERT_NE (Authority.Data, nullptr);
+  // The measured authority spans the whole V2 entry (digest only, no owner GUID).
+  EXPECT_EQ (Authority.Size, (UINTN)kSha256V2EntrySize);
+}
+
+TEST (IsInDbTest, V2X509CertExactMatch_Found) {
+  // A V2 full-certificate list stores the DER certificate with no owner prefix.
+  std::vector<UINT8>  Cert (24, 0xC7);
+  std::vector<UINT8>  Db;
+  size_t              Off = AppendSignatureList (Db, gEfiCertV2X509Guid, 0, (UINT32)Cert.size (), 1);
+
+  SetV2EntryPayload (Db, Off, 0, Cert);
+
+  DIGEST_CACHE     Cache     = MakeCertCache (Cert);
+  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
+  ASSERT_NE (Authority.Data, nullptr);
+  EXPECT_EQ (Authority.Size, (UINTN)Cert.size ());
+}
+
+TEST (IsInDbTest, V2X509CertHashMatch_Found) {
+  // A V2 X.509 TBS-cert-hash list stores the hash with neither the owner GUID nor a v1
+  // TimeOfRevocation trailer.
+  MockBaseCryptLib    BaseCryptLibMock;
+  std::vector<UINT8>  Cert (24, 0xC7);
+  std::vector<UINT8>  TbsHash (kSha256DigestSize, 0x5A);
+  std::vector<UINT8>  Db;
+  size_t              Off = AppendSignatureList (Db, gEfiCertV2X509Sha256Guid, 0, kSha256V2EntrySize, 1);
+
+  SetV2EntryPayload (Db, Off, 0, TbsHash);
+
+  EXPECT_CALL (BaseCryptLibMock, X509GetTbsCertHash (_, _, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN  VOID            *CertBuffer,
+             IN  UINTN           CertSize,
+             IN  CONST EFI_GUID  *HashType,
+             OUT UINT8           *OutDigest,
+             OUT UINTN           *OutDigestSize
+         ) -> EFI_STATUS {
+    (VOID)CertBuffer;
+    (VOID)CertSize;
+    (VOID)HashType;
+    SetMem (OutDigest, SHA256_DIGEST_SIZE, 0x5A);
+    *OutDigestSize = SHA256_DIGEST_SIZE;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+
+  DIGEST_CACHE     Cache     = MakeCertCache (Cert);
+  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
+  EXPECT_NE (Authority.Data, nullptr);
+}
+
+TEST (IsInDbxTest, V2ImageHashExactMatch_Revoked) {
+  // Deny-list parsing honors the V2 ownerless layout the same as the allow-list.
+  std::vector<UINT8>  Dbx;
+  size_t              Off = AppendSignatureList (Dbx, gEfiCertV2Sha256Guid, 0, kSha256V2EntrySize, 1);
+  std::vector<UINT8>  Target (kSha256DigestSize, 0xAA);
+
+  SetV2EntryPayload (Dbx, Off, 0, Target);
+
+  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
+  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
   EXPECT_NE (Authority.Data, nullptr);
 }
 
@@ -1880,6 +1991,100 @@ TEST (EvaluateImageCertificateTest, X509VerifiesNoDbx_Approved) {
   EXPECT_EQ (Eval.Verdict, ImageCertApproved);
   EXPECT_NE (Eval.Authority.Data, nullptr);
   EXPECT_EQ (Eval.Authority.Size, (UINTN)(sizeof (EFI_GUID) + 16));
+}
+
+//
+// A V2 (EFI_SIGNATURE_V2_DATA) full-certificate db anchor carries no owner GUID; the whole entry
+// is the DER certificate handed to AuthenticodeVerifyEx, and the authority size is the entry size
+// with no owner subtracted.
+//
+TEST (EvaluateImageCertificateTest, V2X509VerifiesNoDbx_Approved) {
+  MockBaseCryptLib       BaseCryptLibMock;
+  DIGEST_CACHE           Cache;
+  std::vector<UINT8>     CertBuf = MakePkcsSignedDataCert (std::vector<UINT8>(16, 0xA1));
+  IMAGE_CERT_EVALUATION  Eval;
+
+  InitImageCache (Cache);
+  ZeroMem (&Eval, sizeof (Eval));
+
+  std::vector<UINT8>  Db;
+  size_t              DbOff = AppendSignatureList (Db, gEfiCertV2X509Guid, 0, 16, 1);
+
+  SetV2EntryPayload (Db, DbOff, 0, std::vector<UINT8>(16, 0x11));
+
+  ExpectSignedImagePrelude (BaseCryptLibMock);
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerifyEx (_, _, _, _, _, _, _, _))
+    .WillOnce (Return (EFI_SUCCESS));
+
+  SIGNATURE_DATABASES  Databases = { Db.data (), Db.size (), NULL, 0 };
+
+  EXPECT_EQ (
+    EvaluateImageCertificate (
+      (CONST WIN_CERTIFICATE *)CertBuf.data (),
+      &Cache,
+      &Databases,
+      &Eval
+      ),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (Eval.Verdict, ImageCertApproved);
+  EXPECT_NE (Eval.Authority.Data, nullptr);
+  EXPECT_EQ (Eval.Authority.Size, (UINTN)16);
+}
+
+//
+// A V2 (EFI_SIGNATURE_V2_DATA) TBS-cert-hash db entry holds only the hash (no owner GUID, no v1
+// TimeOfRevocation). The full hash region is passed to GetTrustAnchorX509FromAuthData; this asserts
+// the size passed reflects the ownerless entry.
+//
+TEST (EvaluateImageCertificateTest, V2X509HashListResolvesAnchor_Approved) {
+  MockBaseCryptLib       BaseCryptLibMock;
+  DIGEST_CACHE           Cache;
+  std::vector<UINT8>     CertBuf = MakePkcsSignedDataCert (std::vector<UINT8>(16, 0xA1));
+  IMAGE_CERT_EVALUATION  Eval;
+
+  InitImageCache (Cache);
+  ZeroMem (&Eval, sizeof (Eval));
+
+  std::vector<UINT8>  Db;
+
+  AppendSignatureList (Db, gEfiCertV2X509Sha256Guid, 0, kSha256V2EntrySize, 1);
+
+  ExpectSignedImagePrelude (BaseCryptLibMock);
+  EXPECT_CALL (BaseCryptLibMock, GetTrustAnchorX509FromAuthData (_, _, _, _, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (VOID **CacheHandle, CONST UINT8 *, UINTN TbsHashSize, CONST UINT8 *, UINTN, UINT8 **TrustAnchor, UINTN *TrustAnchorSize) -> EFI_STATUS {
+    // The V2 entry supplies exactly the hash payload (SignatureSize with no owner subtracted).
+    EXPECT_EQ (TbsHashSize, (UINTN)kSha256V2EntrySize);
+    static const UINT8  CertBytes[] = { 0x30, 0x82, 0x01, 0x02 };
+    *TrustAnchor                    = (UINT8 *)AllocateCopyPool (sizeof (CertBytes), CertBytes);
+    *TrustAnchorSize                = sizeof (CertBytes);
+    if (CacheHandle != NULL) {
+      *CacheHandle = (VOID *)(UINTN)1;
+    }
+
+    return EFI_SUCCESS;
+  }
+         )
+       );
+  EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerifyEx (_, _, _, _, _, _, _, _))
+    .WillOnce (Return (EFI_SUCCESS));
+  EXPECT_CALL (BaseCryptLibMock, FreeTrustAnchorX509Cache (_)).Times (1);
+
+  SIGNATURE_DATABASES  Databases = { Db.data (), Db.size (), NULL, 0 };
+
+  EXPECT_EQ (
+    EvaluateImageCertificate (
+      (CONST WIN_CERTIFICATE *)CertBuf.data (),
+      &Cache,
+      &Databases,
+      &Eval
+      ),
+    EFI_SUCCESS
+    );
+  EXPECT_EQ (Eval.Verdict, ImageCertApproved);
+  EXPECT_NE (Eval.Authority.Data, nullptr);
 }
 
 //

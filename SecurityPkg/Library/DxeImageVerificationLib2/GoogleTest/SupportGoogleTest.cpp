@@ -427,6 +427,45 @@ TEST (GetHashTest, CacheMiss_ComputesAndCachesDigest) {
   EXPECT_EQ (Digest[2], 0x33);
 }
 
+TEST (GetHashTest, V2ImageGuidCacheMiss_HashesWithBaseGuid) {
+  //
+  // Regression: a V2 image-hash GUID (EFI_CERT_V2_SHA256) must be mapped to the base (V1) GUID
+  // before GetAuthenticodeHash, which accepts only the base GUIDs. Passing the V2 GUID straight
+  // through fails hashing and breaks db image-digest approval of V2 entries.
+  //
+  MockBaseCryptLib  BaseCryptLibMock;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = NULL;
+  UINTN             DigestSize = 0;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  Cache.Buffer     = (CONST VOID *)(UINTN)1;
+  Cache.BufferSize = 1;
+
+  EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHash (_, _, _, _, _))
+    .WillOnce (
+       Invoke (
+         [] (
+             IN  VOID            *FileBuffer,
+             IN  UINTN           FileSize,
+             IN  CONST EFI_GUID  *HashType,
+             OUT UINT8           *OutDigest,
+             OUT UINTN           *OutDigestSize
+         ) -> EFI_STATUS {
+    (VOID)FileBuffer;
+    (VOID)FileSize;
+    EXPECT_TRUE (CompareGuid (HashType, &gEfiCertSha256Guid));
+    OutDigest[0]   = 0x11;
+    *OutDigestSize = 1;
+    return EFI_SUCCESS;
+  }
+         )
+       );
+
+  EXPECT_EQ (GetHash (&gEfiCertV2Sha256Guid, &Cache, &Digest, &DigestSize), EFI_SUCCESS);
+  EXPECT_EQ (DigestSize, (UINTN)1);
+}
+
 TEST (GetHashTest, CacheMiss_HashFailure_ClearsSlotAndReturnsSecurityViolation) {
   MockBaseCryptLib  BaseCryptLibMock;
   DIGEST_CACHE      Cache;
@@ -571,22 +610,78 @@ TEST (GetHashTest, InvalidCacheType_ReturnsUnsupported) {
 }
 
 // ---------------------------------------------------------------------------
-// IsX509CertHashGuid
+// GetSignatureTypeInfo
 // ---------------------------------------------------------------------------
 
-TEST (IsX509CertHashGuidTest, NullGuid_ReturnsFalse) {
-  EXPECT_FALSE (IsX509CertHashGuid (NULL));
+TEST (GetSignatureTypeInfoTest, NullArgs_ReturnsInvalidParameter) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (NULL, &Kind, &OwnerSize), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertSha256Guid, NULL, &OwnerSize), EFI_INVALID_PARAMETER);
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertSha256Guid, &Kind, NULL), EFI_INVALID_PARAMETER);
 }
 
-TEST (IsX509CertHashGuidTest, X509CertHashGuid_ReturnsTrue) {
-  EXPECT_TRUE (IsX509CertHashGuid (&gEfiCertX509Sha256Guid));
-}
-
-TEST (IsX509CertHashGuidTest, NonX509CertHashGuid_ReturnsFalse) {
-  // A GUID that is not present in the mHashAlgorithms X509CertHashGuid column.
+TEST (GetSignatureTypeInfoTest, UnknownGuid_ReturnsUnsupported) {
   const EFI_GUID  OtherGuid = {
     0x11111111, 0x2222, 0x3333, { 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB }
   };
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
 
-  EXPECT_FALSE (IsX509CertHashGuid (&OtherGuid));
+  EXPECT_EQ (GetSignatureTypeInfo (&OtherGuid, &Kind, &OwnerSize), EFI_UNSUPPORTED);
+}
+
+TEST (GetSignatureTypeInfoTest, V1ImageHash_ReportsImageHashWithOwner) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertSha256Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindImageHash);
+  EXPECT_EQ (OwnerSize, sizeof (EFI_GUID));
+}
+
+TEST (GetSignatureTypeInfoTest, V2ImageHash_ReportsImageHashOwnerless) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertV2Sha256Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindImageHash);
+  EXPECT_EQ (OwnerSize, (UINTN)0);
+}
+
+TEST (GetSignatureTypeInfoTest, V1FullCert_ReportsX509CertWithOwner) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertX509Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindX509Cert);
+  EXPECT_EQ (OwnerSize, sizeof (EFI_GUID));
+}
+
+TEST (GetSignatureTypeInfoTest, V2FullCert_ReportsX509CertOwnerless) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertV2X509Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindX509Cert);
+  EXPECT_EQ (OwnerSize, (UINTN)0);
+}
+
+TEST (GetSignatureTypeInfoTest, V1TbsHash_ReportsX509TbsHashWithOwner) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertX509Sha384Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindX509TbsHash);
+  EXPECT_EQ (OwnerSize, sizeof (EFI_GUID));
+}
+
+TEST (GetSignatureTypeInfoTest, V2TbsHash_ReportsX509TbsHashOwnerless) {
+  SIGNATURE_KIND  Kind;
+  UINTN           OwnerSize;
+
+  EXPECT_EQ (GetSignatureTypeInfo (&gEfiCertV2X509Sha512Guid, &Kind, &OwnerSize), EFI_SUCCESS);
+  EXPECT_EQ (Kind, SignatureKindX509TbsHash);
+  EXPECT_EQ (OwnerSize, (UINTN)0);
 }
