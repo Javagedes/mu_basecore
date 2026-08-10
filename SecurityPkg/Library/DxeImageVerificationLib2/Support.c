@@ -35,8 +35,8 @@ GetIndex (
   for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
     switch (CacheType) {
       case DigestCacheTypeImage:
-        if ((mHashAlgorithms[I].ImageHashGuid != NULL) &&
-            CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid))
+        if (((mHashAlgorithms[I].ImageHashGuid != NULL) && CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid)) ||
+            ((mHashAlgorithms[I].ImageHashGuidV2 != NULL) && CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuidV2)))
         {
           *Index = I;
           return TRUE;
@@ -45,8 +45,8 @@ GetIndex (
         break;
 
       case DigestCacheTypeX509:
-        if ((mHashAlgorithms[I].X509CertHashGuid != NULL) &&
-            CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuid))
+        if (((mHashAlgorithms[I].X509CertHashGuid != NULL) && CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuid)) ||
+            ((mHashAlgorithms[I].X509CertHashGuidV2 != NULL) && CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuidV2)))
         {
           *Index = I;
           return TRUE;
@@ -117,7 +117,13 @@ GetHash (
   if (Slot->BufferSize == 0) {
     switch (Cache->Type) {
       case DigestCacheTypeImage:
-        Status = GetAuthenticodeHash ((VOID *)Cache->Buffer, Cache->BufferSize, HashType, Slot->Bytes, &Slot->BufferSize);
+        Status = GetAuthenticodeHash (
+                   (VOID *)Cache->Buffer,
+                   Cache->BufferSize,
+                   mHashAlgorithms[SlotIndex].ImageHashGuid, // Map possible V2 GUID to the base GUID
+                   Slot->Bytes,
+                   &Slot->BufferSize
+                   );
         if (EFI_ERROR (Status)) {
           Slot->BufferSize = 0;
           return EFI_SECURITY_VIOLATION;
@@ -274,34 +280,88 @@ GetImageSecurityDataDirectory (
 }
 
 /**
-  Determine whether Guid matches any X509CertHashGuid entry in mHashAlgorithms.
+  Classify an EFI_SIGNATURE_LIST SignatureType GUID for the database walkers.
 
-  This identifies an `EFI_SIGNATURE_LIST` whose entries are TBS-cert hashes (any
-  digest-flavored X.509-cert-hash list GUID) rather than full X.509 certificates.
+  In a single table lookup, reports what a list's entries enroll (Kind) and how they are laid out
+  (OwnerSize): entries of a V1 signature type begin with a 16-byte SignatureOwner
+  (EFI_SIGNATURE_DATA), while V2 entries omit it (EFI_SIGNATURE_V2_DATA). The payload therefore
+  begins OwnerSize bytes into each entry.
 
-  @param[in]  Guid  Candidate signature-list type GUID; may be NULL.
+  @param[in]   SignatureType  The EFI_SIGNATURE_LIST SignatureType GUID.
+  @param[out]  Kind           On EFI_SUCCESS, the signature kind.
+  @param[out]  OwnerSize      On EFI_SUCCESS, the per-entry SignatureOwner size: 0 for a V2
+                              (EFI_SIGNATURE_V2_DATA) type, sizeof (EFI_GUID) for a V1
+                              (EFI_SIGNATURE_DATA) type.
 
-  @retval TRUE   Guid matches one of the X509CertHashGuid entries in mHashAlgorithms.
-  @retval FALSE  Guid is NULL or does not match any X509CertHashGuid entry.
+  @retval EFI_SUCCESS            SignatureType is recognized; Kind and OwnerSize are set.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval EFI_UNSUPPORTED        SignatureType is not a supported signature type.
 **/
-BOOLEAN
-IsX509CertHashGuid (
-  IN  CONST EFI_GUID  *Guid
+EFI_STATUS
+GetSignatureTypeInfo (
+  IN  CONST EFI_GUID  *SignatureType,
+  OUT SIGNATURE_KIND  *Kind,
+  OUT UINTN           *OwnerSize
   )
 {
   UINTN  Index;
 
-  if (Guid == NULL) {
-    return FALSE;
+  if ((SignatureType == NULL) || (Kind == NULL) || (OwnerSize == NULL)) {
+    return EFI_INVALID_PARAMETER;
   }
 
+  //
+  // Full X.509 certificate lists carry a DER certificate and are not tracked in mHashAlgorithms.
+  //
+  if (CompareGuid (SignatureType, &gEfiCertX509Guid)) {
+    *Kind      = SignatureKindX509Cert;
+    *OwnerSize = sizeof (EFI_GUID);
+    return EFI_SUCCESS;
+  }
+
+  if (CompareGuid (SignatureType, &gEfiCertV2X509Guid)) {
+    *Kind      = SignatureKindX509Cert;
+    *OwnerSize = 0;
+    return EFI_SUCCESS;
+  }
+
+  //
+  // Image-hash and X.509 TBS-cert-hash lists carry a digest. One pass over the table checks both
+  // roles across both layouts; a match in a V2 column reports a zero owner size.
+  //
   for (Index = 0; Index < ARRAY_SIZE (mHashAlgorithms); Index++) {
-    if ((mHashAlgorithms[Index].X509CertHashGuid != NULL) &&
-        CompareGuid (Guid, mHashAlgorithms[Index].X509CertHashGuid))
+    if ((mHashAlgorithms[Index].ImageHashGuid != NULL) &&
+        CompareGuid (SignatureType, mHashAlgorithms[Index].ImageHashGuid))
     {
-      return TRUE;
+      *Kind      = SignatureKindImageHash;
+      *OwnerSize = sizeof (EFI_GUID);
+      return EFI_SUCCESS;
+    }
+
+    if ((mHashAlgorithms[Index].ImageHashGuidV2 != NULL) &&
+        CompareGuid (SignatureType, mHashAlgorithms[Index].ImageHashGuidV2))
+    {
+      *Kind      = SignatureKindImageHash;
+      *OwnerSize = 0;
+      return EFI_SUCCESS;
+    }
+
+    if ((mHashAlgorithms[Index].X509CertHashGuid != NULL) &&
+        CompareGuid (SignatureType, mHashAlgorithms[Index].X509CertHashGuid))
+    {
+      *Kind      = SignatureKindX509TbsHash;
+      *OwnerSize = sizeof (EFI_GUID);
+      return EFI_SUCCESS;
+    }
+
+    if ((mHashAlgorithms[Index].X509CertHashGuidV2 != NULL) &&
+        CompareGuid (SignatureType, mHashAlgorithms[Index].X509CertHashGuidV2))
+    {
+      *Kind      = SignatureKindX509TbsHash;
+      *OwnerSize = 0;
+      return EFI_SUCCESS;
     }
   }
 
-  return FALSE;
+  return EFI_UNSUPPORTED;
 }

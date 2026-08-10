@@ -151,6 +151,15 @@ which walks the valid prefix, reports the matching entry on `Authority`,
 and signals through an internal `Truncated` flag whether the walk could
 be completed end-to-end.
 
+Each list is classified once by `GetSignatureTypeInfo`, which returns the
+list's `SIGNATURE_KIND` (image hash, full X.509 certificate, or X.509
+TBS-cert hash) and its per-entry `OwnerSize`. Entries come in two layouts,
+selected by the `SignatureType` GUID: V1 (`EFI_SIGNATURE_DATA`, a 16-byte
+`SignatureOwner` precedes the payload) and V2 (`EFI_SIGNATURE_V2_DATA`, no
+owner). The walker reads each entry's payload `OwnerSize` bytes in, so both
+layouts share one comparison path; the V2 `EFI_CERT_V2_*` GUIDs are
+enrolled alongside their V1 peers in the header's `mHashAlgorithms` table.
+
 The wrappers differ only in how they treat an incomplete walk:
 
 - **`IsInDb` (allow-list, best-effort).** Ignores truncation and honors
@@ -169,7 +178,7 @@ flowchart TD
     E --> E1{{Entry?}}
     E1 -- no --> RF[found = FALSE]
     E1 -- yes --> TY{{Signature type}}
-    TY -- EFI_CERT_X509_GUID --> ST[Target = cert DER]
+    TY -- full X.509 cert V1/V2 --> ST[Target = cert DER]
     TY -- hash algorithm --> GH[GetHash: cert digest]
     GH --> ST2[Target = digest]
     ST --> EN[SigListIterNext: next entry]
@@ -230,7 +239,7 @@ flowchart TD
     EN --> EN1{{Entry?}}
     EN1 -- no --> DL
     EN1 -- yes --> RT{{Signature type}}
-    RT -- EFI_CERT_X509_GUID --> AX[Anchor = entry DER]
+    RT -- full X.509 cert V1/V2 --> AX[Anchor = entry DER]
     RT -- cert-hash --> GX[GetTrustAnchorX509FromAuthData → Anchor]
     GX --> AV
     AX --> AV{{AuthenticodeVerifyEx → verified chain?}}

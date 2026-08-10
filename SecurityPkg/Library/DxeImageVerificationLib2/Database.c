@@ -157,6 +157,8 @@ FindInDatabase (
   CONST UINT8               *Target;
   UINTN                     TargetSize;
   UINTN                     PayloadSize;
+  UINTN                     OwnerSize;
+  SIGNATURE_KIND            Kind;
 
   if (Authority != NULL) {
     Authority->Data = NULL;
@@ -197,23 +199,28 @@ FindInDatabase (
 
   while ((List = DatabaseIterNext (&DbIter)) != NULL) {
     //
-    // Every entry carries at least a 16-byte owner GUID; a smaller SignatureSize cannot describe a
-    // real entry.
+    // Classify the list once. Unsupported types are skipped; Kind selects how the payload is
+    // compared and OwnerSize (0 for V2, sizeof (EFI_GUID) for V1) locates it within each entry.
     //
-    if (List->SignatureSize <= sizeof (EFI_GUID)) {
+    if (EFI_ERROR (GetSignatureTypeInfo (&List->SignatureType, &Kind, &OwnerSize))) {
       continue;
     }
 
-    PayloadSize = List->SignatureSize - sizeof (EFI_GUID);
+    if (List->SignatureSize <= OwnerSize) {
+      continue;
+    }
+
+    PayloadSize = List->SignatureSize - OwnerSize;
 
     //
-    // Select the bytes to compare against each entry, based on the list's signature type:
-    //   * EFI_CERT_X509_GUID - the subject certificate's own DER bytes (full-certificate match),
-    //   * a hash algorithm   - the subject's digest under that algorithm.
+    // Select the bytes to compare against each entry:
+    //   * a full X.509 certificate list - the subject certificate's own DER bytes (full-cert match),
+    //   * a hash list (image or TBS)    - the subject's digest under that algorithm.
     //
-    // A list that does not apply to this subject is skipped.
+    // GetHash rejects a hash list whose algorithm is incompatible with the subject cache, so a list
+    // that does not apply to this subject is skipped.
     //
-    if (CompareGuid (&List->SignatureType, &gEfiCertX509Guid)) {
+    if (Kind == SignatureKindX509Cert) {
       if ((Cache->Type != DigestCacheTypeX509) || (PayloadSize != Cache->BufferSize)) {
         continue;
       }
@@ -244,7 +251,7 @@ FindInDatabase (
     }
 
     while ((Entry = SigListIterNext (&ListIter)) != NULL) {
-      if (CompareMem (Entry->SignatureData, Target, TargetSize) == 0) {
+      if (CompareMem ((CONST UINT8 *)Entry + OwnerSize, Target, TargetSize) == 0) {
         goto Found;
       }
     }
@@ -545,7 +552,8 @@ EvaluateImageCertificate (
   UINTN                     AnchorSize;
   UINT8                     *CertChain;
   UINTN                     CertChainSize;
-  BOOLEAN                   IsX509List;
+  UINTN                     OwnerSize;
+  SIGNATURE_KIND            Kind;
   IMAGE_AUTHORITY           RevokingAuthority;
 
   if ((Cert == NULL) || (Cache == NULL) || (Databases == NULL) || (Evaluation == NULL)) {
@@ -606,13 +614,16 @@ EvaluateImageCertificate (
   DatabaseIterInit (&DbIter, Databases->Db, Databases->DbSize);
 
   while ((List = DatabaseIterNext (&DbIter)) != NULL) {
-    IsX509List = CompareGuid (&List->SignatureType, &gEfiCertX509Guid);
-
-    if (!IsX509List && !IsX509CertHashGuid (&List->SignatureType)) {
+    //
+    // Unsupported signature types (including Image Hashes in this case) are skipped.
+    //
+    if (EFI_ERROR (GetSignatureTypeInfo (&List->SignatureType, &Kind, &OwnerSize)) ||
+        (Kind == SignatureKindImageHash))
+    {
       continue;
     }
 
-    if (List->SignatureSize <= sizeof (EFI_GUID)) {
+    if (List->SignatureSize <= OwnerSize) {
       continue;
     }
 
@@ -625,12 +636,12 @@ EvaluateImageCertificate (
       Anchor     = NULL;
       AnchorSize = 0;
 
-      if (IsX509List) {
+      if (Kind == SignatureKindX509Cert) {
         //
         // The entry is the DER certificate itself, borrowed from the `db` buffer.
         //
-        Anchor     = (UINT8 *)Entry->SignatureData;
-        AnchorSize = List->SignatureSize - sizeof (EFI_GUID);
+        Anchor     = (UINT8 *)Entry + OwnerSize;
+        AnchorSize = List->SignatureSize - OwnerSize;
       } else {
         //
         // TBS-cert-hash entry: recover the certificate it names from the signature into a freshly
@@ -639,8 +650,8 @@ EvaluateImageCertificate (
         //
         Status = GetTrustAnchorX509FromAuthData (
                    &CacheHandle,
-                   Entry->SignatureData,
-                   List->SignatureSize - sizeof (EFI_GUID),
+                   (CONST UINT8 *)Entry + OwnerSize,
+                   List->SignatureSize - OwnerSize,
                    AuthData,
                    AuthDataSize,
                    &Anchor,
@@ -699,7 +710,7 @@ EvaluateImageCertificate (
       //
       // Only the TBS-cert-hash path allocated the anchor; release it.
       //
-      if (!IsX509List) {
+      if (Kind != SignatureKindX509Cert) {
         FreePool (Anchor);
       }
 

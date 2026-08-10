@@ -46,10 +46,18 @@
 //
 // Type definition for all information necessary to describe hash algorithm usage in this library.
 //
+// Each algorithm lists its signature-type GUIDs for both roles (raw image hash, X.509 TBS-cert
+// hash) in both layouts: the V1 GUID whose list entries use EFI_SIGNATURE_DATA (a 16-byte
+// SignatureOwner precedes the payload) and the V2 GUID whose entries use EFI_SIGNATURE_V2_DATA (no
+// SignatureOwner). ImageHashGuid (V1) is the canonical GUID handed to the BaseCryptLib hashing
+// primitives, which only recognize the V1 image-hash GUIDs.
+//
 typedef struct {
   CONST CHAR8       *Name;
-  CONST EFI_GUID    *ImageHashGuid;
-  CONST EFI_GUID    *X509CertHashGuid;
+  CONST EFI_GUID    *ImageHashGuid;        // EFI_CERT_SHA*_GUID          (V1)
+  CONST EFI_GUID    *ImageHashGuidV2;      // EFI_CERT_V2_SHA*_GUID       (V2)
+  CONST EFI_GUID    *X509CertHashGuid;     // EFI_CERT_X509_SHA*_GUID     (V1)
+  CONST EFI_GUID    *X509CertHashGuidV2;   // EFI_CERT_V2_X509_SHA*_GUID  (V2)
 } HASH_ALGORITHM;
 
 //
@@ -57,9 +65,9 @@ typedef struct {
 // will add support for that algorithm across the entire library.
 //
 STATIC CONST HASH_ALGORITHM  mHashAlgorithms[] = {
-  { "SHA256", &gEfiCertSha256Guid, &gEfiCertX509Sha256Guid },
-  { "SHA384", &gEfiCertSha384Guid, &gEfiCertX509Sha384Guid },
-  { "SHA512", &gEfiCertSha512Guid, &gEfiCertX509Sha512Guid },
+  { "SHA256", &gEfiCertSha256Guid, &gEfiCertV2Sha256Guid, &gEfiCertX509Sha256Guid, &gEfiCertV2X509Sha256Guid },
+  { "SHA384", &gEfiCertSha384Guid, &gEfiCertV2Sha384Guid, &gEfiCertX509Sha384Guid, &gEfiCertV2X509Sha384Guid },
+  { "SHA512", &gEfiCertSha512Guid, &gEfiCertV2Sha512Guid, &gEfiCertX509Sha512Guid, &gEfiCertV2X509Sha512Guid },
 };
 
 //

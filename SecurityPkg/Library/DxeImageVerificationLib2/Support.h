@@ -106,21 +106,39 @@ GetImageSecurityDataDirectory (
   OUT EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
   );
 
+//
+// The kind of subject an EFI_SIGNATURE_LIST enrolls, independent of the entry layout (V1 vs V2)
+// that GetSignatureTypeInfo reports separately.
+//
+typedef enum {
+  SignatureKindImageHash,      // raw image digest           (EFI_CERT_SHA*      / EFI_CERT_V2_SHA*)
+  SignatureKindX509Cert,       // DER X.509 certificate       (EFI_CERT_X509      / EFI_CERT_V2_X509)
+  SignatureKindX509TbsHash     // X.509 TBSCertificate digest (EFI_CERT_X509_SHA* / EFI_CERT_V2_X509_SHA*)
+} SIGNATURE_KIND;
+
 /**
-  Determine whether Guid matches any X509CertHashGuid entry in mHashAlgorithms.
+  Classify an EFI_SIGNATURE_LIST SignatureType GUID for the database walkers.
 
-  This identifies an `EFI_SIGNATURE_LIST` whose entries are TBS-cert hashes (any
-  digest-flavored X.509-cert-hash list GUID, e.g. `EFI_CERT_X509_SHA256_GUID` or
-  future digests such as SM3) rather than full X.509 certificates.
+  In a single table lookup, reports what a list's entries enroll (Kind) and how they are laid out
+  (OwnerSize): entries of a V1 signature type begin with a 16-byte SignatureOwner
+  (EFI_SIGNATURE_DATA), while V2 entries omit it (EFI_SIGNATURE_V2_DATA). The payload therefore
+  begins OwnerSize bytes into each entry.
 
-  @param[in]  Guid  Candidate signature-list type GUID; may be NULL.
+  @param[in]   SignatureType  The EFI_SIGNATURE_LIST SignatureType GUID.
+  @param[out]  Kind           On EFI_SUCCESS, the signature kind.
+  @param[out]  OwnerSize      On EFI_SUCCESS, the per-entry SignatureOwner size: 0 for a V2
+                              (EFI_SIGNATURE_V2_DATA) type, sizeof (EFI_GUID) for a V1
+                              (EFI_SIGNATURE_DATA) type.
 
-  @retval TRUE   Guid matches one of the X509CertHashGuid entries in mHashAlgorithms.
-  @retval FALSE  Guid is NULL or does not match any X509CertHashGuid entry.
+  @retval EFI_SUCCESS            SignatureType is recognized; Kind and OwnerSize are set.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
+  @retval EFI_UNSUPPORTED        SignatureType is not a supported signature type.
 **/
-BOOLEAN
-IsX509CertHashGuid (
-  IN  CONST EFI_GUID  *Guid
+EFI_STATUS
+GetSignatureTypeInfo (
+  IN  CONST EFI_GUID  *SignatureType,
+  OUT SIGNATURE_KIND  *Kind,
+  OUT UINTN           *OwnerSize
   );
 
 #endif // DXE_IMAGE_VERIFICATION_LIB_SUPPORT_H_
