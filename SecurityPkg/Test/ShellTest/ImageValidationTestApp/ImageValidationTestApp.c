@@ -715,10 +715,12 @@ GetImageForType (
 /// One signature list to emit while building a signature database.
 ///
 typedef struct {
-  CONST EFI_GUID    *Type;      ///< Signature type GUID (image digest or X.509 / TBS hash).
-  CONST UINT8       *Data;      ///< Signature payload (digest bytes or certificate).
-  UINTN             DataSize;   ///< Size, in bytes, of Data.
-  BOOLEAN           Malformed;  ///< When TRUE, emit a deliberately corrupt EFI_SIGNATURE_LIST.
+  CONST EFI_GUID    *Type;         ///< Signature type GUID (image digest or X.509 / TBS hash).
+  CONST UINT8       *Data;         ///< Signature payload (digest bytes or certificate).
+  UINTN             DataSize;      ///< Size, in bytes, of Data.
+  UINTN             ExtraSize;     ///< Extra zeroed payload bytes after Data (EFI_TIME
+                                   ///< TimeOfRevocation for a V1 TBS-cert-hash entry).
+  BOOLEAN           Malformed;     ///< When TRUE, emit a deliberately corrupt EFI_SIGNATURE_LIST.
 } SIG_LIST_SPEC;
 
 /**
@@ -896,9 +898,10 @@ BuildSignatureDatabase (
   //
   for (Index = 0; Index < ARRAY_SIZE (TbsFlags); Index++) {
     if ((StateFlags & TbsFlags[Index].Flag) != 0) {
-      Specs[Count].Type     = TbsFlags[Index].Type;
-      Specs[Count].Data     = TbsFlags[Index].Hash;
-      Specs[Count].DataSize = TbsFlags[Index].HashSize;
+      Specs[Count].Type      = TbsFlags[Index].Type;
+      Specs[Count].Data      = TbsFlags[Index].Hash;
+      Specs[Count].DataSize  = TbsFlags[Index].HashSize;
+      Specs[Count].ExtraSize = sizeof (EFI_TIME);   // EFI_CERT_X509_SHA* appends TimeOfRevocation.
       Count++;
     }
   }
@@ -918,7 +921,7 @@ BuildSignatureDatabase (
 
   TotalSize = 0;
   for (Index = 0; Index < Count; Index++) {
-    TotalSize += sizeof (EFI_SIGNATURE_LIST) + sizeof (EFI_GUID) + Specs[Index].DataSize;
+    TotalSize += sizeof (EFI_SIGNATURE_LIST) + sizeof (EFI_GUID) + Specs[Index].DataSize + Specs[Index].ExtraSize;
   }
 
   Buffer = AllocateZeroPool (TotalSize);
@@ -928,12 +931,12 @@ BuildSignatureDatabase (
 
   Cursor = Buffer;
   for (Index = 0; Index < Count; Index++) {
-    RealListSize = sizeof (EFI_SIGNATURE_LIST) + sizeof (EFI_GUID) + Specs[Index].DataSize;
+    RealListSize = sizeof (EFI_SIGNATURE_LIST) + sizeof (EFI_GUID) + Specs[Index].DataSize + Specs[Index].ExtraSize;
 
     List = (EFI_SIGNATURE_LIST *)Cursor;
     CopyGuid (&List->SignatureType, Specs[Index].Type);
     List->SignatureHeaderSize = 0;
-    List->SignatureSize       = (UINT32)(sizeof (EFI_GUID) + Specs[Index].DataSize);
+    List->SignatureSize       = (UINT32)(sizeof (EFI_GUID) + Specs[Index].DataSize + Specs[Index].ExtraSize);
     List->SignatureListSize   = (UINT32)RealListSize;
 
     SigData = (EFI_SIGNATURE_DATA *)(List + 1);
