@@ -504,8 +504,8 @@ protected:
 
   static IMAGE_AUTHORITY
   MakeAuthority (
-    const EFI_SIGNATURE_DATA  *Data,
-    UINTN                     Size
+    EFI_SIGNATURE_DATA  *Data,
+    UINTN               Size
     )
   {
     IMAGE_AUTHORITY  Authority;

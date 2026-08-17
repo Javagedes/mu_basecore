@@ -37,11 +37,10 @@ extern "C" {
 
   BOOLEAN
   IsChainRevoked (
-    IN  CONST UINT8      *CertChain,
-    IN  UINTN            CertChainSize,
-    IN  CONST VOID       *Dbx,
-    IN  UINTN            DbxSize,
-    OUT IMAGE_AUTHORITY  *RevokingAuthority = NULL
+    IN  CONST UINT8  *CertChain,
+    IN  UINTN        CertChainSize,
+    IN  CONST VOID   *Dbx,
+    IN  UINTN        DbxSize
     );
 
   EFI_STATUS
@@ -121,6 +120,9 @@ AppendSignatureList (
 // SHA-256 entry size: 16-byte owner GUID + 32-byte digest.
 static constexpr UINT32  kSha256EntrySize = sizeof (EFI_GUID) + 32;
 static constexpr UINT32  kSha384EntrySize = sizeof (EFI_GUID) + 48;
+
+// V1 EFI_CERT_X509_SHA256 entry: owner GUID + 32-byte TBS hash + EFI_TIME (TimeOfRevocation).
+static constexpr UINT32  kSha256TbsV1EntrySize = sizeof (EFI_GUID) + 32 + sizeof (EFI_TIME);
 
 // ---------------------------------------------------------------------------
 // IsInDb / IsInDbx helpers
@@ -278,30 +280,26 @@ InitImageCache (
 }
 
 TEST (IsInDbTest, NullDatabaseWithNonZeroSize_NotFound) {
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = (const VOID *)(UINTN)1;
   Cache.BufferSize = 1;
 
-  EXPECT_FALSE (IsInDb (&Cache, NULL, 1, &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, NULL, 1));
   // Validate that Cache remains consistent
   EXPECT_EQ (Cache.Buffer, (const VOID *)(UINTN)1);
   EXPECT_EQ (Cache.BufferSize, (UINTN)1);
 }
 
 TEST (IsInDbTest, NullDatabaseWithZeroSize_NotFound) {
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = (const VOID *)(UINTN)1;
   Cache.BufferSize = 1;
 
-  EXPECT_FALSE (IsInDb (&Cache, NULL, 0, &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, NULL, 0));
   // Validate that Cache remains consistent
   EXPECT_EQ (Cache.Buffer, (const VOID *)(UINTN)1);
   EXPECT_EQ (Cache.BufferSize, (UINTN)1);
@@ -310,40 +308,26 @@ TEST (IsInDbTest, NullDatabaseWithZeroSize_NotFound) {
 TEST (IsInDbTest, NullCache_NotFound) {
   UINT8  Dummy = 0;
 
-  EXPECT_FALSE (IsInDb (NULL, &Dummy, 1, NULL));
+  EXPECT_FALSE (IsInDb (NULL, &Dummy, 1));
 }
 
-TEST (IsInDbTest, NullAuthorityOptional_NotFound) {
+TEST (IsInDbTest, UnboundCache_NotFound) {
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
+
+  ZeroMem (&Cache, sizeof (Cache));
+  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 1));
+}
+
+TEST (IsInDbTest, ZeroSizeCache_NotFound) {
   UINT8         Dummy = 0;
   DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = (const VOID *)(UINTN)1;
-  Cache.BufferSize = 1;
-
-  // Authority is optional; a NULL out-parameter is tolerated.
-  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 1, NULL));
-}
-
-TEST (IsInDbTest, UnboundCache_NotFound) {
-  UINT8            Dummy = 0;
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
-
-  ZeroMem (&Cache, sizeof (Cache));
-  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 1, &Authority));
-}
-
-TEST (IsInDbTest, ZeroSizeCache_NotFound) {
-  UINT8            Dummy = 0;
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
-
-  ZeroMem (&Cache, sizeof (Cache));
-  Cache.Buffer     = (const VOID *)(UINTN)1;
   Cache.BufferSize = 0;
 
-  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 1, &Authority));
+  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 1));
 }
 
 TEST (IsInDbTest, HashComputationFailure_NotAuthorized) {
@@ -352,8 +336,7 @@ TEST (IsInDbTest, HashComputationFailure_NotAuthorized) {
 
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 1);
 
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = (const VOID *)(UINTN)1;
@@ -363,8 +346,7 @@ TEST (IsInDbTest, HashComputationFailure_NotAuthorized) {
     .WillOnce (Return (EFI_DEVICE_ERROR));
 
   // A hash failure means this list cannot authorize; a best-effort search reports "not found".
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, ExactMatch_Found) {
@@ -374,11 +356,9 @@ TEST (IsInDbTest, ExactMatch_Found) {
 
   SetEntryPayload (Db, Off, 1, Target);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, V2ImageHashExactMatch_Found) {
@@ -390,13 +370,9 @@ TEST (IsInDbTest, V2ImageHashExactMatch_Found) {
 
   SetV2EntryPayload (Db, Off, 1, Target);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  ASSERT_NE (Authority.Data, nullptr);
-  // The measured authority spans the whole V2 entry (digest only, no owner GUID).
-  EXPECT_EQ (Authority.Size, (UINTN)kSha256V2EntrySize);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, V2X509CertExactMatch_Found) {
@@ -407,12 +383,9 @@ TEST (IsInDbTest, V2X509CertExactMatch_Found) {
 
   SetV2EntryPayload (Db, Off, 0, Cert);
 
-  DIGEST_CACHE     Cache     = MakeCertCache (Cert);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  ASSERT_NE (Authority.Data, nullptr);
-  EXPECT_EQ (Authority.Size, (UINTN)Cert.size ());
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, V2X509CertHashMatch_Found) {
@@ -446,11 +419,9 @@ TEST (IsInDbTest, V2X509CertHashMatch_Found) {
          )
        );
 
-  DIGEST_CACHE     Cache     = MakeCertCache (Cert);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbxTest, V2ImageHashExactMatch_Revoked) {
@@ -461,11 +432,9 @@ TEST (IsInDbxTest, V2ImageHashExactMatch_Revoked) {
 
   SetV2EntryPayload (Dbx, Off, 0, Target);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 TEST (IsInDbTest, NoMatchingEntry_NotFound) {
@@ -476,11 +445,9 @@ TEST (IsInDbTest, NoMatchingEntry_NotFound) {
   SetEntryPayload (Db, Off, 0, Stored);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xBB);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, UnknownSignatureTypeList_Skipped) {
@@ -489,11 +456,9 @@ TEST (IsInDbTest, UnknownSignatureTypeList_Skipped) {
   AppendSignatureList (Db, gEfiCertX509Guid, 0, sizeof (EFI_GUID) + 16, 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xAA);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, MismatchedSignatureSize_Skipped) {
@@ -504,11 +469,9 @@ TEST (IsInDbTest, MismatchedSignatureSize_Skipped) {
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha384EntrySize, 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xCC);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, MatchInSecondList_Found) {
@@ -522,11 +485,9 @@ TEST (IsInDbTest, MatchInSecondList_Found) {
 
   SetEntryPayload (Db, SecondOff, 1, Target);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, NonZeroSignatureHeaderSize_EntryMathCorrect) {
@@ -547,11 +508,9 @@ TEST (IsInDbTest, NonZeroSignatureHeaderSize_EntryMathCorrect) {
 
   SetEntryPayload (Db, Off, 1, Target);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, ZeroEntryList_NotFound) {
@@ -562,11 +521,9 @@ TEST (IsInDbTest, ZeroEntryList_NotFound) {
   AppendSignatureList (Db, gEfiCertSha256Guid, 0, kSha256EntrySize, 0);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0x00);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 //
@@ -580,11 +537,9 @@ TEST (IsInDbTest, MalformedDb_BestEffortNotFound) {
   ((EFI_SIGNATURE_LIST *)Db.data ())->SignatureListSize = (UINT32)(Db.size () + 1);
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0x00);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 //
@@ -601,24 +556,20 @@ TEST (IsInDbTest, MalformedTail_ValidPrefixAuthorizes) {
   // Append a stray fragment too small to be a list header.
   Db.resize (Db.size () + sizeof (EFI_SIGNATURE_LIST) - 1, 0);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Target);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Target);
 
-  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 TEST (IsInDbTest, ZeroSizeNonNullDatabase_EmptyDatabaseNotFound) {
-  UINT8            Dummy = 0;
-  DIGEST_CACHE     Cache;
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  UINT8         Dummy = 0;
+  DIGEST_CACHE  Cache;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = (const VOID *)(UINTN)1;
   Cache.BufferSize = 1;
 
-  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 0, &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, &Dummy, 0));
 }
 
 //
@@ -629,8 +580,7 @@ TEST (IsInDbTest, ZeroSizeNonNullDatabase_EmptyDatabaseNotFound) {
 //
 TEST (IsInDbTest, MalformedListHeader_Skipped) {
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xAB);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
   // One image-hash list sized for a single SHA-256 entry, but with an
   // inflated SignatureHeaderSize that overflows the list payload area.
@@ -645,8 +595,7 @@ TEST (IsInDbTest, MalformedListHeader_Skipped) {
   List->SignatureHeaderSize = ListSize;        // > ListSize - sizeof (EFI_SIGNATURE_LIST)
   List->SignatureSize       = EntrySize;
 
-  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDb (&Cache, Db.data (), Db.size ()));
 }
 
 // ---------------------------------------------------------------------------
@@ -976,7 +925,7 @@ TEST (IsInDbxTest, UnusableCacheNullBuffer_ReturnsTrue) {
   Cache.Buffer     = NULL;
   Cache.BufferSize = 4;
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -992,7 +941,7 @@ TEST (IsInDbxTest, UnusableCacheZeroSize_ReturnsTrue) {
   Cache.Buffer     = &CertByte;
   Cache.BufferSize = 0;
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1002,7 +951,7 @@ TEST (IsInDbxTest, NullDbx_ReturnsFalse) {
   std::vector<UINT8>  Cert  = { 0x30, 0x82 };
   DIGEST_CACHE        Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, NULL, 0, NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, NULL, 0));
 }
 
 //
@@ -1013,7 +962,7 @@ TEST (IsInDbxTest, EmptyDbx_ReturnsFalse) {
   std::vector<UINT8>  Dbx (32, 0);
   DIGEST_CACHE        Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), 0, NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), 0));
 }
 
 //
@@ -1024,7 +973,7 @@ TEST (IsInDbxTest, MalformedDbx_ReturnsTrue) {
   std::vector<UINT8>  Dbx (4, 0);
   DIGEST_CACHE        Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1041,7 +990,7 @@ TEST (IsInDbxTest, X509ExactMatch_ReturnsTrue) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1058,7 +1007,7 @@ TEST (IsInDbxTest, X509BytesDiffer_ReturnsFalse) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1075,7 +1024,7 @@ TEST (IsInDbxTest, X509PayloadSizeMismatch_ReturnsFalse) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1105,7 +1054,7 @@ TEST (IsInDbxTest, TbsHashMatch_ReturnsTrue) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1134,7 +1083,7 @@ TEST (IsInDbxTest, TbsHashDiffers_ReturnsFalse) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1152,7 +1101,7 @@ TEST (IsInDbxTest, UnsupportedListType_ReturnsFalse) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1171,7 +1120,7 @@ TEST (IsInDbxTest, TbsHashComputeFails_ReturnsTrue) {
 
   DIGEST_CACHE  Cache = MakeCertCache (Cert);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1184,11 +1133,9 @@ TEST (IsInDbxTest, ImageHashMatch_ReturnsTrue) {
 
   SetEntryPayload (Dbx, Off, 0, Digest);
 
-  DIGEST_CACHE     Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
+  DIGEST_CACHE  Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1201,11 +1148,9 @@ TEST (IsInDbxTest, ImageHashNoMatch_ReturnsFalse) {
   SetEntryPayload (Dbx, Off, 0, std::vector<UINT8>(kSha256DigestSize, 0xC3));
 
   std::vector<UINT8>  Digest (kSha256DigestSize, 0xD4);
-  DIGEST_CACHE        Cache     = MakeBoundCache (&gEfiCertSha256Guid, Digest);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
+  DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_FALSE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 //
@@ -1225,37 +1170,7 @@ TEST (IsInDbxTest, MalformedTail_FailsClosed) {
   std::vector<UINT8>  Digest (kSha256DigestSize, 0x99);   // not the enrolled entry
   DIGEST_CACHE        Cache = MakeBoundCache (&gEfiCertSha256Guid, Digest);
 
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), NULL));
-}
-
-//
-// On an actual match the revoking entry is reported through Authority.
-//
-TEST (IsInDbxTest, MatchReportsAuthority) {
-  std::vector<UINT8>  Cert (16, 0x44);
-  std::vector<UINT8>  Dbx;
-  size_t              Off = AppendSignatureList (Dbx, gEfiCertX509Guid, 0, (UINT32)(sizeof (EFI_GUID) + 16), 1);
-
-  SetEntryPayload (Dbx, Off, 0, Cert);
-
-  DIGEST_CACHE     Cache     = MakeCertCache (Cert);
-  IMAGE_AUTHORITY  Authority = { NULL, 0 };
-
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
-  EXPECT_NE (Authority.Data, nullptr);
-}
-
-//
-// A fail-closed truncation result carries no attributable authority.
-//
-TEST (IsInDbxTest, TruncationReportsNoAuthority) {
-  std::vector<UINT8>  Cert (16, 0x44);
-  std::vector<UINT8>  Dbx (4, 0);   // malformed: too small for a list header
-  DIGEST_CACHE        Cache     = MakeCertCache (Cert);
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
-
-  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size (), &Authority));
-  EXPECT_EQ (Authority.Data, nullptr);
+  EXPECT_TRUE (IsInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
 
 // ---------------------------------------------------------------------------
@@ -1402,35 +1317,6 @@ TEST (IsChainRevokedTest, ChainCertInDbx_ReturnsTrue) {
       Dbx.size ()
       )
     );
-}
-
-//
-// On a real dbx match, the revoking dbx entry is surfaced through the optional
-// RevokingAuthority out-parameter so callers can attribute the denial.
-//
-TEST (IsChainRevokedTest, ChainCertInDbx_PopulatesRevokingAuthority) {
-  std::vector<UINT8>  ChainCert (16, 0x11);
-  std::vector<UINT8>  Dbx;
-  IMAGE_AUTHORITY     Authority = { NULL, 0 };
-
-  static std::vector<UINT8>  Stack = MakeCertStack ({ std::vector<UINT8>(16, 0x11) });
-
-  size_t  Off = AppendSignatureList (Dbx, gEfiCertX509Guid, 0, (UINT32)(sizeof (EFI_GUID) + 16), 1);
-
-  SetEntryPayload (Dbx, Off, 0, ChainCert);
-
-  EXPECT_TRUE (
-    IsChainRevoked (
-      Stack.data (),
-      Stack.size (),
-      Dbx.data (),
-      Dbx.size (),
-      &Authority
-      )
-    );
-  EXPECT_NE (Authority.Data, nullptr);
-  EXPECT_EQ (Authority.Size, (UINTN)(sizeof (EFI_GUID) + 16));
-  EXPECT_TRUE (CompareGuid (&Authority.SignatureType, &gEfiCertX509Guid));
 }
 
 //
@@ -1995,8 +1881,9 @@ TEST (EvaluateImageCertificateTest, X509VerifiesNoDbx_Approved) {
 
 //
 // A V2 (EFI_SIGNATURE_V2_DATA) full-certificate db anchor carries no owner GUID; the whole entry
-// is the DER certificate handed to AuthenticodeVerifyEx, and the authority size is the entry size
-// with no owner subtracted.
+// is the DER certificate handed to AuthenticodeVerifyEx. The recorded authority normalizes it to a
+// V1 EFI_SIGNATURE_DATA by prepending a zeroed owner GUID, so its size is the certificate plus a
+// SignatureOwner.
 //
 TEST (EvaluateImageCertificateTest, V2X509VerifiesNoDbx_Approved) {
   MockBaseCryptLib       BaseCryptLibMock;
@@ -2029,7 +1916,9 @@ TEST (EvaluateImageCertificateTest, V2X509VerifiesNoDbx_Approved) {
     );
   EXPECT_EQ (Eval.Verdict, ImageCertApproved);
   EXPECT_NE (Eval.Authority.Data, nullptr);
-  EXPECT_EQ (Eval.Authority.Size, (UINTN)16);
+  // The V2 anchor carries no owner GUID, so the authority prepends a zeroed one to the certificate.
+  EXPECT_EQ (Eval.Authority.Size, (UINTN)(sizeof (EFI_GUID) + 16));
+  FreeImageAuthority (&Eval.Authority);
 }
 
 //
@@ -2176,8 +2065,8 @@ TEST (EvaluateImageCertificateTest, X509VerifiesChainRevoked_RevokedByDbx) {
     EFI_SUCCESS
     );
   EXPECT_EQ (Eval.Verdict, ImageCertRevokedByDbx);
-  EXPECT_NE (Eval.Authority.Data, nullptr);
-  EXPECT_EQ (Eval.Authority.Size, (UINTN)(sizeof (EFI_GUID) + 20));
+  EXPECT_EQ (Eval.Authority.Data, nullptr);
+  EXPECT_EQ (Eval.Authority.Size, (UINTN)0);
 }
 
 //
@@ -2250,13 +2139,15 @@ TEST (EvaluateImageCertificateTest, X509HashListResolvesAnchor_Approved) {
 
   std::vector<UINT8>  Db;
 
-  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256TbsV1EntrySize, 1);
 
   ExpectSignedImagePrelude (BaseCryptLibMock);
   EXPECT_CALL (BaseCryptLibMock, GetTrustAnchorX509FromAuthData (_, _, _, _, _, _, _))
     .WillOnce (
        Invoke (
-         [] (VOID **CacheHandle, CONST UINT8 *, UINTN, CONST UINT8 *, UINTN, UINT8 **TrustAnchor, UINTN *TrustAnchorSize) -> EFI_STATUS {
+         [] (VOID **CacheHandle, CONST UINT8 *, UINTN TbsHashSize, CONST UINT8 *, UINTN, UINT8 **TrustAnchor, UINTN *TrustAnchorSize) -> EFI_STATUS {
+    // The V1 entry appends an EFI_TIME after the hash; only the 32-byte SHA-256 hash is passed.
+    EXPECT_EQ (TbsHashSize, (UINTN)kSha256DigestSize);
     static const UINT8  CertBytes[] = { 0x30, 0x82, 0x01, 0x02 };
     *TrustAnchor                    = (UINT8 *)AllocateCopyPool (sizeof (CertBytes), CertBytes);
     *TrustAnchorSize                = sizeof (CertBytes);
@@ -2303,7 +2194,7 @@ TEST (EvaluateImageCertificateTest, X509HashListAllNotFound_NotInDb) {
 
   std::vector<UINT8>  Db;
 
-  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 2);
+  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256TbsV1EntrySize, 2);
 
   ExpectSignedImagePrelude (BaseCryptLibMock);
   EXPECT_CALL (BaseCryptLibMock, GetTrustAnchorX509FromAuthData (_, _, _, _, _, _, _))
@@ -2342,7 +2233,7 @@ TEST (EvaluateImageCertificateTest, X509HashListHardError_NotInDb) {
 
   std::vector<UINT8>  Db;
 
-  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256EntrySize, 1);
+  AppendSignatureList (Db, gEfiCertX509Sha256Guid, 0, kSha256TbsV1EntrySize, 1);
 
   ExpectSignedImagePrelude (BaseCryptLibMock);
   EXPECT_CALL (BaseCryptLibMock, GetTrustAnchorX509FromAuthData (_, _, _, _, _, _, _))
@@ -2628,9 +2519,8 @@ TEST (EvaluateImageCertificateTest, RevokedByDbx_RevokedByDbx) {
     EFI_SUCCESS
     );
   EXPECT_EQ (Eval.Verdict, ImageCertRevokedByDbx);
-  EXPECT_NE (Eval.Authority.Data, nullptr);
-  EXPECT_EQ (Eval.Authority.Size, (UINTN)(sizeof (EFI_GUID) + 20));
-  EXPECT_TRUE (CompareGuid (&Eval.Authority.SignatureType, &gEfiCertSha256Guid));
+  EXPECT_EQ (Eval.Authority.Data, nullptr);
+  EXPECT_EQ (Eval.Authority.Size, (UINTN)0);
 }
 
 //
