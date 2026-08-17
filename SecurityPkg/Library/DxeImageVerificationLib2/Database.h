@@ -55,19 +55,18 @@ typedef enum {
 } IMAGE_CERT_VERDICT;
 
 //
-// The result of EvaluateImageCertificate: the evaluation verdict plus the
-// authority responsible for it - the `db` entry that authorized the image
-// (ImageCertApproved, for measurement) or the `dbx` entry that revoked it
-// (ImageCertRevokedByDbx).
+// The result of EvaluateImageCertificate: the evaluation verdict plus, for
+// ImageCertApproved, the `db` certificate that authorized the image (for
+// measurement). A revoked or unauthorized image records no authority.
 //
 typedef struct {
   IMAGE_CERT_VERDICT    Verdict;
   //
-  // Authority.Data is non-NULL when Verdict is ImageCertApproved (it references
-  // the authorizing `db` EFI_SIGNATURE_DATA entry) or ImageCertRevokedByDbx (it
-  // references the revoking `dbx` entry); it is NULL for every other verdict.
-  // Authority.SignatureType carries the image-hash algorithm once it has been
-  // determined, regardless of verdict.
+  // Authority.Data is a non-NULL, owned EFI_SIGNATURE_DATA only when Verdict is ImageCertApproved
+  // (it wraps the authorizing `db` certificate); it is NULL for every other verdict, including
+  // ImageCertRevokedByDbx - the revoking authority is intentionally not recorded. The caller owns
+  // it and must release it with FreeImageAuthority (). Authority.SignatureType carries the
+  // image-hash algorithm once it has been determined, regardless of verdict.
   //
   IMAGE_AUTHORITY       Authority;
 } IMAGE_CERT_EVALUATION;
@@ -107,18 +106,15 @@ LoadSignatureDatabases (
   @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
   @param[in]      Db         Raw `db` contents, or NULL for an empty database.
   @param[in]      DbSize     Size of Db in bytes; 0 when Db is NULL.
-  @param[out]     Authority  Optional. On a match, receives the matching entry (for PCR 7
-                             measurement). Zeroed when no match is found.
 
   @retval TRUE   The subject matches an entry in the valid prefix of Db.
   @retval FALSE  The subject is not present, or Cache is unusable.
 **/
 BOOLEAN
 IsInDb (
-  IN OUT DIGEST_CACHE     *Cache,
-  IN     CONST VOID       *Db,
-  IN     UINTN            DbSize,
-  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
+  IN OUT DIGEST_CACHE  *Cache,
+  IN     CONST VOID    *Db,
+  IN     UINTN         DbSize
   );
 
 /**
@@ -133,19 +129,15 @@ IsInDb (
   @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
   @param[in]      Dbx        Raw `dbx` contents, or NULL for an empty database.
   @param[in]      DbxSize    Size of Dbx in bytes; 0 when Dbx is NULL.
-  @param[out]     Authority  Optional. On an actual match, receives the revoking entry (for
-                             rejection reporting). Zeroed when the TRUE result is due to
-                             fail-closed truncation rather than a specific entry.
 
   @retval TRUE   The subject matches an entry in Dbx, or the database could not be fully parsed.
   @retval FALSE  The subject is definitively absent from Dbx (including an absent/empty Dbx).
 **/
 BOOLEAN
 IsInDbx (
-  IN OUT DIGEST_CACHE     *Cache,
-  IN     CONST VOID       *Dbx,
-  IN     UINTN            DbxSize,
-  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
+  IN OUT DIGEST_CACHE  *Cache,
+  IN     CONST VOID    *Dbx,
+  IN     UINTN         DbxSize
   );
 
 /**
@@ -163,8 +155,9 @@ IsInDbx (
   @param[in,out]  Cache       Image digest cache bound to the image buffer; the cache may memoize
                               one digest per algorithm across calls.
   @param[in]      Databases   The `db` / `dbx` signature databases to evaluate against.
-  @param[out]     Evaluation  On EFI_SUCCESS, receives the verdict and (when approved) the
-                              authorizing `db` authority.
+  @param[out]     Evaluation  On EFI_SUCCESS, receives the verdict and, for ImageCertApproved, the
+                              authorizing `db` certificate in Evaluation->Authority. A revoked or
+                              unauthorized image records no authority.
 
   @retval EFI_SUCCESS            Evaluation completed; inspect Evaluation->Verdict.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL.

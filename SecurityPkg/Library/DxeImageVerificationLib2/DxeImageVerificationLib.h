@@ -73,18 +73,21 @@ STATIC CONST HASH_ALGORITHM  mHashAlgorithms[] = {
 //
 // An authority entry drawn from a signature database.
 //
-// Data / Size identify the EFI_SIGNATURE_DATA entry responsible for a verdict:
-// the `db` entry that authorized an image, or the `dbx` entry that revoked it.
-// Size is that entry's SignatureSize. Data is NULL and Size is 0 when no such
-// entry applies.
+// Data is an owned, pool-allocated V1 EFI_SIGNATURE_DATA: a 16-byte SignatureOwner followed by the
+// authorizing (`db`) or revoking (`dbx`) X.509 certificate. It is built with BuildImageAuthority ()
+// and released with FreeImageAuthority (); Size is its total length in bytes. Data is NULL and Size
+// is 0 when no authority applies.
 //
-// SignatureType is the image-hash algorithm GUID under which the image was
-// evaluated.
+// The SignatureOwner is copied from the matching V1 signature-list entry, or zeroed when that entry
+// used the V2 (EFI_SIGNATURE_V2_DATA) layout. When the matching entry is a TBS cert-hash, the
+// reconstructed certificate - not the hash - is stored.
+//
+// SignatureType is the image-hash algorithm GUID under which the image was evaluated.
 //
 typedef struct {
-  CONST EFI_SIGNATURE_DATA    *Data;
-  UINTN                       Size;
-  EFI_GUID                    SignatureType;
+  EFI_SIGNATURE_DATA    *Data;
+  UINTN                 Size;
+  EFI_GUID              SignatureType;
 } IMAGE_AUTHORITY;
 
 //

@@ -35,13 +35,16 @@ execution or `EFI_ACCESS_DENIED` to block it.
 
 ### Measuring the outcome
 
-When an image *is* authorized, the `db` entry that authorized it is
-measured into **PCR 7** via `SecureBootHook`. To keep the PCR
-measurement faithful to UEFI Secure Boot semantics, each distinct
-authority is measured **at most once per boot**: the handler tracks the
-set of already-measured authorities and skips any it has seen before, so
-loading many images authorized by the same `db` entry extends PCR 7 only
-once for that entry.
+When an image is authorized **by a certificate**, the authorizing certificate
+is measured into **PCR 7** via `SecureBootHook`, wrapped in a V1
+`EFI_SIGNATURE_DATA` (a TBS-cert-hash `db` entry contributes the reconstructed
+certificate, not the hash). Images authorized **by image hash** are not
+measured, which keeps PCR 7 bound to signing authorities rather than one-off
+image digests. To keep the PCR measurement faithful to UEFI Secure Boot
+semantics, each distinct authority is measured **at most once per boot**: the
+handler tracks the set of already-measured authorities and skips any it has
+seen before, so loading many images authorized by the same certificate extends
+PCR 7 only once for that authority.
 
 > **Diagram conventions**
 >
@@ -102,10 +105,10 @@ Key observations:
    image, look up the image's digest in `db` via `IsInDb`. A hit
    authorizes on the image-hash path.
 
-When the image is authorized, the authorizing `db` entry is measured
-into PCR 7 via `SecureBootHook` and the function returns `EFI_SUCCESS`.
-When the image is rejected, the function simply returns
-`EFI_ACCESS_DENIED`.
+When the image is authorized by a certificate, the authorizing certificate
+is measured into PCR 7 via `SecureBootHook` and the function returns
+`EFI_SUCCESS`; image-hash authorizations are not measured. When the image is
+rejected, the function simply returns `EFI_ACCESS_DENIED`.
 
 ```mermaid
 flowchart TD
@@ -147,8 +150,8 @@ matched by its digest under each list's hash algorithm; a *certificate*
 (`DigestCacheTypeX509`) is matched either by exact DER bytes against an
 `EFI_CERT_X509_GUID` list, or by its TBSCertificate digest against a
 cert-hash list. Both wrappers share a `STATIC` core, `FindInDatabase`,
-which walks the valid prefix, reports the matching entry on `Authority`,
-and signals through an internal `Truncated` flag whether the walk could
+which walks the valid prefix reporting only whether the subject was found, and
+signals through an internal `Truncated` flag whether the walk could
 be completed end-to-end.
 
 Each list is classified once by `GetSignatureTypeInfo`, which returns the
@@ -164,13 +167,11 @@ The wrappers differ only in how they treat an incomplete walk:
 
 - **`IsInDb` (allow-list, best-effort).** Ignores truncation and honors
   the valid prefix: dropped entries can only remove a potential
-  authorizer, never add one. Returns TRUE with the authorizing entry on
-  `Authority`, otherwise FALSE.
+  authorizer, never add one. Returns TRUE if the subject is present,
+  otherwise FALSE.
 - **`IsInDbx` (deny-list, fail-closed).** Returns TRUE if a matching
   entry is found **or** the walk could not be completed, because a dropped
-  entry might have matched the subject. On an actual match `Authority`
-  names the revoking entry; on a fail-closed truncation `Authority` is
-  empty.
+  entry might have matched the subject.
 
 ```mermaid
 flowchart TD
@@ -187,7 +188,7 @@ flowchart TD
     EN1 -- no --> E
     EN1 -- yes --> CM{{CompareMem Target == entry?}}
     CM -- no --> EN
-    CM -- yes --> FD[set Authority; found = TRUE]
+    CM -- yes --> FD[found = TRUE]
     FD --> RET{{caller wrapper}}
     RF --> RET
     RET -- IsInDb allow-list --> RB[return found]
@@ -217,7 +218,7 @@ The verdict (`Evaluation->Verdict`) is one of:
 
 | Verdict | Meaning |
 | --- | --- |
-| `ImageCertApproved` | A `db` anchor verified the image with an un-revoked chain. `Evaluation->Authority` identifies the authorizing `db` entry (for PCR 7 measurement). |
+| `ImageCertApproved` | A `db` anchor verified the image with an un-revoked chain. `Evaluation->Authority` wraps the authorizing certificate (an owned V1 `EFI_SIGNATURE_DATA`) for PCR 7 measurement. |
 | `ImageCertRevokedByDbx` | A `db` anchor verified the image, but a certificate in its verified chain is enrolled in `dbx`, and no other anchor authorizes it. |
 | `ImageCertNotInDb` | No `db` anchor verifies the image. |
 | `ImageCertUnusable` | The certificate could not be evaluated before trust-anchor processing: unsupported `WIN_CERTIFICATE` type, malformed PKCS#7, or unrecognized hash algorithm. |
@@ -246,7 +247,7 @@ flowchart TD
     AV -- no --> EN
     AV -- yes --> CR[IsChainRevoked]
     CR --> CR1{{revoked?}}
-    CR1 -- yes --> REV[Verdict = ImageCertRevokedByDbx, set Authority]
+    CR1 -- yes --> REV[Verdict = ImageCertRevokedByDbx]
     REV --> EN
     CR1 -- no --> APP[Verdict = ImageCertApproved, set Authority]
     APP --> EX

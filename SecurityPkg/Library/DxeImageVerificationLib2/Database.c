@@ -133,7 +133,6 @@ Error:
   @param[in,out]  Cache         Digest cache bound to the subject. Must be non-NULL and bound.
   @param[in]      Database      Raw database contents, or NULL for an empty database.
   @param[in]      DatabaseSize  Size of Database in bytes; 0 when Database is NULL.
-  @param[out]     Authority     Optional. On a match, receives the matching entry.
   @param[out]     Truncated     Optional. Set TRUE if the walk could not be proven complete.
 
   @retval TRUE   A matching entry was found in the valid prefix.
@@ -142,11 +141,10 @@ Error:
 STATIC
 BOOLEAN
 FindInDatabase (
-  IN OUT DIGEST_CACHE     *Cache,
-  IN     CONST VOID       *Database,
-  IN     UINTN            DatabaseSize,
-  OUT    IMAGE_AUTHORITY  *Authority   OPTIONAL,
-  OUT    BOOLEAN          *Truncated   OPTIONAL
+  IN OUT DIGEST_CACHE  *Cache,
+  IN     CONST VOID    *Database,
+  IN     UINTN         DatabaseSize,
+  OUT    BOOLEAN       *Truncated   OPTIONAL
   )
 {
   EFI_STATUS                Status;
@@ -159,12 +157,6 @@ FindInDatabase (
   UINTN                     PayloadSize;
   UINTN                     OwnerSize;
   SIGNATURE_KIND            Kind;
-
-  if (Authority != NULL) {
-    Authority->Data = NULL;
-    Authority->Size = 0;
-    ZeroMem (&Authority->SignatureType, sizeof (EFI_GUID));
-  }
 
   if (Truncated != NULL) {
     *Truncated = FALSE;
@@ -260,12 +252,6 @@ FindInDatabase (
   return FALSE;
 
 Found:
-  if (Authority != NULL) {
-    Authority->Data = Entry;
-    Authority->Size = List->SignatureSize;
-    CopyGuid (&Authority->SignatureType, &List->SignatureType);
-  }
-
   return TRUE;
 }
 
@@ -279,24 +265,22 @@ Found:
   @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
   @param[in]      Db         Raw `db` contents, or NULL for an empty database.
   @param[in]      DbSize     Size of Db in bytes; 0 when Db is NULL.
-  @param[out]     Authority  Optional. On a match, receives the authorizing entry.
 
   @retval TRUE   The subject matches an entry in the valid prefix of Db.
   @retval FALSE  The subject is absent, or Cache is unusable.
 **/
 BOOLEAN
 IsInDb (
-  IN OUT DIGEST_CACHE     *Cache,
-  IN     CONST VOID       *Db,
-  IN     UINTN            DbSize,
-  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
+  IN OUT DIGEST_CACHE  *Cache,
+  IN     CONST VOID    *Db,
+  IN     UINTN         DbSize
   )
 {
   //
   // Allow-list: ignore truncation and honor the valid prefix. FindInDatabase treats an unusable
   // cache or a malformed db as simply "not found".
   //
-  return FindInDatabase (Cache, Db, DbSize, Authority, NULL);
+  return FindInDatabase (Cache, Db, DbSize, NULL);
 }
 
 /**
@@ -309,18 +293,15 @@ IsInDb (
   @param[in,out]  Cache      Digest cache bound to the subject (image or certificate).
   @param[in]      Dbx        Raw `dbx` contents, or NULL for an empty database.
   @param[in]      DbxSize    Size of Dbx in bytes; 0 when Dbx is NULL.
-  @param[out]     Authority  Optional. On an actual match, receives the revoking entry; zeroed when
-                             the TRUE result is due to fail-closed truncation rather than an entry.
 
   @retval TRUE   The subject matches an entry, or the database could not be fully parsed.
   @retval FALSE  The subject is definitively absent (including an absent/empty Dbx).
 **/
 BOOLEAN
 IsInDbx (
-  IN OUT DIGEST_CACHE     *Cache,
-  IN     CONST VOID       *Dbx,
-  IN     UINTN            DbxSize,
-  OUT    IMAGE_AUTHORITY  *Authority  OPTIONAL
+  IN OUT DIGEST_CACHE  *Cache,
+  IN     CONST VOID    *Dbx,
+  IN     UINTN         DbxSize
   )
 {
   BOOLEAN  Found;
@@ -331,7 +312,7 @@ IsInDbx (
   // dbx, or an uncomputable hash - is surfaced through Truncated by FindInDatabase and treated
   // here as "present".
   //
-  Found = FindInDatabase (Cache, Dbx, DbxSize, Authority, &Truncated);
+  Found = FindInDatabase (Cache, Dbx, DbxSize, &Truncated);
 
   return (BOOLEAN)(Found || Truncated);
 }
@@ -411,10 +392,6 @@ GetWinCertificatePkcs7AuthData (
   @param[in]  CertChainSize      Size of CertChain in bytes.
   @param[in]  Dbx                Raw dbx contents, or NULL.
   @param[in]  DbxSize            Size of Dbx in bytes; 0 when Dbx is NULL.
-  @param[out] RevokingAuthority  Optional. On an actual dbx match, receives the revoking
-                                 EFI_SIGNATURE_DATA entry (which points into Dbx). Zeroed when the
-                                 revoked result is due to fail-closed handling rather than a match,
-                                 and whenever the chain is not revoked.
 
   @retval TRUE   A certificate in the chain is revoked, or the chain could not be parsed (fail
                  closed).
@@ -422,11 +399,10 @@ GetWinCertificatePkcs7AuthData (
 **/
 BOOLEAN
 IsChainRevoked (
-  IN  CONST UINT8      *CertChain,
-  IN  UINTN            CertChainSize,
-  IN  CONST VOID       *Dbx,
-  IN  UINTN            DbxSize,
-  OUT IMAGE_AUTHORITY  *RevokingAuthority  OPTIONAL
+  IN  CONST UINT8  *CertChain,
+  IN  UINTN        CertChainSize,
+  IN  CONST VOID   *Dbx,
+  IN  UINTN        DbxSize
   )
 {
   CONST UINT8   *Walker;
@@ -436,12 +412,6 @@ IsChainRevoked (
   UINT32        CertLen;
   BOOLEAN       Revoked;
   DIGEST_CACHE  CertCache;
-
-  if (RevokingAuthority != NULL) {
-    RevokingAuthority->Data = NULL;
-    RevokingAuthority->Size = 0;
-    ZeroMem (&RevokingAuthority->SignatureType, sizeof (EFI_GUID));
-  }
 
   //
   // With no dbx there is nothing to revoke against.
@@ -487,7 +457,7 @@ IsChainRevoked (
     CertCache.Buffer     = Walker;
     CertCache.BufferSize = CertLen;
 
-    if (IsInDbx (&CertCache, Dbx, DbxSize, RevokingAuthority)) {
+    if (IsInDbx (&CertCache, Dbx, DbxSize)) {
       DEBUG ((DEBUG_INFO, "DxeImageVerificationLib: chain certificate revoked by dbx.\n"));
       Revoked = TRUE;
       break;
@@ -517,10 +487,10 @@ IsChainRevoked (
   @param[in,out]  Cache       Image digest cache bound to the image buffer; the cache may memoize
                               one digest per algorithm across calls.
   @param[in]      Databases   The `db` / `dbx` signature databases to evaluate against.
-  @param[out]     Evaluation  On EFI_SUCCESS, receives the verdict and the responsible authority:
-                              the authorizing `db` entry when ImageCertApproved (for measurement),
-                              or the revoking `dbx` entry when ImageCertRevokedByDbx.
-                              Evaluation->Authority.Data is non-NULL for those two verdicts only;
+  @param[out]     Evaluation  On EFI_SUCCESS, receives the verdict and, for ImageCertApproved, the
+                              authorizing certificate in Evaluation->Authority (for measurement).
+                              Evaluation->Authority.Data is non-NULL only for ImageCertApproved; a
+                              revoked or unauthorized image records no authority.
                               Evaluation->Authority.SignatureType carries the image-hash algorithm
                               once it has been determined, regardless of verdict.
 
@@ -550,11 +520,11 @@ EvaluateImageCertificate (
   VOID                      *CacheHandle;
   UINT8                     *Anchor;
   UINTN                     AnchorSize;
+  UINTN                     TbsHashSize;
   UINT8                     *CertChain;
   UINTN                     CertChainSize;
   UINTN                     OwnerSize;
   SIGNATURE_KIND            Kind;
-  IMAGE_AUTHORITY           RevokingAuthority;
 
   if ((Cert == NULL) || (Cache == NULL) || (Databases == NULL) || (Evaluation == NULL)) {
     return EFI_INVALID_PARAMETER;
@@ -644,14 +614,22 @@ EvaluateImageCertificate (
         AnchorSize = List->SignatureSize - OwnerSize;
       } else {
         //
-        // TBS-cert-hash entry: recover the certificate it names from the signature into a freshly
-        // allocated buffer. Entries that resolve to no certificate (or error) cannot anchor a
-        // chain, so move on.
+        // Recover the trust anchor from the TBS-cert-hash entry. V1 entries have a trailing EFI_TIME
+        // structure after the hash where as V2 entries do not. Adjust the hash size accordingly.
         //
+        TbsHashSize = List->SignatureSize - OwnerSize;
+        if (OwnerSize == sizeof (EFI_GUID)) {
+          if (TbsHashSize <= sizeof (EFI_TIME)) {
+            continue;
+          }
+
+          TbsHashSize -= sizeof (EFI_TIME);
+        }
+
         Status = GetTrustAnchorX509FromAuthData (
                    &CacheHandle,
                    (CONST UINT8 *)Entry + OwnerSize,
-                   List->SignatureSize - OwnerSize,
+                   TbsHashSize,
                    AuthData,
                    AuthDataSize,
                    &Anchor,
@@ -683,23 +661,30 @@ EvaluateImageCertificate (
               CertChain,
               CertChainSize,
               Databases->Dbx,
-              Databases->DbxSize,
-              &RevokingAuthority
+              Databases->DbxSize
               ))
         {
           //
-          // Verified but revoked: record the revoking `dbx` entry as the denying authority so the
-          // rejection can be attributed later. A subsequent anchor may still authorize the image
-          // cleanly and override this verdict. The image-hash algorithm already recorded on
-          // Evaluation->Authority.SignatureType is left intact.
+          // Verified but revoked: record only the verdict. The revoking authority is intentionally
+          // not captured - an image may carry several signers, each revoked by a different `dbx`
+          // entry, so no single entry meaningfully attributes the denial. A subsequent anchor may
+          // still authorize the image cleanly and replace this verdict.
           //
-          Evaluation->Verdict        = ImageCertRevokedByDbx;
-          Evaluation->Authority.Data = RevokingAuthority.Data;
-          Evaluation->Authority.Size = RevokingAuthority.Size;
+          Evaluation->Verdict = ImageCertRevokedByDbx;
         } else {
-          Evaluation->Verdict        = ImageCertApproved;
-          Evaluation->Authority.Data = Entry;
-          Evaluation->Authority.Size = List->SignatureSize;
+          //
+          // Authorized: record the authorizing certificate. Anchor is the certificate bytes
+          // (borrowed from the `db` for a full-cert entry, reconstructed for a TBS-cert-hash entry);
+          // BuildImageAuthority copies it before it is released below. The owner GUID comes from a
+          // V1 entry or is zeroed for a V2 entry.
+          //
+          Evaluation->Verdict = ImageCertApproved;
+          BuildImageAuthority (
+            (OwnerSize == sizeof (EFI_GUID)) ? (CONST EFI_GUID *)Entry : NULL,
+            Anchor,
+            AnchorSize,
+            &Evaluation->Authority
+            );
         }
       }
 

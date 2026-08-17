@@ -38,8 +38,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @param[in]   FileSize     Size of FileBuffer in bytes.
   @param[in]   SecDataDir   Security data directory describing the embedded WIN_CERTIFICATE table.
                             A Size of 0 indicates an unsigned image.
-  @param[in,out] Measured   Authority measurement state used to record the `db` entry that
-                            authorized the image into PCR 7 (de-duplicated across images).
+  @param[in,out] Measured   Authority measurement state used to record the `db` certificate that
+                            authorized the image into PCR 7 (de-duplicated across images). Only
+                            certificate authorities are measured; image-hash authorizations are not.
 
   @retval EFI_SUCCESS        The image is authorized.
   @retval EFI_ACCESS_DENIED  The image is revoked, not authorized, or the
@@ -59,7 +60,6 @@ ValidateImage (
   SIGNATURE_DATABASES    Databases;
   WIN_CERT_ITER          CertIter;
   CONST WIN_CERTIFICATE  *Cert;
-  IMAGE_AUTHORITY        Authority;
   IMAGE_CERT_EVALUATION  CertEval;
 
   //
@@ -71,6 +71,12 @@ ValidateImage (
   Cache.Buffer     = FileBuffer;
   Cache.BufferSize = FileSize;
 
+  //
+  // Zeroed up front so every Exit path can safely release CertEval.Authority, even if the
+  // certificate walk never runs (unsigned image) or an earlier step rejects.
+  //
+  ZeroMem (&CertEval, sizeof (CertEval));
+
   Status = LoadSignatureDatabases (&Databases);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Failed to load signature databases (%r).\n", Status));
@@ -81,7 +87,7 @@ ValidateImage (
   // Step 1: Reject the image if its Authenticode hash is found in the `dbx`. A `dbx` that cannot
   // be fully parsed fails closed (IsInDbx returns TRUE), rejecting the image.
   //
-  if (IsInDbx (&Cache, Databases.Dbx, Databases.DbxSize, &Authority)) {
+  if (IsInDbx (&Cache, Databases.Dbx, Databases.DbxSize)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image hash is forbidden by DBX.\n"));
     goto Reject;
   }
@@ -102,7 +108,7 @@ ValidateImage (
     Status = EvaluateImageCertificate (Cert, &Cache, &Databases, &CertEval);
     if (!EFI_ERROR (Status) && (CertEval.Verdict == ImageCertApproved)) {
       //
-      // Measure the `db` trust anchor that authorized the image into PCR 7.
+      // Measure the `db` certificate that authorized the image into PCR 7.
       //
       SecureBootHook (
         Measured,
@@ -116,18 +122,10 @@ ValidateImage (
   }
 
   //
-  // Step 3: Authorize the image if the image authenticode hash is in the `db`.
+  // Step 3: Authorize the image if the image authenticode hash is in the `db`. Image-hash
+  // authorization is intentionally not measured into PCR 7 - only certificate authorities are.
   //
-  if (IsInDb (&Cache, Databases.Db, Databases.DbSize, &Authority)) {
-    //
-    // Measure the `db` image-hash entry that authorized the image into PCR 7.
-    //
-    SecureBootHook (
-      Measured,
-      EFI_IMAGE_SECURITY_DATABASE,
-      &gEfiImageSecurityDatabaseGuid,
-      &Authority
-      );
+  if (IsInDb (&Cache, Databases.Db, Databases.DbSize)) {
     Status = EFI_SUCCESS;
     goto Exit;
   }
@@ -138,6 +136,8 @@ Reject:
   Status = EFI_ACCESS_DENIED;
 
 Exit:
+  FreeImageAuthority (&CertEval.Authority);
+
   if (Databases.Db != NULL) {
     FreePool (Databases.Db);
   }

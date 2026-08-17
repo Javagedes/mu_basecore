@@ -141,4 +141,43 @@ GetSignatureTypeInfo (
   OUT UINTN           *OwnerSize
   );
 
+/**
+  Populate Authority with a newly allocated V1 EFI_SIGNATURE_DATA that wraps a certificate payload.
+
+  The allocation is a 16-byte SignatureOwner followed by a copy of Payload. It is owned by the
+  caller and released with FreeImageAuthority (). Authority->SignatureType is left unchanged so a
+  caller may record the image-hash algorithm independently.
+
+  @param[in]   Owner        SignatureOwner GUID to store, or NULL to store a zeroed GUID (used for a
+                            matching V2 EFI_SIGNATURE_V2_DATA entry, which carries no owner).
+  @param[in]   Payload      The certificate (or other signature payload) to copy.
+  @param[in]   PayloadSize  Size of Payload in bytes.
+  @param[out]  Authority    On success, Authority->Data references the allocated EFI_SIGNATURE_DATA
+                            and Authority->Size is its total length.
+
+  @retval EFI_SUCCESS            Authority was populated.
+  @retval EFI_INVALID_PARAMETER  Payload or Authority is NULL, or PayloadSize is 0 or too large.
+  @retval EFI_OUT_OF_RESOURCES   The allocation failed.
+**/
+EFI_STATUS
+BuildImageAuthority (
+  IN  CONST EFI_GUID   *Owner  OPTIONAL,
+  IN  CONST UINT8      *Payload,
+  IN  UINTN            PayloadSize,
+  OUT IMAGE_AUTHORITY  *Authority
+  );
+
+/**
+  Release the allocation owned by an IMAGE_AUTHORITY.
+
+  Frees Authority->Data (if any) and clears Authority->Data / Authority->Size. Authority->SignatureType
+  is left intact. Safe to call on an already-empty authority or a NULL pointer.
+
+  @param[in,out]  Authority  Authority whose owned Data is released.
+**/
+VOID
+FreeImageAuthority (
+  IN OUT IMAGE_AUTHORITY  *Authority
+  );
+
 #endif // DXE_IMAGE_VERIFICATION_LIB_SUPPORT_H_
