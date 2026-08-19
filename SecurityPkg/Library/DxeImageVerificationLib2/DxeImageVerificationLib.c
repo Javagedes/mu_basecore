@@ -61,15 +61,15 @@ ValidateImage (
   WIN_CERT_ITER          CertIter;
   CONST WIN_CERTIFICATE  *Cert;
   IMAGE_CERT_EVALUATION  CertEval;
+  UINT8                  *AuthImage;
+  UINTN                  AuthImageSize;
 
   //
   // Setup digest cache for the image. This prevents redundant authenticode hash computations
   // across the image-hash revocation check, per-cert authorization, and the image-hash fallback.
   //
   ZeroMem (&Cache, sizeof (Cache));
-  Cache.Type       = DigestCacheTypeImage;
-  Cache.Buffer     = FileBuffer;
-  Cache.BufferSize = FileSize;
+  AuthImage = NULL;
 
   //
   // Zeroed up front so every Exit path can safely release CertEval.Authority, even if the
@@ -84,10 +84,23 @@ ValidateImage (
   }
 
   //
-  // Step 1: Reject the image if its Authenticode hash is found in the `dbx`. A `dbx` that cannot
-  // be fully parsed fails closed (IsInDbx returns TRUE), rejecting the image.
+  // Pre-compute the Authenticode image (the exact bytes the image-hash checks hash) and bind the
+  // cache to it. Any failure to assemble it is a verification failure.
   //
-  if (IsInDbx (&Cache, Databases.Dbx, Databases.DbxSize)) {
+  Status = BuildAuthenticodeImage (FileBuffer, FileSize, &AuthImage, &AuthImageSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Failed to assemble the Authenticode image (%r).\n", Status));
+    goto Reject;
+  }
+
+  Cache.Buffer     = AuthImage;
+  Cache.BufferSize = AuthImageSize;
+
+  //
+  // Step 1: Reject the image if its Authenticode hash is found in the `dbx`. A `dbx` that cannot
+  // be fully parsed fails closed (IsImageHashInDbx returns TRUE), rejecting the image.
+  //
+  if (IsImageHashInDbx (&Cache, Databases.Dbx, Databases.DbxSize)) {
     DEBUG ((DEBUG_ERROR, "DxeImageVerificationLib: Image hash is forbidden by DBX.\n"));
     goto Reject;
   }
@@ -125,7 +138,7 @@ ValidateImage (
   // Step 3: Authorize the image if the image authenticode hash is in the `db`. Image-hash
   // authorization is intentionally not measured into PCR 7 - only certificate authorities are.
   //
-  if (IsInDb (&Cache, Databases.Db, Databases.DbSize)) {
+  if (IsImageHashInDb (&Cache, Databases.Db, Databases.DbSize)) {
     Status = EFI_SUCCESS;
     goto Exit;
   }
@@ -137,6 +150,12 @@ Reject:
 
 Exit:
   FreeImageAuthority (&CertEval.Authority);
+
+  FreeDigestCache (&Cache);
+
+  if (AuthImage != NULL) {
+    FreePool (AuthImage);
+  }
 
   if (Databases.Db != NULL) {
     FreePool (Databases.Db);

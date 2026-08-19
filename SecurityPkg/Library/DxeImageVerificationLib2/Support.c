@@ -7,156 +7,6 @@
 
 #include "Support.h"
 
-/**
-  Resolve the hash-algorithm table index for Guid according to cache type.
-
-  @param[in]   CacheType  Digest cache type selecting the compatible GUID namespace.
-  @param[in]   Guid       Candidate signature-type GUID.
-  @param[out]  Index      On TRUE return, receives Guid's position in mHashAlgorithms.
-
-  @retval TRUE   Guid matched an entry compatible with CacheType.
-  @retval FALSE  CacheType is unsupported, Guid is NULL, Index is NULL, or Guid is not compatible
-                 with CacheType.
-**/
-STATIC
-BOOLEAN
-GetIndex (
-  IN  DIGEST_CACHE_TYPE  CacheType,
-  IN  CONST EFI_GUID     *Guid,
-  OUT UINTN              *Index
-  )
-{
-  UINTN  I;
-
-  if ((Guid == NULL) || (Index == NULL)) {
-    return FALSE;
-  }
-
-  for (I = 0; I < ARRAY_SIZE (mHashAlgorithms); I++) {
-    switch (CacheType) {
-      case DigestCacheTypeImage:
-        if (((mHashAlgorithms[I].ImageHashGuid != NULL) && CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuid)) ||
-            ((mHashAlgorithms[I].ImageHashGuidV2 != NULL) && CompareGuid (Guid, mHashAlgorithms[I].ImageHashGuidV2)))
-        {
-          *Index = I;
-          return TRUE;
-        }
-
-        break;
-
-      case DigestCacheTypeX509:
-        if (((mHashAlgorithms[I].X509CertHashGuid != NULL) && CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuid)) ||
-            ((mHashAlgorithms[I].X509CertHashGuidV2 != NULL) && CompareGuid (Guid, mHashAlgorithms[I].X509CertHashGuidV2)))
-        {
-          *Index = I;
-          return TRUE;
-        }
-
-        break;
-
-      default:
-        return FALSE;
-    }
-  }
-
-  return FALSE;
-}
-
-/**
-  Get or compute a cached digest for HashType.
-
-  `Cache->Buffer` is the data to be hashed for cache miss while `Cache->Type` indicates how to
-  compute the digest.
-
-  Digest calculations are as follows:
-  - DigestCacheTypeImage: compute using GetAuthenticodeHash() with the specified HashType.
-  - DigestCacheTypeX509: compute using X509GetTbsCertHash() with the specified HashType.
-
-  @param[in]      HashType     Signature-type GUID identifying the hash algorithm to use.
-  @param[in,out]  Cache        Caller-owned digest cache bound to one buffer via Cache->Buffer /
-                               Cache->BufferSize.
-  @param[out]     Digest       On success, receives a pointer to the cached digest bytes. The
-                               pointer is valid for the lifetime of Cache.
-  @param[out]     DigestSize   On success, receives the digest length in bytes.
-
-  @retval EFI_SUCCESS            Digest / DigestSize describe a valid cached digest.
-  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
-  @retval EFI_UNSUPPORTED        HashType does not map to an entry in mHashAlgorithms compatible
-                                 with Cache->Type.
-  @retval EFI_COMPROMISED_DATA   Cache already holds a digest for this slot but the stored size is invalid.
-  @retval EFI_SECURITY_VIOLATION The hash operation failed.
-  @retval other                  Forwarded from GetAuthenticodeHash or X509GetTbsCertHash.
-**/
-EFI_STATUS
-GetHash (
-  IN     CONST EFI_GUID  *HashType,
-  IN OUT DIGEST_CACHE    *Cache,
-  OUT    CONST UINT8     **Digest,
-  OUT    UINTN           *DigestSize
-  )
-{
-  EFI_STATUS          Status;
-  UINTN               SlotIndex;
-  DIGEST_CACHE_ENTRY  *Slot;
-
-  if ((HashType == NULL) || (Cache == NULL) || (Cache->Buffer == NULL) ||
-      (Digest == NULL) || (DigestSize == NULL))
-  {
-    return EFI_INVALID_PARAMETER;
-  }
-
-  if (!GetIndex (Cache->Type, HashType, &SlotIndex)) {
-    return EFI_UNSUPPORTED;
-  }
-
-  Slot = &Cache->Entries[SlotIndex];
-
-  //
-  // Populate the cache entry if it is not already populated.
-  //
-  if (Slot->BufferSize == 0) {
-    switch (Cache->Type) {
-      case DigestCacheTypeImage:
-        Status = GetAuthenticodeHash (
-                   (VOID *)Cache->Buffer,
-                   Cache->BufferSize,
-                   mHashAlgorithms[SlotIndex].ImageHashGuid, // Map possible V2 GUID to the base GUID
-                   Slot->Bytes,
-                   &Slot->BufferSize
-                   );
-        if (EFI_ERROR (Status)) {
-          Slot->BufferSize = 0;
-          return EFI_SECURITY_VIOLATION;
-        }
-
-        break;
-
-      case DigestCacheTypeX509:
-        Status = X509GetTbsCertHash (
-                   (VOID *)Cache->Buffer,
-                   Cache->BufferSize,
-                   mHashAlgorithms[SlotIndex].ImageHashGuid, // Map the X509 hash type GUID to the base hash type GUID
-                   Slot->Bytes,
-                   &Slot->BufferSize
-                   );
-        if (EFI_ERROR (Status)) {
-          Slot->BufferSize = 0;
-          return EFI_SECURITY_VIOLATION;
-        }
-
-        break;
-
-      default:
-        Slot->BufferSize = 0;
-        return EFI_UNSUPPORTED;
-    }
-  }
-
-  *Digest     = Slot->Bytes;
-  *DigestSize = Slot->BufferSize;
-  return EFI_SUCCESS;
-}
-
 //
 // Image Handle that contains the image bytes and size.
 //
@@ -280,90 +130,291 @@ GetImageSecurityDataDirectory (
 }
 
 /**
-  Classify an EFI_SIGNATURE_LIST SignatureType GUID for the database walkers.
+  Append a region of the image to the assembled Authenticode message, with bounds checks.
 
-  In a single table lookup, reports what a list's entries enroll (Kind) and how they are laid out
-  (OwnerSize): entries of a V1 signature type begin with a 16-byte SignatureOwner
-  (EFI_SIGNATURE_DATA), while V2 entries omit it (EFI_SIGNATURE_V2_DATA). The payload therefore
-  begins OwnerSize bytes into each entry.
+  @param[in]      FileBuffer  The image bytes.
+  @param[in]      FileSize    Size of FileBuffer, and the capacity of Out.
+  @param[in]      Offset      Start of the region within FileBuffer.
+  @param[in]      Size        Length of the region in bytes.
+  @param[out]     Out         Destination buffer of FileSize bytes.
+  @param[in,out]  OutPos      Current write position in Out; advanced by Size on success.
 
-  @param[in]   SignatureType  The EFI_SIGNATURE_LIST SignatureType GUID.
-  @param[out]  Kind           On EFI_SUCCESS, the signature kind.
-  @param[out]  OwnerSize      On EFI_SUCCESS, the per-entry SignatureOwner size: 0 for a V2
-                              (EFI_SIGNATURE_V2_DATA) type, sizeof (EFI_GUID) for a V1
-                              (EFI_SIGNATURE_DATA) type.
-
-  @retval EFI_SUCCESS            SignatureType is recognized; Kind and OwnerSize are set.
-  @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
-  @retval EFI_UNSUPPORTED        SignatureType is not a supported signature type.
+  @retval EFI_SUCCESS     The region was copied (or Size was 0).
+  @retval EFI_LOAD_ERROR  The region falls outside FileBuffer or would overflow Out.
 **/
+STATIC
 EFI_STATUS
-GetSignatureTypeInfo (
-  IN  CONST EFI_GUID  *SignatureType,
-  OUT SIGNATURE_KIND  *Kind,
-  OUT UINTN           *OwnerSize
+AppendImageRegion (
+  IN     CONST UINT8  *FileBuffer,
+  IN     UINTN        FileSize,
+  IN     UINTN        Offset,
+  IN     UINTN        Size,
+  OUT    UINT8        *Out,
+  IN OUT UINTN        *OutPos
   )
 {
-  UINTN  Index;
+  if (Size == 0) {
+    return EFI_SUCCESS;
+  }
 
-  if ((SignatureType == NULL) || (Kind == NULL) || (OwnerSize == NULL)) {
+  //
+  // The source region must lie within the image, and the copy must fit the output buffer (a
+  // malformed image with overlapping regions could otherwise write past Out).
+  //
+  if ((Offset > FileSize) || (Size > FileSize - Offset) || (Size > FileSize - *OutPos)) {
+    return EFI_LOAD_ERROR;
+  }
+
+  CopyMem (Out + *OutPos, FileBuffer + Offset, Size);
+  *OutPos += Size;
+  return EFI_SUCCESS;
+}
+
+/**
+  Assemble the Authenticode image (the byte stream the Windows Authenticode algorithm hashes) for a
+  PE/COFF image.
+
+  Produces the exact bytes hashed for the Authenticode digest: the image with the optional-header
+  CheckSum field, the Certificate Table data-directory entry, and the trailing attribute-certificate
+  table excluded.
+
+  Caution: FileBuffer is attacker-controlled; every region is bounds-checked before it is copied.
+
+  @param[in]   FileBuffer     In-memory PE/COFF image.
+  @param[in]   FileSize       Size of FileBuffer in bytes.
+  @param[out]  AuthImage      On success, a pool-allocated buffer (caller frees with FreePool ())
+                              holding the assembled Authenticode image.
+  @param[out]  AuthImageSize  On success, the length of AuthImage in bytes.
+
+  @retval EFI_SUCCESS            AuthImage / AuthImageSize were populated.
+  @retval EFI_INVALID_PARAMETER  A required pointer is NULL or FileSize is 0.
+  @retval EFI_LOAD_ERROR         FileBuffer is not a well-formed PE/COFF image.
+  @retval EFI_OUT_OF_RESOURCES   An allocation failed.
+**/
+EFI_STATUS
+BuildAuthenticodeImage (
+  IN  VOID   *FileBuffer,
+  IN  UINTN  FileSize,
+  OUT UINT8  **AuthImage,
+  OUT UINTN  *AuthImageSize
+  )
+{
+  CONST UINT8                     *Image;
+  CONST EFI_IMAGE_DOS_HEADER      *DosHdr;
+  CONST EFI_IMAGE_NT_HEADERS32    *Nt32;
+  CONST EFI_IMAGE_NT_HEADERS64    *Nt64;
+  CONST EFI_IMAGE_SECTION_HEADER  *SectionTable;
+  EFI_IMAGE_SECTION_HEADER        *Sorted;
+  UINT8                           *Out;
+  UINT32                          PeOffset;
+  UINT16                          Magic;
+  UINT16                          NumberOfSections;
+  UINT16                          SizeOfOptionalHeader;
+  UINT32                          NumberOfRvaAndSizes;
+  UINT32                          SizeOfHeaders;
+  UINT32                          CertSize;
+  UINTN                           ChecksumOffset;
+  UINTN                           SecDirOffset;
+  UINTN                           SectionTableOffset;
+  UINTN                           OutPos;
+  UINTN                           SumOfBytesHashed;
+  UINTN                           Remaining;
+  UINTN                           Index;
+  UINTN                           Pos;
+  EFI_STATUS                      Status;
+
+  if ((FileBuffer == NULL) || (AuthImage == NULL) || (AuthImageSize == NULL) || (FileSize == 0)) {
     return EFI_INVALID_PARAMETER;
   }
 
+  *AuthImage     = NULL;
+  *AuthImageSize = 0;
+  Image          = (CONST UINT8 *)FileBuffer;
+  Nt64           = NULL;
+  Sorted         = NULL;
+  Out            = NULL;
+
   //
-  // Full X.509 certificate lists carry a DER certificate and are not tracked in mHashAlgorithms.
+  // Locate the PE header (past the optional DOS stub) and require the full PE32 NT headers before
+  // dereferencing any optional-header field.
   //
-  if (CompareGuid (SignatureType, &gEfiCertX509Guid)) {
-    *Kind      = SignatureKindX509Cert;
-    *OwnerSize = sizeof (EFI_GUID);
-    return EFI_SUCCESS;
+  if (FileSize < sizeof (EFI_IMAGE_DOS_HEADER)) {
+    return EFI_LOAD_ERROR;
   }
 
-  if (CompareGuid (SignatureType, &gEfiCertV2X509Guid)) {
-    *Kind      = SignatureKindX509Cert;
-    *OwnerSize = 0;
-    return EFI_SUCCESS;
+  DosHdr   = (CONST EFI_IMAGE_DOS_HEADER *)Image;
+  PeOffset = (DosHdr->e_magic == EFI_IMAGE_DOS_SIGNATURE) ? DosHdr->e_lfanew : 0;
+
+  if ((PeOffset > FileSize) || (FileSize - PeOffset < sizeof (EFI_IMAGE_NT_HEADERS32))) {
+    return EFI_LOAD_ERROR;
+  }
+
+  Nt32 = (CONST EFI_IMAGE_NT_HEADERS32 *)(Image + PeOffset);
+  if (Nt32->Signature != EFI_IMAGE_NT_SIGNATURE) {
+    return EFI_LOAD_ERROR;
+  }
+
+  Magic = Nt32->OptionalHeader.Magic;
+  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    NumberOfRvaAndSizes = Nt32->OptionalHeader.NumberOfRvaAndSizes;
+    SizeOfHeaders       = Nt32->OptionalHeader.SizeOfHeaders;
+    ChecksumOffset      = (CONST UINT8 *)&Nt32->OptionalHeader.CheckSum - Image;
+    SecDirOffset        = (CONST UINT8 *)&Nt32->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_SECURITY] - Image;
+    CertSize            = (NumberOfRvaAndSizes > EFI_IMAGE_DIRECTORY_ENTRY_SECURITY)
+                          ? Nt32->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_SECURITY].Size : 0;
+  } else if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+    if (FileSize - PeOffset < sizeof (EFI_IMAGE_NT_HEADERS64)) {
+      return EFI_LOAD_ERROR;
+    }
+
+    Nt64                = (CONST EFI_IMAGE_NT_HEADERS64 *)(Image + PeOffset);
+    NumberOfRvaAndSizes = Nt64->OptionalHeader.NumberOfRvaAndSizes;
+    SizeOfHeaders       = Nt64->OptionalHeader.SizeOfHeaders;
+    ChecksumOffset      = (CONST UINT8 *)&Nt64->OptionalHeader.CheckSum - Image;
+    SecDirOffset        = (CONST UINT8 *)&Nt64->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_SECURITY] - Image;
+    CertSize            = (NumberOfRvaAndSizes > EFI_IMAGE_DIRECTORY_ENTRY_SECURITY)
+                          ? Nt64->OptionalHeader.DataDirectory[EFI_IMAGE_DIRECTORY_ENTRY_SECURITY].Size : 0;
+  } else {
+    return EFI_LOAD_ERROR;
+  }
+
+  NumberOfSections     = Nt32->FileHeader.NumberOfSections;
+  SizeOfOptionalHeader = Nt32->FileHeader.SizeOfOptionalHeader;
+  SectionTableOffset   = (UINTN)PeOffset + sizeof (UINT32) + sizeof (EFI_IMAGE_FILE_HEADER) + SizeOfOptionalHeader;
+
+  if ((SectionTableOffset > FileSize) ||
+      ((FileSize - SectionTableOffset) / sizeof (EFI_IMAGE_SECTION_HEADER) < NumberOfSections))
+  {
+    return EFI_LOAD_ERROR;
+  }
+
+  SectionTable = (CONST EFI_IMAGE_SECTION_HEADER *)(Image + SectionTableOffset);
+
+  //
+  // The message only omits bytes (the checksum, the security directory entry, and the attribute
+  // certificate table), so it never exceeds the image size.
+  //
+  Out = AllocatePool (FileSize);
+  if (Out == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  OutPos = 0;
+
+  //
+  // Header up to the CheckSum field (the 4-byte CheckSum is then skipped).
+  //
+  Status = AppendImageRegion (Image, FileSize, 0, ChecksumOffset, Out, &OutPos);
+  if (EFI_ERROR (Status)) {
+    goto Done;
+  }
+
+  if (NumberOfRvaAndSizes <= EFI_IMAGE_DIRECTORY_ENTRY_SECURITY) {
+    //
+    // No Certificate Table directory entry: append the rest of the headers.
+    //
+    if (SizeOfHeaders < ChecksumOffset + sizeof (UINT32)) {
+      Status = EFI_LOAD_ERROR;
+      goto Done;
+    }
+
+    Status = AppendImageRegion (Image, FileSize, ChecksumOffset + sizeof (UINT32), SizeOfHeaders - (ChecksumOffset + sizeof (UINT32)), Out, &OutPos);
+    if (EFI_ERROR (Status)) {
+      goto Done;
+    }
+  } else {
+    //
+    // Append from after the CheckSum to the Certificate Table directory entry, skip that 8-byte
+    // entry, then append the remaining headers.
+    //
+    if (SecDirOffset < ChecksumOffset + sizeof (UINT32)) {
+      Status = EFI_LOAD_ERROR;
+      goto Done;
+    }
+
+    Status = AppendImageRegion (Image, FileSize, ChecksumOffset + sizeof (UINT32), SecDirOffset - (ChecksumOffset + sizeof (UINT32)), Out, &OutPos);
+    if (EFI_ERROR (Status)) {
+      goto Done;
+    }
+
+    if (SizeOfHeaders < SecDirOffset + sizeof (EFI_IMAGE_DATA_DIRECTORY)) {
+      Status = EFI_LOAD_ERROR;
+      goto Done;
+    }
+
+    Status = AppendImageRegion (Image, FileSize, SecDirOffset + sizeof (EFI_IMAGE_DATA_DIRECTORY), SizeOfHeaders - (SecDirOffset + sizeof (EFI_IMAGE_DATA_DIRECTORY)), Out, &OutPos);
+    if (EFI_ERROR (Status)) {
+      goto Done;
+    }
+  }
+
+  SumOfBytesHashed = SizeOfHeaders;
+
+  //
+  // Append each section's raw data in ascending PointerToRawData order.
+  //
+  if (NumberOfSections > 0) {
+    Sorted = AllocateZeroPool ((UINTN)NumberOfSections * sizeof (EFI_IMAGE_SECTION_HEADER));
+    if (Sorted == NULL) {
+      Status = EFI_OUT_OF_RESOURCES;
+      goto Done;
+    }
+
+    for (Index = 0; Index < NumberOfSections; Index++) {
+      Pos = Index;
+      while ((Pos > 0) && (SectionTable[Index].PointerToRawData < Sorted[Pos - 1].PointerToRawData)) {
+        CopyMem (&Sorted[Pos], &Sorted[Pos - 1], sizeof (EFI_IMAGE_SECTION_HEADER));
+        Pos--;
+      }
+
+      CopyMem (&Sorted[Pos], &SectionTable[Index], sizeof (EFI_IMAGE_SECTION_HEADER));
+    }
+
+    for (Index = 0; Index < NumberOfSections; Index++) {
+      if (Sorted[Index].SizeOfRawData == 0) {
+        continue;
+      }
+
+      Status = AppendImageRegion (Image, FileSize, Sorted[Index].PointerToRawData, Sorted[Index].SizeOfRawData, Out, &OutPos);
+      if (EFI_ERROR (Status)) {
+        goto Done;
+      }
+
+      SumOfBytesHashed += Sorted[Index].SizeOfRawData;
+    }
   }
 
   //
-  // Image-hash and X.509 TBS-cert-hash lists carry a digest. One pass over the table checks both
-  // roles across both layouts; a match in a V2 column reports a zero owner size.
+  // Trailing data after the sections, excluding the attribute-certificate table (CertSize bytes).
   //
-  for (Index = 0; Index < ARRAY_SIZE (mHashAlgorithms); Index++) {
-    if ((mHashAlgorithms[Index].ImageHashGuid != NULL) &&
-        CompareGuid (SignatureType, mHashAlgorithms[Index].ImageHashGuid))
-    {
-      *Kind      = SignatureKindImageHash;
-      *OwnerSize = sizeof (EFI_GUID);
-      return EFI_SUCCESS;
-    }
-
-    if ((mHashAlgorithms[Index].ImageHashGuidV2 != NULL) &&
-        CompareGuid (SignatureType, mHashAlgorithms[Index].ImageHashGuidV2))
-    {
-      *Kind      = SignatureKindImageHash;
-      *OwnerSize = 0;
-      return EFI_SUCCESS;
-    }
-
-    if ((mHashAlgorithms[Index].X509CertHashGuid != NULL) &&
-        CompareGuid (SignatureType, mHashAlgorithms[Index].X509CertHashGuid))
-    {
-      *Kind      = SignatureKindX509TbsHash;
-      *OwnerSize = sizeof (EFI_GUID);
-      return EFI_SUCCESS;
-    }
-
-    if ((mHashAlgorithms[Index].X509CertHashGuidV2 != NULL) &&
-        CompareGuid (SignatureType, mHashAlgorithms[Index].X509CertHashGuidV2))
-    {
-      *Kind      = SignatureKindX509TbsHash;
-      *OwnerSize = 0;
-      return EFI_SUCCESS;
+  if (FileSize > SumOfBytesHashed) {
+    Remaining = FileSize - SumOfBytesHashed;
+    if (Remaining > CertSize) {
+      Status = AppendImageRegion (Image, FileSize, SumOfBytesHashed, Remaining - CertSize, Out, &OutPos);
+      if (EFI_ERROR (Status)) {
+        goto Done;
+      }
+    } else if (Remaining < CertSize) {
+      Status = EFI_LOAD_ERROR;
+      goto Done;
     }
   }
 
-  return EFI_UNSUPPORTED;
+  *AuthImage     = Out;
+  *AuthImageSize = OutPos;
+  Out            = NULL;
+  Status         = EFI_SUCCESS;
+
+Done:
+  if (Sorted != NULL) {
+    FreePool (Sorted);
+  }
+
+  if (Out != NULL) {
+    FreePool (Out);
+  }
+
+  return Status;
 }
 
 /**

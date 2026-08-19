@@ -345,3 +345,80 @@ WinCertIterNext (
   Iter->Remaining -= EntrySize;
   return Cert;
 }
+
+/**
+  Walk each entry of every EFI_SIGNATURE_LIST in a signature database, invoking Visit for each, and
+  report whether Visit stopped the walk.
+
+  This is the single iteration primitive shared by the membership searches and the certificate
+  evaluator. It owns the database and list iterators and accounts structural truncation, but does
+  not interpret entries: it hands each entry's SignatureType, bytes, and size to Visit, which
+  classifies and locates the payload itself. Visit may skip the rest of a list (WalkSkipList) or end
+  the walk (WalkStop).
+
+  @param[in]      Database      Raw database contents, or NULL for an empty database.
+  @param[in]      DatabaseSize  Size of Database in bytes; 0 when Database is NULL.
+  @param[in]      Visit         Per-entry callback. Required.
+  @param[in,out]  Context       State threaded to Visit.
+  @param[out]     Truncated     Optional. Set TRUE if the walk could not be proven complete (a
+                                malformed database or list clamped the range).
+
+  @retval TRUE   Visit returned WalkStop for some entry.
+  @retval FALSE  The walk completed without Visit stopping it.
+**/
+BOOLEAN
+WalkDatabase (
+  IN     CONST VOID         *Database,
+  IN     UINTN              DatabaseSize,
+  IN     SIG_ENTRY_VISITOR  Visit,
+  IN OUT VOID               *Context,
+  OUT    BOOLEAN            *Truncated   OPTIONAL
+  )
+{
+  SIG_DATABASE_ITER         DbIter;
+  SIG_LIST_ITER             ListIter;
+  CONST EFI_SIGNATURE_LIST  *List;
+  CONST EFI_SIGNATURE_DATA  *Entry;
+  WALK_ACTION               Action;
+
+  if (Truncated != NULL) {
+    *Truncated = FALSE;
+  }
+
+  //
+  // An absent database matches nothing and is not a truncation.
+  //
+  if ((Database == NULL) || (DatabaseSize == 0)) {
+    return FALSE;
+  }
+
+  //
+  // DatabaseIterInit clamps the walk to the valid prefix; a FALSE return means trailing lists
+  // were dropped.
+  //
+  if (!DatabaseIterInit (&DbIter, Database, DatabaseSize) && (Truncated != NULL)) {
+    *Truncated = TRUE;
+  }
+
+  while ((List = DatabaseIterNext (&DbIter)) != NULL) {
+    if (!SigListIterInit (&ListIter, List) && (Truncated != NULL)) {
+      *Truncated = TRUE;
+    }
+
+    while ((Entry = SigListIterNext (&ListIter)) != NULL) {
+      Action = Visit (&List->SignatureType, Entry, List->SignatureSize, Context);
+      if (Action == WalkStop) {
+        return TRUE;
+      }
+
+      //
+      // A visitor that recognizes the list's type as irrelevant skips its remaining entries.
+      //
+      if (Action == WalkSkipList) {
+        break;
+      }
+    }
+  }
+
+  return FALSE;
+}
