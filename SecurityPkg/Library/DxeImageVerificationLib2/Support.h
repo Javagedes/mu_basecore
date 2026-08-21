@@ -34,9 +34,9 @@ typedef struct {
 /**
   Get or compute the cached digest of the cache's buffer under a hash algorithm.
 
-  On a cache hit the memoized digest is returned; on a miss the buffer is hashed with HashAll () and
-  the result is memoized in a newly allocated entry (keyed by HashAlgorithm) before being returned.
-  The digest bytes remain valid until FreeDigestCache ().
+  On a cache hit the memoized digest is returned; on a miss the buffer is hashed with HashAllByGuid ()
+  and the result is memoized in a newly allocated entry (keyed by HashAlgorithm) before being
+  returned. The digest bytes remain valid until FreeDigestCache ().
 
   @param[in]      HashAlgorithm  Protocol/Hash.h algorithm GUID (EFI_HASH_ALGORITHM_*_GUID).
   @param[in,out]  Cache          Caller-owned cache bound to a buffer via Cache->Buffer /
@@ -47,9 +47,8 @@ typedef struct {
 
   @retval EFI_SUCCESS            Digest / DigestSize describe a valid cached digest.
   @retval EFI_INVALID_PARAMETER  A required pointer is NULL.
-  @retval EFI_UNSUPPORTED        HashAlgorithm is not a supported algorithm.
   @retval EFI_OUT_OF_RESOURCES   A cache entry could not be allocated.
-  @retval EFI_SECURITY_VIOLATION The hash operation failed.
+  @retval other                  A failure computing the digest, propagated from HashAllByGuid ().
 **/
 EFI_STATUS
 GetHash (

@@ -60,25 +60,27 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 
 //
-// A gmock action for the Sha256HashAll () mock: copy Digest into the output digest buffer and report
+// A gmock action for the HashAllByGuid () mock: copy Digest into the output digest buffer and report
 // success, standing in for a real hash of the subject buffer.
 //
-static std::function<BOOLEAN (CONST VOID *, UINTN, UINT8 *)>
+static std::function<EFI_STATUS (CONST EFI_GUID *, CONST VOID *, UINTN, UINT8 *, UINTN *)>
 EmitDigest (
   const std::vector<UINT8>  &Digest
   )
 {
-  return [Digest](CONST VOID *Data, UINTN DataSize, UINT8 *HashValue) -> BOOLEAN {
-           (VOID)Data;
-           (VOID)DataSize;
-           CopyMem (HashValue, Digest.data (), Digest.size ());
-           return TRUE;
+  return [Digest](CONST EFI_GUID *HashType, CONST VOID *Buffer, UINTN BufferSize, UINT8 *Out, UINTN *DigestSize) -> EFI_STATUS {
+           (VOID)HashType;
+           (VOID)Buffer;
+           (VOID)BufferSize;
+           CopyMem (Out, Digest.data (), Digest.size ());
+           *DigestSize = Digest.size ();
+           return EFI_SUCCESS;
   };
 }
 
 //
 // A fixed non-zero buffer a subject digest cache is bound to. GetHash () forwards these bytes to the
-// mocked Sha256HashAll (), whose action determines the resulting digest, so their contents are
+// mocked HashAllByGuid (), whose action determines the resulting digest, so their contents are
 // irrelevant.
 //
 static UINT8  mSubjectBuffer[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
@@ -100,7 +102,7 @@ BindDigest (
   Cache.Buffer     = mSubjectBuffer;
   Cache.BufferSize = sizeof (mSubjectBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
     .WillRepeatedly (Invoke (EmitDigest (Digest)));
 
   return Cache;
@@ -329,8 +331,8 @@ TEST (IsImageHashInDbTest, HashComputationFailure_NotAuthorized) {
   Cache.Buffer     = mSubjectBuffer;
   Cache.BufferSize = sizeof (mSubjectBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
   // A hash failure means this list cannot authorize; a best-effort allow-list search reports absent.
   EXPECT_FALSE (IsImageHashInDb (&Cache, Db.data (), Db.size ()));
@@ -1019,8 +1021,8 @@ TEST (IsImageHashInDbxTest, HashComputationFailure_FailsClosed) {
   Cache.Buffer     = mSubjectBuffer;
   Cache.BufferSize = sizeof (mSubjectBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
   EXPECT_TRUE (IsImageHashInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
@@ -1101,8 +1103,8 @@ TEST (IsTbsHashInDbxTest, TbsHashComputeFails_ReturnsTrue) {
   Cache.Buffer     = mSubjectBuffer;
   Cache.BufferSize = sizeof (mSubjectBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
   EXPECT_TRUE (IsTbsHashInDbx (&Cache, Dbx.data (), Dbx.size ()));
 }
@@ -1603,7 +1605,7 @@ ExpectSignedImagePrelude (
   }
          )
        );
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
     .WillRepeatedly (Invoke (EmitDigest (std::vector<UINT8>(kSha256DigestSize, 0x55))));
 }
 
@@ -1703,7 +1705,7 @@ TEST (EvaluateImageCertificateTest, UnsupportedCertType_Unusable) {
   ZeroMem (&Eval, sizeof (Eval));
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _)).Times (0);
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _)).Times (0);
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerifyEx (_, _, _, _, _, _, _, _)).Times (0);
 
   EXPECT_EQ (EvaluateImageCertificate (&Cert, &Cache, &Databases, &Eval), EFI_SUCCESS);
@@ -1728,7 +1730,7 @@ TEST (EvaluateImageCertificateTest, HashAlgorithmFails_Unusable) {
 
   EXPECT_CALL (BaseCryptLibMock, GetAuthenticodeHashAlgorithm (_, _, _))
     .WillOnce (Return (EFI_UNSUPPORTED));
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _)).Times (0);
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _)).Times (0);
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerifyEx (_, _, _, _, _, _, _, _)).Times (0);
 
   EXPECT_EQ (
@@ -1745,8 +1747,8 @@ TEST (EvaluateImageCertificateTest, HashAlgorithmFails_Unusable) {
 }
 
 //
-// The image hash cannot be computed: Sha256HashAll fails, GetHash
-// surfaces EFI_SECURITY_VIOLATION, and EvaluateImageCertificate propagates it.
+// The image hash cannot be computed: HashAllByGuid fails, GetHash
+// surfaces the error, and EvaluateImageCertificate propagates it.
 // This is the only non-INVALID_PARAMETER error path; no verdict is asserted.
 //
 TEST (EvaluateImageCertificateTest, ImageHashFails_ReturnsError) {
@@ -1768,8 +1770,8 @@ TEST (EvaluateImageCertificateTest, ImageHashFails_ReturnsError) {
   }
          )
        );
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
   EXPECT_CALL (BaseCryptLibMock, AuthenticodeVerifyEx (_, _, _, _, _, _, _, _)).Times (0);
 
   EXPECT_EQ (
@@ -1779,7 +1781,7 @@ TEST (EvaluateImageCertificateTest, ImageHashFails_ReturnsError) {
       &Databases,
       &Eval
       ),
-    EFI_SECURITY_VIOLATION
+    EFI_DEVICE_ERROR
     );
 }
 

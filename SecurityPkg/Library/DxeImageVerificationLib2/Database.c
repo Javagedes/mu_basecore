@@ -138,7 +138,7 @@ typedef struct {
   WalkDatabase visitor: match the cache's digest against a hash-list entry.
 
   Uses the SignatureType to look up the hash algorithm to retrieve (or compute) the digest from
-  the cache, then compare the digest against the entry. 
+  the cache, then compare the digest against the entry.
 
   @param[in]      SignatureType  The list's SignatureType GUID.
   @param[in]      Entry          The current entry (raw bytes).
@@ -666,7 +666,7 @@ typedef struct {
   is recovered from the signature), attempt to verify the image. If it verifies, check if any certificate
   in the available chain (from signer to trust anchor) is revoked by the `dbx`. If none are revoked,
   record the authorizing certificate in the evaluation record and stop the walk. Otherwise continue
-  the walk. 
+  the walk.
 
   @param[in]      SignatureType  The list's SignatureType GUID.
   @param[in]      Entry          The current entry (raw bytes).

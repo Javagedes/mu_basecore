@@ -282,25 +282,27 @@ TEST_F (GetImageSecurityDataDirectoryTest, OtherDataDirectoriesDoNotLeak) {
 
 //
 // A fixed non-zero buffer for the cache to hash. GetHash () only forwards these bytes to the mocked
-// Sha*HashAll (), so their exact contents do not affect the assertions below.
+// HashAllByGuid (), so their exact contents do not affect the assertions below.
 //
 static UINT8  mCacheBuffer[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
 //
-// A gmock action for the Sha*HashAll () mocks: fill DigestSize bytes of the output digest with Fill
+// A gmock action for the HashAllByGuid () mock: fill DigestSize bytes of the output digest with Fill
 // and report success, standing in for a real hash of the bound buffer.
 //
-static std::function<BOOLEAN (CONST VOID *, UINTN, UINT8 *)>
+static std::function<EFI_STATUS (CONST EFI_GUID *, CONST VOID *, UINTN, UINT8 *, UINTN *)>
 FillDigest (
   UINTN  DigestSize,
   UINT8  Fill
   )
 {
-  return [DigestSize, Fill](CONST VOID *Data, UINTN DataSize, UINT8 *HashValue) -> BOOLEAN {
-           (VOID)Data;
-           (VOID)DataSize;
-           SetMem (HashValue, DigestSize, Fill);
-           return TRUE;
+  return [DigestSize, Fill](CONST EFI_GUID *HashType, CONST VOID *Buffer, UINTN BufferSize, UINT8 *Digest, UINTN *OutDigestSize) -> EFI_STATUS {
+           (VOID)HashType;
+           (VOID)Buffer;
+           (VOID)BufferSize;
+           SetMem (Digest, DigestSize, Fill);
+           *OutDigestSize = DigestSize;
+           return EFI_SUCCESS;
   };
 }
 
@@ -330,19 +332,26 @@ TEST (GetHashTest, CacheWithoutFileBuffer_ReturnsInvalidParameter) {
 }
 
 TEST (GetHashTest, UnsupportedHashGuid_ReturnsUnsupported) {
-  EFI_GUID      UnknownGuid = {
+  MockBaseCryptLib  BaseCryptLibMock;
+  EFI_GUID          UnknownGuid = {
     0xA1B2C3D4,
     0x9999,
     0x8888,
     { 0x10,    0x20,0x30, 0x40, 0x50, 0x60, 0x70, 0x80 }
   };
-  DIGEST_CACHE  Cache;
-  CONST UINT8   *Digest    = NULL;
-  UINTN         DigestSize = 0;
+  DIGEST_CACHE      Cache;
+  CONST UINT8       *Digest    = NULL;
+  UINTN             DigestSize = 0;
 
   ZeroMem (&Cache, sizeof (Cache));
   Cache.Buffer     = mCacheBuffer;
   Cache.BufferSize = sizeof (mCacheBuffer);
+
+  //
+  // GetHash forwards the algorithm GUID to HashAllByGuid (), which rejects an unrecognized algorithm.
+  //
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_UNSUPPORTED));
 
   EXPECT_EQ (GetHash (&UnknownGuid, &Cache, &Digest, &DigestSize), EFI_UNSUPPORTED);
   EXPECT_EQ (Cache.Entries, nullptr);
@@ -358,7 +367,7 @@ TEST (GetHashTest, Sha256Miss_HashesBufferAndMemoizes) {
   Cache.Buffer     = mCacheBuffer;
   Cache.BufferSize = sizeof (mCacheBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
     .WillOnce (Invoke (FillDigest (SHA256_DIGEST_SIZE, 0x5A)));
 
   EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha256Guid, &Cache, &Digest, &DigestSize), EFI_SUCCESS);
@@ -385,10 +394,10 @@ TEST (GetHashTest, Sha256Hit_ReturnsMemoizedDigestWithoutRehashing) {
   Cache.BufferSize = sizeof (mCacheBuffer);
 
   //
-  // WillOnce means a second Sha256HashAll () call would fail the test, proving the second GetHash ()
+  // WillOnce means a second HashAllByGuid () call would fail the test, proving the second GetHash ()
   // is served from the memoized entry rather than re-hashing the buffer.
   //
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
     .WillOnce (Invoke (FillDigest (SHA256_DIGEST_SIZE, 0xC3)));
 
   EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha256Guid, &Cache, &Digest1, &DigestSize1), EFI_SUCCESS);
@@ -399,7 +408,7 @@ TEST (GetHashTest, Sha256Hit_ReturnsMemoizedDigestWithoutRehashing) {
   FreeDigestCache (&Cache);
 }
 
-TEST (GetHashTest, Sha256HashFailure_ReturnsSecurityViolationAndLeavesCacheEmpty) {
+TEST (GetHashTest, HashFailure_PropagatesErrorAndLeavesCacheEmpty) {
   MockBaseCryptLib  BaseCryptLibMock;
   DIGEST_CACHE      Cache;
   CONST UINT8       *Digest    = NULL;
@@ -409,10 +418,10 @@ TEST (GetHashTest, Sha256HashFailure_ReturnsSecurityViolationAndLeavesCacheEmpty
   Cache.Buffer     = mCacheBuffer;
   Cache.BufferSize = sizeof (mCacheBuffer);
 
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Return (FALSE));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .WillOnce (Return (EFI_DEVICE_ERROR));
 
-  EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha256Guid, &Cache, &Digest, &DigestSize), EFI_SECURITY_VIOLATION);
+  EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha256Guid, &Cache, &Digest, &DigestSize), EFI_DEVICE_ERROR);
   EXPECT_EQ (Cache.Entries, nullptr);
 }
 
@@ -431,15 +440,32 @@ TEST (GetHashTest, DistinctAlgorithms_MemoizedSeparately) {
   Cache.BufferSize = sizeof (mCacheBuffer);
 
   //
-  // Each Sha*HashAll () is expected exactly once: the second round of GetHash () calls below must be
-  // served from the three separate memoized entries.
+  // HashAllByGuid () is expected exactly three times - once per algorithm; the second round of
+  // GetHash () calls below must be served from the three separate memoized entries. The action fills
+  // a per-algorithm digest so each entry is distinguishable.
   //
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
-    .WillOnce (Invoke (FillDigest (SHA256_DIGEST_SIZE, 0x11)));
-  EXPECT_CALL (BaseCryptLibMock, Sha384HashAll (_, _, _))
-    .WillOnce (Invoke (FillDigest (SHA384_DIGEST_SIZE, 0x22)));
-  EXPECT_CALL (BaseCryptLibMock, Sha512HashAll (_, _, _))
-    .WillOnce (Invoke (FillDigest (SHA512_DIGEST_SIZE, 0x33)));
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
+    .Times (3)
+    .WillRepeatedly (
+       Invoke (
+         [] (CONST EFI_GUID *HashType, CONST VOID *Buffer, UINTN BufferSize, UINT8 *Digest, UINTN *DigestSize) -> EFI_STATUS {
+    (VOID)Buffer;
+    (VOID)BufferSize;
+    if (CompareGuid (HashType, &gEfiHashAlgorithmSha256Guid)) {
+      SetMem (Digest, SHA256_DIGEST_SIZE, 0x11);
+      *DigestSize = SHA256_DIGEST_SIZE;
+    } else if (CompareGuid (HashType, &gEfiHashAlgorithmSha384Guid)) {
+      SetMem (Digest, SHA384_DIGEST_SIZE, 0x22);
+      *DigestSize = SHA384_DIGEST_SIZE;
+    } else {
+      SetMem (Digest, SHA512_DIGEST_SIZE, 0x33);
+      *DigestSize = SHA512_DIGEST_SIZE;
+    }
+
+    return EFI_SUCCESS;
+  }
+         )
+       );
 
   EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha256Guid, &Cache, &Digest256, &DigestSize256), EFI_SUCCESS);
   EXPECT_EQ (GetHash (&gEfiHashAlgorithmSha384Guid, &Cache, &Digest384, &DigestSize384), EFI_SUCCESS);
@@ -472,9 +498,9 @@ TEST (GetHashTest, FreeDigestCache_ReleasesEntriesAndAllowsRecompute) {
 
   //
   // After FreeDigestCache () drops the memoized entry, a second GetHash () for the same algorithm is
-  // a fresh miss and hashes the buffer again, so Sha256HashAll () is expected twice.
+  // a fresh miss and hashes the buffer again, so HashAllByGuid () is expected twice.
   //
-  EXPECT_CALL (BaseCryptLibMock, Sha256HashAll (_, _, _))
+  EXPECT_CALL (BaseCryptLibMock, HashAllByGuid (_, _, _, _, _))
     .Times (2)
     .WillRepeatedly (Invoke (FillDigest (SHA256_DIGEST_SIZE, 0x77)));
 
