@@ -139,26 +139,24 @@ SigListIterNext (
   );
 
 /**
-  Initialize an iterator over the WIN_CERTIFICATE records contained in a PE/COFF image's security
-  data directory.
+  Initialize an iterator over a packed table of WIN_CERTIFICATE records (a PE/COFF image's
+  attribute-certificate data).
 
-  The initialization validates the list and will truncate the iteration range to the
-  last valid entry if the list if malformed.
+  The initialization validates the table and will truncate the iteration range to the last valid
+  entry if the table is malformed.
 
-  @param[out]  Iter        Iterator state to initialize.
-  @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]   FileSize    Size of FileBuffer in bytes.
-  @param[in]   SecDataDir  Security data directory describing the embedded WIN_CERTIFICATE table.
+  @param[out]  Iter             Iterator state to initialize.
+  @param[in]   WinCertificates  The WIN_CERTIFICATE table, or NULL when there are none.
+  @param[in]   Length           Length of the table in bytes; 0 when WinCertificates is NULL.
 
-  @retval TRUE   The iterator covers every entry in the list.
+  @retval TRUE   The iterator covers every entry in the table.
   @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
 BOOLEAN
 WinCertIterInit (
-  OUT WIN_CERT_ITER                   *Iter,
-  IN  CONST VOID                      *FileBuffer,
-  IN  UINTN                           FileSize,
-  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
+  OUT WIN_CERT_ITER          *Iter,
+  IN  CONST WIN_CERTIFICATE  *WinCertificates,
+  IN  UINTN                  Length
   );
 
 /**

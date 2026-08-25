@@ -222,26 +222,24 @@ SigListIterNext (
 }
 
 /**
-  Initialize an iterator over the WIN_CERTIFICATE records contained in a PE/COFF image's security
-  data directory.
+  Initialize an iterator over a packed table of WIN_CERTIFICATE records (a PE/COFF image's
+  attribute-certificate data).
 
-  The initialization validates the list and will truncate the iteration range to the
-  last valid entry if the list if malformed.
+  The initialization validates the table and will truncate the iteration range to the last valid
+  entry if the table is malformed.
 
-  @param[out]  Iter        Iterator state to initialize.
-  @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]   FileSize    Size of FileBuffer in bytes.
-  @param[in]   SecDataDir  Security data directory describing the embedded WIN_CERTIFICATE table.
+  @param[out]  Iter             Iterator state to initialize.
+  @param[in]   WinCertificates  The WIN_CERTIFICATE table, or NULL when there are none.
+  @param[in]   Length           Length of the table in bytes; 0 when WinCertificates is NULL.
 
-  @retval TRUE   The iterator covers every entry in the list.
+  @retval TRUE   The iterator covers every entry in the table.
   @retval FALSE  The iterator was truncated due to invalid arguments or a malformed table.
 **/
 BOOLEAN
 WinCertIterInit (
-  OUT WIN_CERT_ITER                   *Iter,
-  IN  CONST VOID                      *FileBuffer,
-  IN  UINTN                           FileSize,
-  IN  CONST EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
+  OUT WIN_CERT_ITER          *Iter,
+  IN  CONST WIN_CERTIFICATE  *WinCertificates,
+  IN  UINTN                  Length
   )
 {
   CONST UINT8            *Cursor;
@@ -257,25 +255,19 @@ WinCertIterInit (
   Iter->Remaining = 0;
 
   //
-  // Without a file buffer or directory, or with a directory that does not lie within the file, the
-  // certificate table cannot be located. Expose an empty iterator.
+  // A NULL table with a non-zero length is inconsistent input; expose an empty iterator and report
+  // truncation. An empty table (NULL / 0) is simply an image with no certificates.
   //
-  if ((FileBuffer == NULL) || (SecDataDir == NULL)) {
-    return FALSE;
-  }
-
-  if ((SecDataDir->VirtualAddress > FileSize) ||
-      (SecDataDir->Size > FileSize - SecDataDir->VirtualAddress))
-  {
-    return FALSE;
+  if (WinCertificates == NULL) {
+    return (BOOLEAN)(Length == 0);
   }
 
   //
   // Walk the certificate table. The first entry with a malformed dwLength, or a trailing fragment
   // too small to hold a header, marks the end of the valid iteration range.
   //
-  Cursor    = (CONST UINT8 *)FileBuffer + SecDataDir->VirtualAddress;
-  Remaining = SecDataDir->Size;
+  Cursor    = (CONST UINT8 *)WinCertificates;
+  Remaining = Length;
 
   while (Remaining > 0) {
     if (Remaining < sizeof (WIN_CERTIFICATE)) {
@@ -308,8 +300,8 @@ WinCertIterInit (
   // Remaining is the size of the tail that could not be parsed; the valid prefix is everything
   // that came before it.
   //
-  Iter->Cursor    = (CONST UINT8 *)FileBuffer + SecDataDir->VirtualAddress;
-  Iter->Remaining = SecDataDir->Size - Remaining;
+  Iter->Cursor    = (CONST UINT8 *)WinCertificates;
+  Iter->Remaining = Length - Remaining;
   return (BOOLEAN)(Remaining == 0);
 }
 

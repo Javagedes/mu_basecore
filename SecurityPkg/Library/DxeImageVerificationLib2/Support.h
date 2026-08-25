@@ -9,8 +9,6 @@
 
 #include "DxeImageVerificationLib.h"
 
-#include <Library/PeCoffLib.h>
-
 //
 // A memoized digest owned by a `DIGEST_CACHE`, allocated on demand by GetHash () and released by
 // FreeDigestCache (). The layout is private to Cache.c.
@@ -69,62 +67,6 @@ GetHash (
 VOID
 FreeDigestCache (
   IN OUT DIGEST_CACHE  *Cache
-  );
-
-/**
-  Locate the EFI_IMAGE_DIRECTORY_ENTRY_SECURITY data directory in the
-  PE/COFF image contained in FileBuffer.
-
-  Caution: This function may receive untrusted input. The PE/COFF image
-  is external input and is bounds-checked by PeCoffLib before any field
-  is dereferenced.
-
-  @param[in]   FileBuffer  Pointer to the in-memory PE/COFF image.
-  @param[in]   FileSize    BufferSize of FileBuffer in bytes.
-  @param[out]  SecDataDir  On success, filled with a copy of the image's
-                           security data directory entry. Zeroed when
-                           the image declares no security directory.
-
-  @retval EFI_SUCCESS            SecDataDir has been populated.
-  @retval EFI_INVALID_PARAMETER  FileBuffer or SecDataDir is NULL.
-  @retval EFI_LOAD_ERROR         FileBuffer does not contain a valid
-                                 PE/COFF image, or PeCoffLib otherwise
-                                 rejected the headers.
-**/
-EFI_STATUS
-GetImageSecurityDataDirectory (
-  IN  VOID                      *FileBuffer,
-  IN  UINTN                     FileSize,
-  OUT EFI_IMAGE_DATA_DIRECTORY  *SecDataDir
-  );
-
-/**
-  Assemble the Authenticode image (the byte stream the Windows Authenticode algorithm hashes) for a
-  PE/COFF image.
-
-  Produces the exact bytes hashed for the Authenticode digest: the image with the optional-header
-  CheckSum field, the Certificate Table data-directory entry, and the trailing attribute-certificate
-  table excluded.
-
-  Caution: FileBuffer is attacker-controlled; every region is bounds-checked before it is copied.
-
-  @param[in]   FileBuffer     In-memory PE/COFF image.
-  @param[in]   FileSize       Size of FileBuffer in bytes.
-  @param[out]  AuthImage      On success, a pool-allocated buffer (caller frees with FreePool ())
-                              holding the assembled Authenticode image.
-  @param[out]  AuthImageSize  On success, the length of AuthImage in bytes.
-
-  @retval EFI_SUCCESS            AuthImage / AuthImageSize were populated.
-  @retval EFI_INVALID_PARAMETER  A required pointer is NULL or FileSize is 0.
-  @retval EFI_LOAD_ERROR         FileBuffer is not a well-formed PE/COFF image.
-  @retval EFI_OUT_OF_RESOURCES   An allocation failed.
-**/
-EFI_STATUS
-BuildAuthenticodeImage (
-  IN  VOID   *FileBuffer,
-  IN  UINTN  FileSize,
-  OUT UINT8  **AuthImage,
-  OUT UINTN  *AuthImageSize
   );
 
 //

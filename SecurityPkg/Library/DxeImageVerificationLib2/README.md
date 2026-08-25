@@ -57,13 +57,14 @@ flowchart TD
     D -- yes --> D1[return EFI_SUCCESS]
     D -- no  --> E{{IsSecureBootEnabled?}}
     E -- no  --> E1[return EFI_SUCCESS]
-    E -- yes --> F[GetImageSecurityDataDirectory]
-    F --> I[ValidateImage]
+    E -- yes --> F[BuildAuthenticodeImage]
+    F --> G[GetWinCertificates]
+    G --> I[ValidateImage]
 
     classDef drill fill:#d9ecff,stroke:#2f6fb2,color:#000;
     class I drill;
     classDef libclass fill:#ffe6a7,stroke:#d9822b,color:#000;
-    class E libclass;
+    class E,F,G libclass;
 ```
 
 Notes:
@@ -75,11 +76,13 @@ Notes:
   majority of invocations.
 - If Secure Boot is disabled the handler returns `EFI_SUCCESS` without
   inspecting the image.
-- A PE/COFF parse failure in `GetImageSecurityDataDirectory` is treated
-  as a verification failure (its status is returned).
+- The handler assembles the Authenticode image (`BuildAuthenticodeImage`)
+  and locates the embedded `WIN_CERTIFICATE` table (`GetWinCertificates`)
+  via `AuthenticodeLib`, then hands both to `ValidateImage`. A failure to
+  parse the image in either is treated as a verification failure.
 - There is **one** authorizer. `ValidateImage` handles both signed and
-  unsigned images; a `SecDataDir.Size == 0` simply yields an empty
-  `WIN_CERTIFICATE` iterator.
+  unsigned images; an unsigned image simply has an empty `WIN_CERTIFICATE`
+  table, so the iterator is empty.
 
 ## 2. `ValidateImage`
 

@@ -43,6 +43,7 @@
   SecurityPkg/SecurityPkg.dec
 
 [LibraryClasses]
+  AuthenticodeLib
   MemoryAllocationLib
   BaseLib
   UefiLib
@@ -52,7 +53,6 @@
   BaseMemoryLib
   DebugLib
   DevicePathLib
-  PeCoffLib
   SecureBootVariableLib
   SecurityManagementLib
   TpmMeasurementLib

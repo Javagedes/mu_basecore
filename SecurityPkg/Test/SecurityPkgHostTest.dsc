@@ -70,6 +70,7 @@ SecurityPkg/Library/DxeImageVerificationLib2/GoogleTest/DxeImageVerificationLibG
       UefiBootServicesTableLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiBootServicesTableLib/MockUefiBootServicesTableLib.inf
       DevicePathLib|MdePkg/Test/Mock/Library/GoogleTest/MockDevicePathLib/MockDevicePathLib.inf
       DxeImageVerificationLib|SecurityPkg/Library/DxeImageVerificationLib2/DxeImageVerificationLib.inf
+      AuthenticodeLib|SecurityPkg/Library/AuthenticodeLib/AuthenticodeLib.inf
       BaseCryptLib|CryptoPkg/Test/Mock/Library/GoogleTest/MockBaseCryptLib/MockBaseCryptLib.inf
       UefiLib|MdePkg/Test/Mock/Library/GoogleTest/MockUefiLib/MockUefiLib.inf
       SecureBootVariableLib|SecurityPkg/Test/Mock/Library/GoogleTest/MockSecureBootVariableLib/MockSecureBootVariableLib.inf
@@ -82,6 +83,13 @@ SecurityPkg/Library/DxeImageVerificationLib2/GoogleTest/DxeImageVerificationLibG
   SecurityPkg/Library/ImageSecureBootVerificationResultTableLib/GoogleTest/ImageSecureBootVerificationResultTableLibGoogleTest.inf {
     <LibraryClasses>
       ImageSecureBootVerificationResultTableLib|SecurityPkg/Library/ImageSecureBootVerificationResultTableLib/ImageSecureBootVerificationResultTableLib.inf
+  }
+
+  SecurityPkg/Library/AuthenticodeLib/GoogleTest/AuthenticodeLibGoogleTest.inf {
+    <LibraryClasses>
+      AuthenticodeLib|SecurityPkg/Library/AuthenticodeLib/AuthenticodeLib.inf
+      PeCoffLib|MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+      PeCoffExtraActionLib|MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf
   }
 
 [PcdsPatchableInModule]

@@ -23,6 +23,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
 #include <Library/SecurityManagementLib.h>
+#include <Library/AuthenticodeLib.h>
 #include <Pi/PiFirmwareFile.h>
 #include <Pi/PiFirmwareVolume.h>
 #include <Protocol/FirmwareVolume2.h>
